@@ -39,19 +39,31 @@ final way to invalidate the token at Telegram.
 Disconnecting removes the server copy. Revoke the key in OpenRouter settings too if
 you want it permanently disabled.
 
-## Commands
+## Natural-language tools
 
-- `/start` and `/help` explain the bot.
-- `/whoami` shows the caller's numeric Telegram ID.
-- `/status` shows safe connection and budget information.
-- `/image <idea>` creates one shared-budget image. `/meme` is an alias.
-- `/video <idea>` creates one short shared-budget video.
-- `/latest` resends the latest saved image or video in that chat.
+The bot has no slash-command menu. Speak normally. For example:
 
-Reply to an image with `/image` or `/video` to use it as a reference. Sending an image
+- `Make an image of the weird STOPAI hand pulling an emergency brake.`
+- `Animate the image I replied to.`
+- `Show me the latest three gallery items.`
+- `Bring back the image about a timeout.`
+- `Remove gallery item a1b2c3d4.` (operator only)
+- `Prepare the latest image for a post on X with this text: ...` (operator only)
+
+Reply to an image while asking for a new image or video to use it as a reference. Sending an image
 or video to the bot in a private chat saves only Telegram's reusable file ID and basic
 metadata. In a group, the upload must mention or reply to the bot. This lets people
 bring BYOK-made media into Telegram without charging the server again.
+
+Ask `What is my Telegram ID?` and put that numeric ID in `TELEGRAM_OPERATOR_IDS`.
+Only operators are given the gallery removal and X posting tools. A public X post is
+never immediate: the bot first shows a draft, then the same operator must reply
+`confirm post`. The draft expires after ten minutes. `cancel post` discards it.
+
+X posting also needs `X_POSTING_ENABLED=true` and an OAuth user access token in
+`X_USER_ACCESS_TOKEN`. The X app needs `tweet.read`, `tweet.write`, `users.read`, and
+`media.write` scopes. Image upload uses the simple media endpoint; video upload uses
+the INIT, APPEND, FINALIZE, and STATUS flow.
 
 ## Default limits
 

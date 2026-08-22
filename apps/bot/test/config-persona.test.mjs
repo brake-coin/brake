@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createBotConfig, usageLimits } from "../src/config.mjs";
 import { buildChatMessages, buildImagePrompt, STOPAI_SYSTEM_PROMPT } from "../src/persona.mjs";
-import { isAddressed } from "../src/telegram.mjs";
+import { botTools, hasExplicitXPostIntent, isAddressed } from "../src/telegram.mjs";
 
 test("bot defaults use strict shared media limits", () => {
   const config = createBotConfig({});
@@ -15,6 +15,18 @@ test("bot defaults use strict shared media limits", () => {
   });
   assert.equal(config.videoDailyCap, 2);
   assert.equal(config.requireTelegram, false);
+  assert.equal(config.xPostingEnabled, false);
+  assert.deepEqual([...createBotConfig({ TELEGRAM_OPERATOR_IDS: "12, nope,34" }).telegramOperatorIds], ["12", "34"]);
+});
+
+test("only operators receive destructive and public posting tools", () => {
+  const publicNames = botTools().map((tool) => tool.function.name);
+  const operatorNames = botTools({ isOperator: true }).map((tool) => tool.function.name);
+  assert.deepEqual(publicNames, ["gallery_list", "gallery_show", "generate_image", "generate_video"]);
+  assert.equal(operatorNames.includes("gallery_remove"), true);
+  assert.equal(operatorNames.includes("post_to_x"), true);
+  assert.equal(hasExplicitXPostIntent("post the latest image on X"), true);
+  assert.equal(hasExplicitXPostIntent("show the latest image"), false);
 });
 
 test("persona states pre-launch facts and keeps the weird hand", () => {

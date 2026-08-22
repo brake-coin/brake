@@ -42,6 +42,30 @@ test("shared chat uses the private credential provider", async () => {
   assert.equal(seen.options.headers.Authorization, "Bearer sk-or-private-test");
 });
 
+test("shared chat passes tools through and returns tool calls", async () => {
+  let body;
+  const client = new OpenRouterClient({
+    config: config(),
+    credentialProvider: async () => ({ key: "sk-or-private-test" }),
+    fetchImpl: async (_url, options) => {
+      body = JSON.parse(options.body);
+      return new Response(JSON.stringify({
+        choices: [{ message: {
+          content: null,
+          tool_calls: [{ id: "call-1", type: "function", function: { name: "gallery_list", arguments: "{}" } }]
+        } }],
+        usage: { cost: 0.02 }
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+  });
+  const tools = [{ type: "function", function: { name: "gallery_list", parameters: { type: "object" } } }];
+  const result = await client.chatStep([{ role: "user", content: "show the gallery" }], tools);
+  assert.deepEqual(body.tools, tools);
+  assert.equal(body.tool_choice, "auto");
+  assert.equal(result.message.tool_calls[0].function.name, "gallery_list");
+  assert.equal(result.costUsd, 0.02);
+});
+
 test("image generation sends canonical and user references", async () => {
   let body;
   const client = new OpenRouterClient({

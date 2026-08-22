@@ -38,3 +38,34 @@ test("store remembers Telegram media IDs without media bytes", async (t) => {
   assert.equal(store.latestMedia("42").fileId, "telegram-file-id");
   assert.equal(store.latestMedia("42").type, "video");
 });
+
+test("store manages chat-scoped galleries and expiring confirmations", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-bot-gallery-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  let now = new Date("2026-08-22T10:00:00.000Z");
+  const store = new BotStore(path.join(directory, "bot.json"), { now: () => now });
+  const first = await store.recordMedia({
+    chatId: "42", userId: "7", type: "image", fileId: "image-1", caption: "timeout poster"
+  });
+  await store.recordMedia({
+    chatId: "99", userId: "7", type: "video", fileId: "video-other", caption: "other chat"
+  });
+  assert.equal(store.listMedia("42").length, 1);
+  assert.equal(store.findMedia("42", first.id.slice(0, 8)).fileId, "image-1");
+  assert.equal(store.findMedia("42", "timeout").id, first.id);
+
+  const action = await store.stagePendingAction({
+    type: "x_post", chatId: "42", userId: "7", payload: { text: "STOPAI", mediaId: first.id }, expiresInMs: 1_000
+  });
+  assert.equal(store.pendingAction({ type: "x_post", chatId: "42", userId: "7" }).id, action.id);
+  assert.equal((await store.takePendingAction({ type: "x_post", chatId: "42", userId: "7" })).id, action.id);
+  assert.equal(await store.takePendingAction({ type: "x_post", chatId: "42", userId: "7" }), null);
+  await store.stagePendingAction({
+    type: "x_post", chatId: "42", userId: "7", payload: { text: "again" }, expiresInMs: 1_000
+  });
+  now = new Date("2026-08-22T10:00:02.000Z");
+  assert.equal(store.pendingAction({ type: "x_post", chatId: "42", userId: "7" }), null);
+
+  assert.equal((await store.removeMedia({ chatId: "42", mediaId: first.id })).id, first.id);
+  assert.equal(store.listMedia("42").length, 0);
+});

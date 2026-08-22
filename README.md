@@ -87,7 +87,7 @@ Owners connect both OpenRouter and the BotFather token through `/admin`. Both se
 are stored as private files on the encrypted Fly volume and are never returned to the
 browser.
 
-See [the Telegram guide](docs/TELEGRAM.md) for BotFather setup, commands, privacy,
+See [the Telegram guide](docs/TELEGRAM.md) for BotFather setup, natural-language tools, privacy,
 budgets, and deployment.
 
 ## Safety defaults
@@ -96,6 +96,7 @@ budgets, and deployment.
 - The token plan is locked to devnet and explicitly disables live deployment.
 - The bot replies only in private chats, when mentioned, or when directly replied to.
 - Shared chat and media have global and per-user hourly and daily limits.
+- X posting is disabled by default, operator-only, and needs a second confirmation.
 - Secrets belong in `.env`, which is ignored by Git.
 - Public BYOK keys stay in the visitor's browser tab. A separate admin-linked key is
   stored on the private Fly volume only for Telegram chat and limited bot media.
