@@ -15,6 +15,13 @@ function boolean(value, fallback) {
   return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
 }
 
+function idSet(value) {
+  return new Set(String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => /^\d+$/.test(item)));
+}
+
 export function createBotConfig(env = process.env) {
   return {
     telegramToken: env.TELEGRAM_BOT_TOKEN || "",
@@ -22,6 +29,7 @@ export function createBotConfig(env = process.env) {
     telegramRepliesEnabled: boolean(env.TELEGRAM_REPLIES_ENABLED, true),
     telegramImagesEnabled: boolean(env.TELEGRAM_IMAGES_ENABLED, true),
     telegramVideosEnabled: boolean(env.TELEGRAM_VIDEOS_ENABLED, true),
+    telegramOperatorIds: idSet(env.TELEGRAM_OPERATOR_IDS),
     telegramHandlerTimeoutMs: integer(env.TELEGRAM_HANDLER_TIMEOUT_MS, 720_000, {
       minimum: 30_000,
       maximum: 900_000
@@ -63,6 +71,16 @@ export function createBotConfig(env = process.env) {
     videoUserHourlyCap: integer(env.VIDEO_USER_HOURLY_CAP, 1),
     videoUserDailyCap: integer(env.VIDEO_USER_DAILY_CAP, 1),
     mediaDailySpendCapUsd: number(env.MEDIA_DAILY_SPEND_CAP_USD, 5),
+    xPostingEnabled: boolean(env.X_POSTING_ENABLED, false),
+    xUserAccessToken: env.X_USER_ACCESS_TOKEN || "",
+    xTimeoutMs: integer(env.X_TIMEOUT_MS, 120_000, {
+      minimum: 5_000,
+      maximum: 300_000
+    }),
+    xMaxPostCharacters: integer(env.X_MAX_POST_CHARACTERS, 280, {
+      minimum: 1,
+      maximum: 280
+    }),
     maxImageBytes: integer(env.MAX_IMAGE_BYTES, 15 * 1024 * 1024),
     maxVideoBytes: integer(env.MAX_VIDEO_BYTES, 48 * 1024 * 1024),
     maxReferenceBytes: integer(env.MAX_REFERENCE_BYTES, 10 * 1024 * 1024)

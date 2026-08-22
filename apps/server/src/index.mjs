@@ -7,6 +7,7 @@ import { createBotConfig } from "../../bot/src/config.mjs";
 import { OpenRouterClient } from "../../bot/src/openrouter.mjs";
 import { BotStore } from "../../bot/src/store.mjs";
 import { TelegramService } from "../../bot/src/telegram.mjs";
+import { XClient } from "../../bot/src/x.mjs";
 import {
   ADMIN_COOKIE,
   adminCookie,
@@ -65,10 +66,15 @@ const openRouter = new OpenRouterClient({
   config: botConfig,
   credentialProvider: () => credentialStore.read()
 });
+const xClient = new XClient({
+  config: botConfig,
+  credentialProvider: async () => ({ accessToken: botConfig.xUserAccessToken })
+});
 const telegram = new TelegramService({
   config: botConfig,
   store: botStore,
   openRouter,
+  xClient,
   canonicalReferenceDataUrl
 });
 

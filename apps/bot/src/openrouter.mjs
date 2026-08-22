@@ -26,6 +26,13 @@ function costFrom(payload) {
   return Number.isFinite(value) && value >= 0 ? value : 0;
 }
 
+function textFromContent(content) {
+  const text = Array.isArray(content)
+    ? content.map((part) => part?.text || "").join("")
+    : content;
+  return typeof text === "string" ? text.trim().slice(0, 4_000) : "";
+}
+
 export class OpenRouterError extends Error {
   constructor(message, status = 502) {
     super(message);
@@ -46,23 +53,42 @@ export class OpenRouterClient {
   }
 
   async chat(messages) {
-    const payload = await this.#json("/chat/completions", {
-      method: "POST",
-      body: JSON.stringify({
-        model: this.config.openRouterChatModel,
-        messages,
-        max_tokens: 350,
-        temperature: 0.7
-      })
-    }, 1_000_000);
-    const content = payload?.choices?.[0]?.message?.content;
-    const text = Array.isArray(content)
-      ? content.map((part) => part?.text || "").join("")
-      : content;
-    if (typeof text !== "string" || !text.trim()) {
+    const result = await this.chatStep(messages);
+    if (!result.message.content) {
       throw new OpenRouterError("The shared chat model returned no reply.");
     }
-    return { text: text.trim().slice(0, 4_000), costUsd: costFrom(payload) };
+    return { text: result.message.content, costUsd: result.costUsd };
+  }
+
+  async chatStep(messages, tools = []) {
+    const body = {
+      model: this.config.openRouterChatModel,
+      messages,
+      max_tokens: 500,
+      temperature: 0.4
+    };
+    if (tools.length) {
+      body.tools = tools;
+      body.tool_choice = "auto";
+    }
+    const payload = await this.#json("/chat/completions", {
+      method: "POST",
+      body: JSON.stringify(body)
+    }, 1_000_000);
+    const choice = payload?.choices?.[0]?.message;
+    const toolCalls = Array.isArray(choice?.tool_calls) ? choice.tool_calls : [];
+    const content = textFromContent(choice?.content);
+    if (!content && !toolCalls.length) {
+      throw new OpenRouterError("The shared chat model returned no reply.");
+    }
+    return {
+      message: {
+        role: "assistant",
+        content: content || null,
+        ...(toolCalls.length ? { tool_calls: toolCalls } : {})
+      },
+      costUsd: costFrom(payload)
+    };
   }
 
   async generateImage({ prompt, referenceDataUrls = [] }) {
