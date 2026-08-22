@@ -23,8 +23,9 @@ requireValue(project.livePostingEnabled === false, "Live posting must remain dis
 requireValue(project.name === "STOPAI", "Public project name must remain STOPAI.");
 requireValue(project.symbol === "STOPAI", "Public token symbol must remain STOPAI.");
 requireValue(
-  project.memeGenerator.enabled === false && project.memeGenerator.apiUrl === null,
-  "Static meme-generator configuration must remain disabled; the server enables it at runtime."
+  project.memeGenerator.enabled === true &&
+    project.memeGenerator.mode === "openrouter-oauth-pkce-byok",
+  "Meme generation must use visitor-owned OpenRouter OAuth PKCE."
 );
 requireValue(
   project.feePolicy.projectControlledCreatorFeesToGrantsPercent === 100,

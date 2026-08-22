@@ -1,90 +1,65 @@
 # STOPAI meme generator
 
 The meme generator turns a short idea into a square campaign image while keeping the
-intentionally strange STOPAI hand as its visual anchor. The first version is a free
-pre-launch demo. It does not inspect a wallet or ask anyone to transfer STOPAI.
+intentionally strange STOPAI hand as its visual anchor. It never asks anyone to send
+STOPAI tokens.
 
-## How it works
+## BYOK flow
 
-1. The owner signs in at `/admin` and chooses **Connect OpenRouter**.
-2. The server creates an S256 PKCE challenge and redirects the owner to OpenRouter.
-3. OpenRouter returns a short-lived authorization code. The server exchanges that code
-   and PKCE verifier for a user-controlled API key.
-4. The key is written atomically to a `0600` file on the encrypted Fly Volume. It is
-   never returned to the browser, committed to Git, or stored as a Fly secret.
-5. The public page sends an idea and one of four styles to `POST /api/memes`. The
-   server adds the campaign prompt and canonical hand reference before calling the
-   OpenRouter image model.
-6. The generated image returns to the browser for review, download, or sharing.
+Every visitor brings their own OpenRouter account:
 
-The STOPAI service does not save prompts or generated images. It keeps only in-memory
-request counters, currently three generations per IP per ten minutes with two
-simultaneous generations. Provider handling is governed by the selected OpenRouter
-provider's own policy.
+1. The browser creates a random PKCE verifier, state value, and S256 challenge.
+2. **Connect with OAuth PKCE** sends the visitor to OpenRouter.
+3. OpenRouter returns a short-lived authorization code to the same STOPAI page.
+4. The browser checks the state value and exchanges the code plus verifier directly
+   with OpenRouter for a user-controlled API key.
+5. The key is kept in `sessionStorage`, which limits it to that browser tab. It is not
+   sent to a STOPAI server, Fly, GitHub, or RATi.
+6. The browser sends the campaign prompt and hand reference directly to OpenRouter.
+   OpenRouter charges the visitor's own account and returns the image to the browser.
 
-## Admin security
+The code and verifier expire after ten minutes. The generated OpenRouter key remains
+in the visitor's OpenRouter account until they revoke it. **Disconnect this tab**
+removes the local copy; the key-settings link opens OpenRouter so the visitor can
+revoke it completely.
 
-`/admin` requires `BRAKE_ADMIN_PASSWORD`, which should be stored as a Fly runtime
-secret. This password protects access to the OAuth connection controls; it is not an
-OpenRouter credential. Successful sign-in creates a one-hour, HTTP-only,
-`SameSite=Lax` cookie so the top-level OpenRouter callback retains the admin session;
-cross-origin API requests are still rejected. Login attempts are rate-limited.
+## Privacy and costs
 
-PKCE state and verifiers live only in server memory for ten minutes and are tied to
-the admin session. If the Machine restarts during OAuth, simply start the connection
-again. The admin page displays only a key fingerprint and links to OpenRouter's own
-settings and usage pages.
+STOPAI does not save the visitor's key, prompt, or generated image. OpenRouter and the
+selected model provider receive the prompt and STOPAI hand reference. Their own data
+and billing policies apply. The interface tells visitors that image costs go directly
+to their OpenRouter account.
 
-Disconnecting removes the key from STOPAI's volume but does not revoke it at
-OpenRouter. Use the OpenRouter key settings link to revoke it completely.
+The default model is `google/gemini-3.1-flash-image` (Nano Banana 2). The public model
+is set in `config/project.json`; it is not a secret.
 
 ## Local use
 
-Copy `.env.example` to `.env`, set and export `BRAKE_ADMIN_PASSWORD`, then run:
+Run:
 
 ```sh
 pnpm install
 pnpm dev
 ```
 
-Open `http://localhost:8080/admin`. OpenRouter supports localhost callback URLs, so
-the same PKCE flow works locally. Local credentials are stored under `.data`, which is
-ignored by Git.
+Open `http://localhost:8080`. OpenRouter supports localhost callback URLs, so the same
+PKCE flow works locally. No admin password or OpenRouter environment variable is
+needed.
 
 ## Fly and GitHub Actions
 
-The included `Dockerfile`, `fly.toml`, and `.github/workflows/fly.yml` deploy one
-San Jose-region Machine with an encrypted one-gigabyte volume. The workflow validates
-the repository first and then builds remotely on Fly, so CI does not require Docker.
+Both deployments serve the same browser-only BYOK app. Fly stores no OpenRouter key
+and no longer needs a persistent volume or admin secret. The GitHub Actions deploy
+token `FLY_API_TOKEN` is still needed to publish the Fly app.
 
-One-time infrastructure setup:
+The production Fly URL is `https://stopai-coin.fly.dev`.
 
-```sh
-fly apps create brake-coin-memes
-fly volumes create brake_data --app brake-coin-memes --region sjc --size 1
-fly secrets set BRAKE_ADMIN_PASSWORD --app brake-coin-memes
-fly tokens create deploy --app brake-coin-memes
-```
-
-Store the resulting deploy token as the GitHub Actions repository secret
-`FLY_API_TOKEN`. A push to `main`, or a manual run of the **Deploy Fly** workflow,
-then runs the verified production deployment. No OpenRouter secret is needed in
-GitHub or Fly.
-
-After the first deployment, open `https://brake-coin-memes.fly.dev/admin`, sign in,
-and connect OpenRouter. The public generator becomes available immediately.
-
-The default model is `google/gemini-3.1-flash-image` (Nano Banana 2). For a slower,
-premium option, set `OPENROUTER_IMAGE_MODEL=google/gemini-3-pro-image-preview` as a
-non-secret Fly environment value.
+The old shared generator endpoint returns HTTP 410 so stale clients cannot spend the
+project's former key. The old owner admin page is no longer built or served.
 
 ## Before opening it widely
 
-- Give the OAuth-created OpenRouter key a conservative spending limit and set account
-  balance alerts.
-- Replace the in-memory generation limiter with a shared store if the service grows
-  beyond one Machine or becomes a serious abuse target.
-- Add moderation or a review queue before automatically reposting generated images.
-- Keep the generator free until there is a real token contract and a separately
-  reviewed wallet-verification design. Never ask users to send tokens to an address to
-  unlock a meme.
+- Tell visitors to set a conservative OpenRouter key limit and balance alerts.
+- Keep the strict content-security policy and first-party-only scripts.
+- Add moderation before automatically reposting generated images.
+- Never ask visitors to send tokens to unlock a meme.

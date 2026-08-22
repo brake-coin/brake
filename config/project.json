@@ -10,10 +10,11 @@
   "grantsWallet": null,
   "livePostingEnabled": false,
   "memeGenerator": {
-    "enabled": false,
-    "apiUrl": null,
+    "enabled": true,
+    "mode": "openrouter-oauth-pkce-byok",
+    "model": "google/gemini-3.1-flash-image",
     "modelLabel": "Nano Banana 2",
-    "statusMessage": "The image generator is not connected on this host yet."
+    "statusMessage": "Connect your own OpenRouter account to generate images."
   },
   "feePolicy": {
     "projectControlledCreatorFeesToGrantsPercent": 100,

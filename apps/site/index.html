@@ -4,6 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://openrouter.ai; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self' https://openrouter.ai; frame-ancestors 'none'"
+    />
+    <meta
       name="description"
       content="STOPAI is a proposed independent memecoin directing visible creator fees toward peaceful public-interest grants."
     />
@@ -55,6 +59,24 @@
         </div>
 
         <div class="meme-studio">
+          <section class="openrouter-connect" aria-labelledby="openrouter-title">
+            <div>
+              <p class="eyebrow">BYOK OpenRouter</p>
+              <h3 id="openrouter-title">Your key. Your images.</h3>
+              <p id="openrouter-state">
+                Connect your OpenRouter account. You pay OpenRouter directly for each image.
+              </p>
+            </div>
+            <div class="openrouter-actions">
+              <button id="connect-openrouter" class="openrouter-primary" type="button">
+                Connect with OAuth PKCE
+              </button>
+              <button id="disconnect-openrouter" type="button" hidden>Disconnect this tab</button>
+              <a id="openrouter-activity" target="_blank" rel="noreferrer" hidden>Usage ↗</a>
+              <a id="openrouter-settings" target="_blank" rel="noreferrer" hidden>Key settings ↗</a>
+            </div>
+          </section>
+
           <form id="meme-form">
             <label for="meme-idea">What should the meme say?</label>
             <textarea
@@ -103,8 +125,11 @@
           </div>
 
           <p class="generator-fine-print">
-            Free pre-launch demo. Never send tokens to use it. AI output can be weird or
-            wrong — review before posting. Powered through <span id="model-label">OpenRouter</span>.
+            Your OAuth key is kept only in this browser tab and is never sent to a STOPAI
+            server. OpenRouter and its selected model provider receive your prompt and image
+            reference and charge your account. Never send tokens to use this demo. AI output
+            can be weird or wrong — review before posting. Model:
+            <span id="model-label">Nano Banana 2</span>.
           </p>
         </div>
       </section>
