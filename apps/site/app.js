@@ -37,14 +37,14 @@ function setGenerating(generating) {
 async function dataUrlToFile(dataUrl) {
   const response = await fetch(dataUrl);
   const blob = await response.blob();
-  return new File([blob], `brake-meme-${Date.now()}.png`, { type: blob.type || "image/png" });
+  return new File([blob], `stopai-meme-${Date.now()}.png`, { type: blob.type || "image/png" });
 }
 
 function downloadLatestMeme() {
   if (!latestMeme) return;
   const link = document.createElement("a");
   link.href = latestMeme;
-  link.download = `brake-meme-${Date.now()}.png`;
+  link.download = `stopai-meme-${Date.now()}.png`;
   link.click();
 }
 
@@ -55,8 +55,8 @@ async function shareLatestMeme() {
     if (navigator.canShare?.({ files: [file] })) {
       await navigator.share({
         files: [file],
-        title: "BRAKE meme",
-        text: "Put the brakes on the AI race. #BRAKE"
+        title: "$STOPAI ✋🏻😡 meme",
+        text: "$STOPAI ✋🏻😡 Stop the AI race. #STOPAI"
       });
     } else {
       downloadLatestMeme();

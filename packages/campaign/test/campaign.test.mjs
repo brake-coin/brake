@@ -8,8 +8,8 @@ import {
 } from "../src/index.mjs";
 
 const project = {
-  name: "BRAKE",
-  tagline: "Put the brakes on the AI race.",
+  name: "STOPAI",
+  tagline: "Stop the AI race.",
   independenceNotice: "Independent pre-launch project.",
   riskNotice: "A future token could lose all value."
 };

@@ -379,7 +379,7 @@ async function handleRequest(req, res) {
         sendJson(
           res,
           429,
-          { error: "BRAKE check: try again in a few minutes." },
+          { error: "STOPAI check: try again in a few minutes." },
           { "Retry-After": rate.retryAfterSeconds }
         );
         return;
@@ -421,11 +421,11 @@ async function handleRequest(req, res) {
 const server = createServer((req, res) => {
   handleRequest(req, res).catch((error) => {
     console.error("Unhandled request failure", error);
-    if (!res.headersSent) sendJson(res, 500, { error: "The BRAKE server hit a snag." });
+    if (!res.headersSent) sendJson(res, 500, { error: "The STOPAI server hit a snag." });
     else res.end();
   });
 });
 
 server.listen(port, "0.0.0.0", () => {
-  console.log(`BRAKE meme generator listening on http://0.0.0.0:${port}`);
+  console.log(`STOPAI meme generator listening on http://0.0.0.0:${port}`);
 });

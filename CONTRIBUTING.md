@@ -1,6 +1,6 @@
 # Contributing
 
-BRAKE is currently a private pre-launch design project. Small, reviewable changes are
+STOPAI is currently a private pre-launch design project. Small, reviewable changes are
 preferred.
 
 Contributions must:

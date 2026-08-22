@@ -40,13 +40,13 @@ export function buildMemePrompt({ idea, style }) {
     news: "a deadpan breaking-news parody graphic"
   };
 
-  return `Create a square BRAKE campaign meme based on this exact idea: "${idea}"
+  return `Create a square STOPAI campaign meme based on this exact idea: "${idea}"
 
 Style: ${styleDirections[style]}.
 
-Use the attached BRAKE emblem as the visual anchor. Preserve its distinctive imperfect open hand, including the weird small thumb/finger shape on the left; that odd hand is intentional and is part of the joke. Keep the red stop-sign octagon, cream hand, and heavy black outline recognizable. You may remix the setting and composition, but do not replace the hand with a polished generic icon.
+Use the attached STOPAI emblem as the visual anchor. Preserve its distinctive imperfect open hand, including the weird small thumb/finger shape on the left; that odd hand is intentional and is part of the joke. Keep the red stop-sign octagon, cream hand, and heavy black outline recognizable. You may remix the setting and composition, but do not replace the hand with a polished generic icon.
 
-Make it legible on a phone, visually funny, and suitable for a social post. Include the word BRAKE or $BRAKE only if it strengthens the joke. Use very little text and spell every word correctly. Do not invent a token address, price, return, endorsement, partnership, news event, or factual claim. Do not depict or encourage violence, threats, property damage, or harassment. Peaceful criticism and satire of the AI race are welcome.`;
+Make it legible on a phone, visually funny, and suitable for a social post. The campaign lockup is "$STOPAI ✋🏻😡"; include it only if it strengthens the joke. Use very little text and spell every word correctly. Do not invent a token address, price, return, endorsement, partnership, news event, or factual claim. Do not depict or encourage violence, threats, property damage, or harassment. Peaceful criticism and satire of the AI race are welcome.`;
 }
 
 function extractGeneratedImage(payload) {
@@ -64,13 +64,13 @@ export async function generateMeme({
   apiKey,
   model = DEFAULT_MODEL,
   siteUrl,
-  appName = "BRAKE Meme Generator",
+  appName = "STOPAI Meme Generator",
   fetchImpl = fetch,
   signal
 }) {
   if (!apiKey) throw new UpstreamError("The meme generator has not been configured.", 503);
   if (!referenceImage?.startsWith("data:image/")) {
-    throw new UpstreamError("The BRAKE reference image is unavailable.", 500);
+    throw new UpstreamError("The STOPAI reference image is unavailable.", 500);
   }
 
   const headers = {

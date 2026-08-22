@@ -1,4 +1,4 @@
-# BRAKE Brand Direction
+# STOPAI Brand Direction
 
 Status: concept draft
 
@@ -7,6 +7,8 @@ Status: concept draft
 The working mark is reduced to two elements: a red octagon and a white open hand.
 Charcoal is used only as the outline. The earlier rotor-and-circuit emblem remains an
 exploration, not the selected direction.
+
+Campaign lockup: **$STOPAI ✋🏻😡**. The formal token name and symbol remain `STOPAI`.
 
 Selected vector asset: `assets/brake-emblem-simple.svg`.
 
@@ -17,7 +19,7 @@ SVG is canonical because it uses exact flat colours and genuine transparency.
 
 ## Brand idea
 
-BRAKE is the emergency control that an uncontrolled race lacks. The tone is urgent,
+STOPAI is the emergency signal that an uncontrolled race lacks. The tone is urgent,
 human, calm, and accountable. It is neither techno-utopian nor anti-technology.
 
 ## Message hierarchy
@@ -46,7 +48,7 @@ changes it:
 
 If RATi approves the grants arrangement, replace only the RATi portion with:
 
-> The independent BRAKE project contributes disclosed fees to a grants program
+> The independent STOPAI project contributes disclosed fees to a grants program
 > administered by RATi Open Software Foundation. RATi does not issue or endorse the
 > token as an investment.
 
@@ -78,7 +80,7 @@ are optional interface colours and must not appear in the core mark.
 The original detailed emblem concept was created with the built-in image-generation
 tool. The selected simplified concept uses this final prompt:
 
-> Reduce the BRAKE emblem to exactly two recognizable elements: a solid red octagonal
+> Reduce the STOPAI emblem to exactly two recognizable elements: a solid red octagonal
 > stop-sign shape and one centered white open palm. Remove the brake rotor, caliper,
 > circuits, inner rings, holes, ornament, and amber accent. Use only signal red, warm
 > white, and charcoal on a transparent background. No text, gradients, shadows,

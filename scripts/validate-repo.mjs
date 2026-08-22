@@ -20,6 +20,8 @@ requireValue(project.cluster === "devnet", "Public configuration must remain on 
 requireValue(project.contractAddress === null, "Contract address must remain empty.");
 requireValue(project.grantsWallet === null, "Grants wallet must remain empty.");
 requireValue(project.livePostingEnabled === false, "Live posting must remain disabled.");
+requireValue(project.name === "STOPAI", "Public project name must remain STOPAI.");
+requireValue(project.symbol === "STOPAI", "Public token symbol must remain STOPAI.");
 requireValue(
   project.memeGenerator.enabled === false && project.memeGenerator.apiUrl === null,
   "Static meme-generator configuration must remain disabled; the server enables it at runtime."
@@ -36,6 +38,8 @@ requireValue(
 requireValue(tokenPlan.publicLaunchAllocationPercent === 100, "Public allocation must be 100%.");
 requireValue(tokenPlan.insiderAllocationPercent === 0, "Insider allocation must be 0%.");
 requireValue(tokenPlan.transferFeeBasisPoints === 0, "Transfer fee must be 0 basis points.");
+requireValue(project.name === tokenPlan.name, "Project name must match the token plan.");
+requireValue(project.symbol === tokenPlan.symbol, "Project symbol must match the token plan.");
 requireValue(metadata.name === tokenPlan.name, "Metadata name must match the token plan.");
 requireValue(metadata.symbol === tokenPlan.symbol, "Metadata symbol must match the token plan.");
 
