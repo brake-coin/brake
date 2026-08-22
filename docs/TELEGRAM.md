@@ -15,11 +15,14 @@ handle, not the bot account. The separate bot username is still pending in BotFa
 1. Open Telegram and message the official [@BotFather](https://t.me/BotFather).
 2. Send `/newbot`, choose the display name `STOPAI ✋🏻😡`, and choose an available
    username ending in `bot`.
-3. Keep the token secret. Set it as the Fly secret `TELEGRAM_BOT_TOKEN`.
+3. Keep the token secret. Open `https://stopai-coin.fly.dev/admin`, paste it in the
+   Telegram bot section, and choose **Connect bot**.
 4. Leave BotFather privacy mode on. In groups, STOPAI replies only when mentioned or
    directly replied to.
 
-The server checks the token with Telegram `getMe` before polling. Fly must run exactly
+The admin service checks the token with Telegram `getMe` before writing it to the
+encrypted volume or starting polling. It never sends the token back to the browser.
+`TELEGRAM_BOT_TOKEN` remains available as a Fly-secret fallback. Fly must run exactly
 one always-on machine because two pollers cannot share one bot token safely.
 
 ## Connect shared OpenRouter
@@ -28,6 +31,10 @@ Open `https://stopai-coin.fly.dev/admin`, sign in, and choose **Connect OpenRout
 OAuth uses S256 PKCE. The resulting key is written with private file permissions to
 the encrypted `/data` Fly volume. The key is never shown in the admin page or health
 response.
+
+The Telegram token uses a separate private file on the same encrypted volume. Use the
+admin page to replace or disconnect it. Revoking it through BotFather remains the
+final way to invalidate the token at Telegram.
 
 Disconnecting removes the server copy. Revoke the key in OpenRouter settings too if
 you want it permanently disabled.

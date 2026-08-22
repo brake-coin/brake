@@ -20,6 +20,12 @@ import {
   createPkceTransaction,
   exchangeOpenRouterCode
 } from "./openrouter-oauth.mjs";
+import {
+  publicTelegramCredentialStatus,
+  TelegramCredentialStore,
+  TelegramTokenError,
+  verifyTelegramToken
+} from "./telegram-credentials.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const publicDirectory = path.join(root, "dist");
@@ -40,8 +46,16 @@ const allowedOrigins = new Set(
 );
 
 const credentialStore = new CredentialStore(path.join(dataDirectory, "openrouter.json"));
+const telegramCredentialStore = new TelegramCredentialStore(
+  path.join(dataDirectory, "telegram.json")
+);
 const adminSessions = new AdminSessionManager();
-const botConfig = createBotConfig();
+const environmentTelegramToken = process.env.TELEGRAM_BOT_TOKEN || "";
+const storedTelegramCredential = await telegramCredentialStore.read();
+const botConfig = createBotConfig({
+  ...process.env,
+  TELEGRAM_BOT_TOKEN: storedTelegramCredential?.token || environmentTelegramToken
+});
 const botStore = new BotStore(path.join(dataDirectory, "stopai-bot.json"));
 const canonicalBytes = await readFile(
   path.join(publicDirectory, "assets/brake-emblem-meme-reference.png")
@@ -90,6 +104,17 @@ class FixedWindowRateLimiter {
 }
 
 const loginLimiter = new FixedWindowRateLimiter({ limit: 5, windowMs: 15 * 60 * 1_000 });
+const telegramConnectLimiter = new FixedWindowRateLimiter({ limit: 10, windowMs: 60 * 60 * 1_000 });
+
+async function telegramAdminStatus() {
+  return {
+    ...telegram.status(),
+    ...publicTelegramCredentialStatus(
+      await telegramCredentialStore.read(),
+      Boolean(environmentTelegramToken)
+    )
+  };
+}
 
 function setSecurityHeaders(response) {
   response.setHeader("X-Content-Type-Options", "nosniff");
@@ -216,7 +241,7 @@ async function handleAdminApi(request, response, url) {
     sendJson(response, 200, {
       configured: true,
       ...publicCredentialStatus(await credentialStore.read()),
-      telegram: telegram.status()
+      telegram: await telegramAdminStatus()
     });
     return true;
   }
@@ -261,6 +286,48 @@ async function handleAdminApi(request, response, url) {
     if (!requireAdmin(request, response)) return true;
     await credentialStore.clear();
     sendJson(response, 200, { ok: true });
+    return true;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/admin/telegram/connect") {
+    if (!requestOriginAllowed(request)) {
+      sendJson(response, 403, { error: "Origin not allowed." });
+      return true;
+    }
+    if (!requireAdmin(request, response)) return true;
+    if (!telegramConnectLimiter.take(clientKey(request))) {
+      sendJson(response, 429, { error: "Too many Telegram connection attempts. Try later." });
+      return true;
+    }
+    try {
+      const body = await readJsonBody(request);
+      const bot = await verifyTelegramToken({
+        token: body.token,
+        signal: AbortSignal.timeout(15_000)
+      });
+      await telegramCredentialStore.save({ token: body.token, bot });
+      await telegram.configureToken(body.token);
+      sendJson(response, 200, { ok: true, telegram: await telegramAdminStatus() });
+    } catch (error) {
+      if (error instanceof TelegramTokenError) {
+        sendJson(response, error.status, { error: error.message });
+      } else {
+        console.error("Telegram connection failed", error.message);
+        sendJson(response, 502, { error: "The bot token was verified but the bot could not start." });
+      }
+    }
+    return true;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/admin/telegram/disconnect") {
+    if (!requestOriginAllowed(request)) {
+      sendJson(response, 403, { error: "Origin not allowed." });
+      return true;
+    }
+    if (!requireAdmin(request, response)) return true;
+    await telegramCredentialStore.clear();
+    await telegram.configureToken(environmentTelegramToken);
+    sendJson(response, 200, { ok: true, telegram: await telegramAdminStatus() });
     return true;
   }
   return false;
