@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "network": "Solana",
+  "cluster": "mainnet-beta",
+  "name": "STOPAI",
+  "symbol": "STOPAI",
+  "mint": "2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS",
+  "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+  "decimals": 9,
+  "supplyBaseUnits": "1000000000000000000",
+  "supplyTokens": "1000000000",
+  "mintAuthority": null,
+  "freezeAuthority": null,
+  "bagsUrl": "https://bags.fm/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS",
+  "solanaExplorerUrl": "https://explorer.solana.com/address/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS",
+  "verifiedAtSlot": 441022914,
+  "verifiedOn": "2026-08-22",
+  "verificationMethod": "Solana mainnet getAccountInfo with jsonParsed encoding"
+}

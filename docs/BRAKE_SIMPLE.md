@@ -1,6 +1,6 @@
 # STOPAI — Simple Design
 
-Status: working draft; not approved for sale or deployment
+Status: token live; grants and fee-administration program not approved or active
 
 ## The idea
 
@@ -14,6 +14,16 @@ Software Foundation, or any AI company. RATi would administer the grants only af
 formal board approval and legal review.
 
 ## The token
+
+Official Solana mint:
+`2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS`
+
+- [Official Bags page](https://bags.fm/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS)
+- [Solana explorer](https://explorer.solana.com/address/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS)
+
+The mainnet mint has 9 decimals and a fixed supply of 1,000,000,000 STOPAI. Mint and
+freeze authorities are revoked. The original design called for a 100% public launch,
+but wallet distribution has not yet been independently documented here.
 
 | Item | Simple rule |
 | --- | --- |
@@ -69,15 +79,16 @@ increasing the price of STOPAI.
 > administered by RATi Open Software Foundation. No beneficiary endorses STOPAI unless
 > a signed public notice says so.
 
-## Minimum launch gates
+## Grants-program gates
 
-Do not launch until these five items are complete:
+The token has launched. Do not describe creator fees as an active grants program or
+describe RATi as its administrator until these items are complete:
 
 1. Canadian and U.S. legal review of the token, promotion, and fee flow.
 2. RATi board approval of a restricted STOPAI grants program and written agreement.
 3. Published wallet, signer policy, accounting method, and grant rules.
 4. Public website with the disclosure above visible on the purchase path.
-5. Full Solana devnet rehearsal, followed by verified mint/freeze revocation.
+5. Published on-chain fee-routing verification. Mint and freeze revocation are already verified.
 
 ## Visual identity
 

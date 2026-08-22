@@ -1,27 +1,28 @@
 export const MAX_X_POST_LENGTH = 280;
 
-export function makePrelaunchPost(project) {
+export function makeLaunchPost(project) {
   const message = [
-    `${project.name} is not live.`,
-    "No contract address has been published. Ignore lookalike tokens.",
+    `$${project.symbol} is live on Solana.`,
+    `Official mint:\n${project.contractAddress}`,
+    `Bags:\n${project.links.bags}`,
     project.tagline,
-    "Independent project. No beneficiary currently endorses it."
+    "Independent speculative token. Not a donation. Could lose all value."
   ].join("\n\n");
 
   if (message.length > MAX_X_POST_LENGTH) {
-    throw new Error(`Pre-launch post is ${message.length} characters; maximum is 280.`);
+    throw new Error(`Launch post is ${message.length} characters; maximum is 280.`);
   }
 
   return message;
 }
 
-export function makeTelegramPrelaunchPost(project) {
+export function makeTelegramLaunchPost(project) {
   return [
-    `🛑 ${project.name}: PRE-LAUNCH`,
+    `🛑 $${project.symbol}: OFFICIAL SOLANA MINT`,
     "",
-    project.tagline,
+    project.contractAddress,
     "",
-    "No contract address, sale, or grants wallet has been published. Ignore any lookalike token or account.",
+    project.links.bags,
     "",
     project.independenceNotice,
     project.riskNotice

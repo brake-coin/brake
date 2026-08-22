@@ -1,12 +1,22 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "name": "STOPAI",
   "symbol": "STOPAI",
-  "status": "prelaunch",
+  "status": "live",
   "tagline": "Stop the AI race.",
   "network": "Solana",
-  "cluster": "devnet",
-  "contractAddress": null,
+  "cluster": "mainnet-beta",
+  "contractAddress": "2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS",
+  "token": {
+    "supplyTokens": "1000000000",
+    "decimals": 9,
+    "mintAuthorityRevoked": true,
+    "freezeAuthorityRevoked": true
+  },
+  "links": {
+    "bags": "https://bags.fm/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS",
+    "solanaExplorer": "https://explorer.solana.com/address/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS"
+  },
   "grantsWallet": null,
   "livePostingEnabled": false,
   "memeGenerator": {
@@ -17,6 +27,7 @@
     "statusMessage": "Connect your own OpenRouter account to generate images."
   },
   "feePolicy": {
+    "status": "proposed",
     "projectControlledCreatorFeesToGrantsPercent": 100,
     "excludes": [
       "blockchain costs",
@@ -24,7 +35,7 @@
       "fees never received by the project"
     ]
   },
-  "independenceNotice": "Independent pre-launch project. Not an official token of Stop the AI Race, Stop AI, PauseAI, RATi OSF, or any AI company.",
-  "riskNotice": "STOPAI would be a speculative cultural token that could lose all value. Buying STOPAI would not be a charitable donation and would not produce a tax receipt.",
+  "independenceNotice": "Independent token. Not an official token of Stop the AI Race, Stop AI, PauseAI, RATi OSF, or any AI company.",
+  "riskNotice": "STOPAI is a speculative cultural token that could lose all value. Buying STOPAI is not a charitable donation and does not produce a tax receipt. The grants program remains proposed and is not live.",
   "lastUpdated": "2026-08-22"
 }
