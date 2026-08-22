@@ -16,6 +16,10 @@ await cp(
   path.join(root, "assets/brake-emblem-simple.svg"),
   path.join(output, "assets/brake-emblem-simple.svg")
 );
+await cp(
+  path.join(root, "assets/brake-emblem-meme-reference.png"),
+  path.join(output, "assets/brake-emblem-meme-reference.png")
+);
 await cp(path.join(root, "config/project.json"), path.join(output, "config/project.json"));
 
 console.log(`Built the BRAKE site at ${output}`);

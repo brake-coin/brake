@@ -21,6 +21,10 @@ requireValue(project.contractAddress === null, "Contract address must remain emp
 requireValue(project.grantsWallet === null, "Grants wallet must remain empty.");
 requireValue(project.livePostingEnabled === false, "Live posting must remain disabled.");
 requireValue(
+  project.memeGenerator.enabled === false && project.memeGenerator.apiUrl === null,
+  "Static meme-generator configuration must remain disabled; the server enables it at runtime."
+);
+requireValue(
   project.feePolicy.projectControlledCreatorFeesToGrantsPercent === 100,
   "Creator-fee grant policy must remain 100%."
 );

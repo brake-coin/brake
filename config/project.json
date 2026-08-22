@@ -9,6 +9,12 @@
   "contractAddress": null,
   "grantsWallet": null,
   "livePostingEnabled": false,
+  "memeGenerator": {
+    "enabled": false,
+    "apiUrl": null,
+    "modelLabel": "Nano Banana 2",
+    "statusMessage": "The image generator is not connected on this host yet."
+  },
   "feePolicy": {
     "projectControlledCreatorFeesToGrantsPercent": 100,
     "excludes": [

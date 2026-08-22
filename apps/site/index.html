@@ -31,12 +31,82 @@
           <div class="notice" id="contract-notice">
             No token contract has been published. Ignore lookalikes.
           </div>
+          <a class="hero-cta" href="#meme-machine">Make a BRAKE meme <span>↓</span></a>
         </div>
         <img
           class="hero-mark"
           src="./assets/brake-emblem-simple.svg"
           alt="A white open hand inside a red octagon"
         />
+      </section>
+
+      <section class="meme-machine" id="meme-machine" aria-labelledby="meme-title">
+        <div class="meme-intro">
+          <p class="eyebrow">The peaceful propaganda machine</p>
+          <h2 id="meme-title">Send BRAKE.<br />Get meme.</h2>
+          <p>
+            Describe the joke. The machine remixes our gloriously wrong hand into a
+            square meme ready to download or share.
+          </p>
+          <div class="meme-reference" aria-label="The intentionally strange BRAKE hand">
+            <img src="./assets/brake-emblem-meme-reference.png" alt="BRAKE's intentionally odd open-hand emblem" />
+            <span>The hand stays weird.</span>
+          </div>
+        </div>
+
+        <div class="meme-studio">
+          <form id="meme-form">
+            <label for="meme-idea">What should the meme say?</label>
+            <textarea
+              id="meme-idea"
+              name="idea"
+              maxlength="280"
+              rows="4"
+              placeholder="When they call another trillion parameters ‘responsible scaling’..."
+              required
+            ></textarea>
+
+            <div class="prompt-starters" aria-label="Meme idea starters">
+              <button type="button" data-prompt="AI labs racing toward the cliff while BRAKE holds up the tiny weird hand">Racing to the cliff</button>
+              <button type="button" data-prompt="Me asking the AI race to pause for literally one second">Literally one second</button>
+              <button type="button" data-prompt="Breaking news: the weird hand has entered the alignment debate">Breaking news</button>
+            </div>
+
+            <div class="studio-controls">
+              <label for="meme-style">
+                Style
+                <select id="meme-style" name="style">
+                  <option value="reaction">Reaction meme</option>
+                  <option value="poster">Protest poster</option>
+                  <option value="surreal">Surreal chaos</option>
+                  <option value="news">Breaking news</option>
+                </select>
+              </label>
+              <button class="generate-button" id="generate-button" type="submit" disabled>
+                <span class="button-ready">Generate meme</span>
+                <span class="button-working" hidden>Applying brakes…</span>
+              </button>
+            </div>
+          </form>
+
+          <p class="generator-status" id="generator-status" role="status" aria-live="polite">
+            Checking the meme machine…
+          </p>
+
+          <div class="meme-output" id="meme-output" hidden>
+            <img id="generated-meme" alt="Your generated BRAKE meme" />
+            <div class="output-actions">
+              <button id="download-meme" type="button">Download</button>
+              <button id="share-meme" type="button">Share</button>
+              <button id="remix-meme" type="button">Remix</button>
+            </div>
+          </div>
+
+          <p class="generator-fine-print">
+            Free pre-launch demo. Never send tokens to use it. AI output can be weird or
+            wrong — review before posting. Powered through <span id="model-label">OpenRouter</span>.
+          </p>
+        </div>
       </section>
 
       <section class="principles" aria-labelledby="principles-title">

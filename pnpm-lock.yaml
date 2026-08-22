@@ -14,6 +14,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/campaign
 
+  apps/server: {}
+
   apps/site: {}
 
   packages/campaign: {}
