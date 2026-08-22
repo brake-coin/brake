@@ -8,7 +8,7 @@ const output = path.join(root, "dist");
 await mkdir(path.join(output, "assets"), { recursive: true });
 await mkdir(path.join(output, "config"), { recursive: true });
 
-for (const file of ["index.html", "styles.css", "app.js"]) {
+for (const file of ["index.html", "admin.html", "styles.css", "app.js", "admin.js"]) {
   await cp(path.join(root, "apps/site", file), path.join(output, file));
 }
 

@@ -4,6 +4,7 @@ dist/
 .env
 .env.*
 !.env.example
+.data/
 .DS_Store
 *.log
 coverage/

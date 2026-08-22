@@ -17,6 +17,10 @@ RUN pnpm check
 
 FROM node:22-alpine AS runtime
 
+RUN apk add --no-cache su-exec \
+  && mkdir -p /data \
+  && chown node:node /data
+
 ENV NODE_ENV=production
 ENV PORT=8080
 WORKDIR /app
@@ -26,6 +30,8 @@ COPY --from=build --chown=node:node /app/apps/server ./apps/server
 COPY --from=build --chown=node:node /app/config ./config
 COPY --from=build --chown=node:node /app/package.json ./package.json
 
-USER node
+RUN chmod +x /app/apps/server/docker-entrypoint.sh
+
 EXPOSE 8080
+ENTRYPOINT ["/app/apps/server/docker-entrypoint.sh"]
 CMD ["node", "apps/server/src/index.mjs"]

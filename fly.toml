@@ -1,11 +1,12 @@
 app = "brake-coin-memes"
-primary_region = "sea"
+primary_region = "sjc"
 
 [build]
   dockerfile = "Dockerfile"
 
 [env]
   PORT = "8080"
+  BRAKE_DATA_DIR = "/data"
   PUBLIC_APP_URL = "https://brake-coin-memes.fly.dev"
   OPENROUTER_SITE_URL = "https://brake-coin-memes.fly.dev"
   OPENROUTER_APP_NAME = "BRAKE Meme Generator"
@@ -14,6 +15,12 @@ primary_region = "sea"
   MEME_RATE_LIMIT = "3"
   MEME_RATE_WINDOW_MS = "600000"
   MEME_MAX_CONCURRENT = "2"
+
+[mounts]
+  source = "brake_data"
+  destination = "/data"
+  initial_size = "1gb"
+  snapshot_retention = 7
 
 [http_service]
   internal_port = 8080
