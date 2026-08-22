@@ -44,9 +44,9 @@ pnpm check
 pnpm dev
 ```
 
-The local app is then available at `http://localhost:8080`. Set
-`BRAKE_ADMIN_PASSWORD`, visit `http://localhost:8080/admin`, and connect OpenRouter
-through OAuth PKCE. Without that connection, image generation stays visibly offline.
+The local app is then available at `http://localhost:8080`. Choose **Connect with
+OAuth PKCE** in the meme studio to link your own OpenRouter account for that browser
+tab. No project API key is required.
 
 For the static site alone, use `pnpm dev:static` and open
 `http://127.0.0.1:4173`.
@@ -69,9 +69,9 @@ site (`username.github.io`) or a project path (`username.github.io/brake`).
 ## Meme generator
 
 The site includes a **Send $STOPAI. Get meme.** studio that combines a visitor's idea
-with the canonical, intentionally weird STOPAI hand. GitHub Pages displays the studio
-in offline mode; the included Node server enables generation when its owner links
-OpenRouter from `/admin`.
+with the canonical, intentionally weird STOPAI hand. Each visitor connects a
+user-controlled OpenRouter key through S256 OAuth PKCE. Generation then runs directly
+from that browser to OpenRouter.
 
 See [the meme generator guide](docs/MEME_GENERATOR.md) for the request flow, local
 configuration, Fly deployment, model selection, limits, and launch precautions.
@@ -82,8 +82,8 @@ configuration, Fly deployment, model selection, limits, and launch precautions.
 - The token plan is locked to devnet and explicitly disables live deployment.
 - The bot has no live transport; it only renders proposed messages locally.
 - Secrets belong in `.env`, which is ignored by Git.
-- The OpenRouter key is linked through OAuth PKCE, stored on persistent server disk,
-  and never included in browser assets or Fly secrets.
+- The OpenRouter key is linked through OAuth PKCE, kept only in that browser tab, and
+  never sent to or stored by the STOPAI server.
 - The repository validation rejects premature `live` status and mainnet settings.
 
 Mainnet deployment, fundraising, custody, or live promotion requires the launch gates
