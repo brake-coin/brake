@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>BRAKE Admin — OpenRouter connection</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="admin-page">
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="BRAKE home">
+        <img src="./assets/brake-emblem-simple.svg" alt="" />
+        <span>BRAKE</span>
+      </a>
+      <span class="status">Owner console</span>
+    </header>
+
+    <main class="admin-main">
+      <section class="admin-hero">
+        <p class="eyebrow">Private control panel</p>
+        <h1>Connect the<br />meme machine.</h1>
+        <p>
+          Link a dedicated OpenRouter key through secure OAuth PKCE. The key stays on
+          the BRAKE server’s encrypted persistent disk and is never shown here.
+        </p>
+      </section>
+
+      <section class="admin-card" id="admin-loading" aria-live="polite">
+        <p>Checking owner access…</p>
+      </section>
+
+      <section class="admin-card" id="admin-login" hidden>
+        <p class="eyebrow">Owner sign-in</p>
+        <h2>Unlock admin</h2>
+        <form id="admin-login-form">
+          <label for="admin-password">Admin password</label>
+          <input id="admin-password" name="password" type="password" autocomplete="current-password" required />
+          <button class="admin-primary-button" type="submit">Sign in</button>
+        </form>
+        <p class="admin-message" id="login-message" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="admin-card admin-warning" id="admin-unconfigured" hidden>
+        <p class="eyebrow">Setup required</p>
+        <h2>Admin password missing</h2>
+        <p>
+          Set <code>BRAKE_ADMIN_PASSWORD</code> as a Fly runtime secret, then reload this
+          page. The OpenRouter key itself will still be linked here through OAuth.
+        </p>
+      </section>
+
+      <section class="admin-card" id="admin-dashboard" hidden>
+        <div class="admin-card-heading">
+          <div>
+            <p class="eyebrow">OpenRouter</p>
+            <h2 id="connection-title">Not connected</h2>
+          </div>
+          <span class="connection-dot" id="connection-dot" aria-hidden="true"></span>
+        </div>
+
+        <div class="connection-details" id="connection-details" hidden>
+          <dl>
+            <div><dt>Key fingerprint</dt><dd id="key-fingerprint"></dd></div>
+            <div><dt>Linked</dt><dd id="linked-at"></dd></div>
+            <div><dt>OpenRouter user</dt><dd id="openrouter-user"></dd></div>
+          </dl>
+          <div class="admin-links">
+            <a id="key-settings-link" target="_blank" rel="noreferrer">Key settings ↗</a>
+            <a id="key-activity-link" target="_blank" rel="noreferrer">Usage activity ↗</a>
+          </div>
+        </div>
+
+        <p id="connection-copy">
+          Connect your OpenRouter account to switch on public meme generation.
+        </p>
+        <div class="admin-actions">
+          <button class="admin-primary-button" id="connect-openrouter" type="button">
+            Connect OpenRouter
+          </button>
+          <button class="admin-danger-button" id="disconnect-openrouter" type="button" hidden>
+            Disconnect key
+          </button>
+          <button class="admin-quiet-button" id="admin-logout" type="button">Sign out</button>
+        </div>
+        <p class="admin-message" id="admin-message" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="admin-notes">
+        <h2>What gets stored?</h2>
+        <p>
+          One OpenRouter API key, its non-secret fingerprint, the OpenRouter user ID,
+          and the connection date. Prompts and generated memes are not stored by BRAKE.
+        </p>
+        <p>
+          Disconnecting stops this site from using the key; it does not delete the key
+          from OpenRouter. Revoke it from OpenRouter’s key settings if needed.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <span>BRAKE owner console</span>
+      <a href="./">Return to the meme machine</a>
+    </footer>
+    <script type="module" src="./admin.js"></script>
+  </body>
+</html>

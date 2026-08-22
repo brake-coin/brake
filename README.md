@@ -26,6 +26,7 @@ Read the [simple design](docs/BRAKE_SIMPLE.md) and [brand guide](docs/BRAKE_BRAN
 | Path | Purpose |
 | --- | --- |
 | `apps/site` | Public pre-launch and transparency website |
+| `apps/server` | Meme-generation API and production web server |
 | `apps/bot` | Social bot shell; dry-run only |
 | `packages/campaign` | Shared facts, disclosures, and message generation |
 | `config/project.json` | Public machine-readable project status |
@@ -43,7 +44,12 @@ pnpm check
 pnpm dev
 ```
 
-The local site is then available at `http://127.0.0.1:4173`.
+The local app is then available at `http://localhost:8080`. Set
+`BRAKE_ADMIN_PASSWORD`, visit `http://localhost:8080/admin`, and connect OpenRouter
+through OAuth PKCE. Without that connection, image generation stays visibly offline.
+
+For the static site alone, use `pnpm dev:static` and open
+`http://127.0.0.1:4173`.
 
 Preview the bot without posting anything:
 
@@ -60,12 +66,24 @@ repository's Pages source must be set to **GitHub Actions**.
 All browser assets use relative URLs, so the same build works at either an account
 site (`username.github.io`) or a project path (`username.github.io/brake`).
 
+## Meme generator
+
+The site includes a **Send BRAKE. Get meme.** studio that combines a visitor's idea
+with the canonical, intentionally weird BRAKE hand. GitHub Pages displays the studio
+in offline mode; the included Node server enables generation when its owner links
+OpenRouter from `/admin`.
+
+See [the meme generator guide](docs/MEME_GENERATOR.md) for the request flow, local
+configuration, Fly deployment, model selection, limits, and launch precautions.
+
 ## Safety defaults
 
 - The public configuration has no token contract or grants-wallet address.
 - The token plan is locked to devnet and explicitly disables live deployment.
 - The bot has no live transport; it only renders proposed messages locally.
 - Secrets belong in `.env`, which is ignored by Git.
+- The OpenRouter key is linked through OAuth PKCE, stored on persistent server disk,
+  and never included in browser assets or Fly secrets.
 - The repository validation rejects premature `live` status and mainnet settings.
 
 Mainnet deployment, fundraising, custody, or live promotion requires the launch gates

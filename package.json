@@ -8,7 +8,9 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "node scripts/dev-site.mjs",
+    "dev": "pnpm run build && node --watch apps/server/src/index.mjs",
+    "dev:static": "node scripts/dev-site.mjs",
+    "start": "node apps/server/src/index.mjs",
     "build": "node scripts/build-site.mjs",
     "bot:dry-run": "node apps/bot/src/index.mjs --dry-run",
     "validate": "node scripts/validate-repo.mjs",
