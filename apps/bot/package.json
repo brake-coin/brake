@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@brake/campaign": "workspace:*"
+    "@brake/campaign": "workspace:*",
+    "telegraf": "^4.16.3"
   },
   "scripts": {
     "dry-run": "node src/index.mjs --dry-run",
