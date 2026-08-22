@@ -51,6 +51,15 @@ Preview the bot without posting anything:
 pnpm bot:dry-run
 ```
 
+## GitHub Pages
+
+Pushing `main` triggers `.github/workflows/pages.yml`, which validates the repository,
+builds the static site into `dist`, and deploys that artifact to GitHub Pages. The
+repository's Pages source must be set to **GitHub Actions**.
+
+All browser assets use relative URLs, so the same build works at either an account
+site (`username.github.io`) or a project path (`username.github.io/brake`).
+
 ## Safety defaults
 
 - The public configuration has no token contract or grants-wallet address.

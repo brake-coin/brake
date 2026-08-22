@@ -5,7 +5,7 @@ const independenceNotice = document.querySelector("#independence-notice");
 const lastUpdated = document.querySelector("#last-updated");
 
 try {
-  const response = await fetch("/config/project.json");
+  const response = await fetch("./config/project.json");
   if (!response.ok) throw new Error(`Project status request failed: ${response.status}`);
 
   const project = await response.json();
