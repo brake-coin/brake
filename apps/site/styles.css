@@ -112,6 +112,13 @@ h1 {
   box-shadow: 6px 6px 0 var(--ink);
 }
 
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px 28px;
+}
+
 .hero-cta {
   display: flex;
   width: fit-content;
@@ -121,6 +128,10 @@ h1 {
   color: var(--red);
   font-weight: 900;
   text-decoration: none;
+}
+
+.telegram-cta {
+  color: var(--ink);
 }
 
 .hero-cta span {

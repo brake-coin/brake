@@ -7,6 +7,9 @@ The bot has two clear AI paths:
 
 The public website never receives or uses the shared key.
 
+The community group is [@stopaitoken](https://t.me/stopaitoken). That is the group
+handle, not the bot account. The separate bot username is still pending in BotFather.
+
 ## Create the bot
 
 1. Open Telegram and message the official [@BotFather](https://t.me/BotFather).
