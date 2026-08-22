@@ -9,7 +9,8 @@ try {
   if (!response.ok) throw new Error(`Project status request failed: ${response.status}`);
 
   const project = await response.json();
-  statusLabel.textContent = project.status.replaceAll("-", " ");
+  statusLabel.textContent =
+    project.status === "prelaunch" ? "Pre-launch" : project.status.replaceAll("-", " ");
   riskNotice.textContent = project.riskNotice;
   independenceNotice.textContent = project.independenceNotice;
   lastUpdated.textContent = `Status updated ${project.lastUpdated}`;
