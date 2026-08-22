@@ -1,18 +1,18 @@
-# BRAKE
+# STOPAI ✋🏻😡
 
-**Put the brakes on the AI race.**
+**Stop the AI race.**
 
-BRAKE is a proposed independent memecoin project designed to direct transparent,
+STOPAI is a proposed independent memecoin project designed to direct transparent,
 project-controlled creator fees toward small grants for peaceful public education and
 civic action concerning the uncontrolled AI race.
 
 The project is in **pre-launch design**. No token contract, sale, official grants
-wallet, or live social-media bot exists. Any token claiming to be BRAKE is currently
+wallet, or live social-media bot exists. Any token claiming to be STOPAI is currently
 unofficial.
 
 ## Simple model
 
-- Fixed supply of 1,000,000,000 BRAKE on Solana
+- Fixed supply of 1,000,000,000 STOPAI on Solana
 - 100% public launch; no insider allocation or presale
 - No transfer tax, staking, yield, DAO, redemption, or holder governance
 - 100% of project-controlled creator fees proposed for a restricted grants program
@@ -68,8 +68,8 @@ site (`username.github.io`) or a project path (`username.github.io/brake`).
 
 ## Meme generator
 
-The site includes a **Send BRAKE. Get meme.** studio that combines a visitor's idea
-with the canonical, intentionally weird BRAKE hand. GitHub Pages displays the studio
+The site includes a **Send $STOPAI. Get meme.** studio that combines a visitor's idea
+with the canonical, intentionally weird STOPAI hand. GitHub Pages displays the studio
 in offline mode; the included Node server enables generation when its owner links
 OpenRouter from `/admin`.
 
@@ -91,8 +91,8 @@ in `docs/BRAKE_SIMPLE.md`, including legal review and formal RATi board approval
 
 ## Independence and risk
 
-BRAKE is not an official token of Stop the AI Race, Stop AI, PauseAI, RATi Open
-Software Foundation, or any AI company. Buying a future BRAKE token would not be a
+STOPAI is not an official token of Stop the AI Race, Stop AI, PauseAI, RATi Open
+Software Foundation, or any AI company. Buying a future STOPAI token would not be a
 charitable donation and would not produce a tax receipt. A token could lose all value.
 
 ## License

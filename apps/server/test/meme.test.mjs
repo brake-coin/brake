@@ -22,6 +22,8 @@ test("prompt preserves the intentional hand and blocks invented promotion", () =
   assert.match(prompt, /weird small thumb\/finger shape/i);
   assert.match(prompt, /do not replace the hand/i);
   assert.match(prompt, /do not invent a token address, price, return, endorsement/i);
+  assert.match(prompt, /\$STOPAI ✋🏻😡/u);
+  assert.doesNotMatch(prompt, /\$BRAKE/);
   assert.match(prompt, /labs racing downhill/);
 });
 

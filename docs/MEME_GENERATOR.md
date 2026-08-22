@@ -1,8 +1,8 @@
-# BRAKE meme generator
+# STOPAI meme generator
 
 The meme generator turns a short idea into a square campaign image while keeping the
-intentionally strange BRAKE hand as its visual anchor. The first version is a free
-pre-launch demo. It does not inspect a wallet or ask anyone to transfer BRAKE.
+intentionally strange STOPAI hand as its visual anchor. The first version is a free
+pre-launch demo. It does not inspect a wallet or ask anyone to transfer STOPAI.
 
 ## How it works
 
@@ -17,7 +17,7 @@ pre-launch demo. It does not inspect a wallet or ask anyone to transfer BRAKE.
    OpenRouter image model.
 6. The generated image returns to the browser for review, download, or sharing.
 
-The BRAKE service does not save prompts or generated images. It keeps only in-memory
+The STOPAI service does not save prompts or generated images. It keeps only in-memory
 request counters, currently three generations per IP per ten minutes with two
 simultaneous generations. Provider handling is governed by the selected OpenRouter
 provider's own policy.
@@ -35,7 +35,7 @@ the admin session. If the Machine restarts during OAuth, simply start the connec
 again. The admin page displays only a key fingerprint and links to OpenRouter's own
 settings and usage pages.
 
-Disconnecting removes the key from BRAKE's volume but does not revoke it at
+Disconnecting removes the key from STOPAI's volume but does not revoke it at
 OpenRouter. Use the OpenRouter key settings link to revoke it completely.
 
 ## Local use

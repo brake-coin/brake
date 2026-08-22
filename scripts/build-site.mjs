@@ -22,4 +22,4 @@ await cp(
 );
 await cp(path.join(root, "config/project.json"), path.join(output, "config/project.json"));
 
-console.log(`Built the BRAKE site at ${output}`);
+console.log(`Built the STOPAI site at ${output}`);

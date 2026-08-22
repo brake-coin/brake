@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "name": "BRAKE",
-  "symbol": "BRAKE",
+  "name": "STOPAI",
+  "symbol": "STOPAI",
   "status": "prelaunch",
-  "tagline": "Put the brakes on the AI race.",
+  "tagline": "Stop the AI race.",
   "network": "Solana",
   "cluster": "devnet",
   "contractAddress": null,
@@ -24,6 +24,6 @@
     ]
   },
   "independenceNotice": "Independent pre-launch project. Not an official token of Stop the AI Race, Stop AI, PauseAI, RATi OSF, or any AI company.",
-  "riskNotice": "BRAKE would be a speculative cultural token that could lose all value. Buying BRAKE would not be a charitable donation and would not produce a tax receipt.",
-  "lastUpdated": "2026-08-21"
+  "riskNotice": "STOPAI would be a speculative cultural token that could lose all value. Buying STOPAI would not be a charitable donation and would not produce a tax receipt.",
+  "lastUpdated": "2026-08-22"
 }

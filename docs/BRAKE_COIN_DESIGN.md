@@ -1,30 +1,30 @@
-# BRAKE Coin Design
+# STOPAI Coin Design
 
 Status: detailed reference draft; superseded as the working direction by
 `docs/BRAKE_SIMPLE.md`; not approved for deployment or public sale
 
 ## 1. Identity
 
-- Name: BRAKE
-- Symbol: BRAKE
-- Spoken name: "Brake coin"
-- Primary line: Put the brakes on the AI race.
+- Name: STOPAI
+- Symbol: STOPAI
+- Spoken name: "Stop AI coin"
+- Primary line: Stop the AI race.
 - Supporting line: Fund peaceful public pressure. Every fee visible. Every grant documented.
 - Category: independent cultural memecoin with a cause-linked fee contribution
 - Chain: Solana
 
-BRAKE is an independent project. It is not an official token of Stop the AI Race,
+STOPAI is an independent project. It is not an official token of Stop the AI Race,
 Stop AI, PauseAI, OpenAI, Anthropic, Google, xAI, or RATi Open Software Foundation.
 RATi may serve as the steward of a restricted grants program only after its board
 formally approves the relationship.
 
 ## 2. Purpose
 
-BRAKE exists to turn attention and project-controlled trading revenue into transparent
+STOPAI exists to turn attention and project-controlled trading revenue into transparent
 support for peaceful public education and civic action concerning the uncontrolled
 frontier-AI race.
 
-BRAKE does not promise to stop AI development, increase in price, generate a return,
+STOPAI does not promise to stop AI development, increase in price, generate a return,
 or give holders influence over RATi or any protest organization.
 
 ## 3. Token specification
@@ -33,7 +33,7 @@ or give holders influence over RATi or any protest organization.
 | --- | --- |
 | Network | Solana mainnet-beta |
 | Token program | Standard SPL Token Program |
-| Supply | 1,000,000,000 BRAKE |
+| Supply | 1,000,000,000 STOPAI |
 | Decimals | 6 |
 | Transfer tax | 0% |
 | Inflation | None |
@@ -64,11 +64,11 @@ No allocation may be concealed behind an undisclosed wallet.
 
 ## 5. Fee contribution
 
-BRAKE has no token-level transfer tax. The independent project will contribute:
+STOPAI has no token-level transfer tax. The independent project will contribute:
 
 > 100% of project-controlled creator fees and collectible liquidity-provider fees,
 > net only of unavoidable blockchain and conversion costs, to RATi OSF's restricted
-> BRAKE Grants Program.
+> STOPAI Grants Program.
 
 "Project-controlled fees" excludes network fees, validator fees, exchange fees, and
 third-party liquidity fees that the project never receives.
@@ -101,7 +101,7 @@ be reclassified.
 
 ## 7. Governance boundary
 
-BRAKE holders do not govern RATi, its grants vault, the protest organizations, or the
+STOPAI holders do not govern RATi, its grants vault, the protest organizations, or the
 token project. Token-weighted voting is not used to release grant funds.
 
 Holders may participate in non-binding public sentiment polls. Grant proposals are
@@ -109,7 +109,7 @@ reviewed under RATi's eligibility policy, recommended by an advisory grants coun
 and approved by RATi's authorized directors or delegates.
 
 This boundary prevents wealth-based capture of the grants program and avoids implying
-that BRAKE is an ownership or membership interest.
+that STOPAI is an ownership or membership interest.
 
 ## 8. Metadata and mutability
 
@@ -129,7 +129,7 @@ Metadata must include:
 
 ## 9. Visual system
 
-The BRAKE emblem combines:
+The STOPAI emblem combines:
 
 - an octagonal stop geometry;
 - a mechanical brake rotor;
@@ -147,12 +147,12 @@ Current concept asset: `assets/brake-emblem-concept-v1.png`.
 
 Every purchase surface must display the following without requiring a click-through:
 
-> BRAKE is a speculative cultural token and may lose all value. It provides no equity,
+> STOPAI is a speculative cultural token and may lose all value. It provides no equity,
 > yield, revenue share, governance right, redemption right, ownership of RATi OSF, or
-> claim on grant funds. Buying BRAKE is not a charitable donation and receives no tax
-> receipt. The independent BRAKE project contributes disclosed project-controlled fees
+> claim on grant funds. Buying STOPAI is not a charitable donation and receives no tax
+> receipt. The independent STOPAI project contributes disclosed project-controlled fees
 > to a grants program administered by RATi OSF. No protest organization or beneficiary
-> endorses BRAKE unless expressly identified in a signed public partnership notice.
+> endorses STOPAI unless expressly identified in a signed public partnership notice.
 
 Prohibited promotional claims include:
 
@@ -168,7 +168,7 @@ Prohibited promotional claims include:
 
 ## 11. Deployment invariants
 
-BRAKE is not deployable until all of the following are documented:
+STOPAI is not deployable until all of the following are documented:
 
 - independent project operator and jurisdiction;
 - Canadian securities review;

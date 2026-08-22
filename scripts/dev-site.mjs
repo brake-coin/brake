@@ -46,5 +46,5 @@ const server = createServer(async (request, response) => {
 });
 
 server.listen(port, "127.0.0.1", () => {
-  console.log(`BRAKE site: http://127.0.0.1:${port}`);
+  console.log(`STOPAI site: http://127.0.0.1:${port}`);
 });
