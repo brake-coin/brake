@@ -26,8 +26,8 @@ Read the [simple design](docs/BRAKE_SIMPLE.md) and [brand guide](docs/BRAKE_BRAN
 | Path | Purpose |
 | --- | --- |
 | `apps/site` | Public pre-launch and transparency website |
-| `apps/server` | Meme-generation API and production web server |
-| `apps/bot` | Social bot shell; dry-run only |
+| `apps/server` | Production web server and private admin connection |
+| `apps/bot` | STOPAI Telegram chat and budgeted media bot |
 | `packages/campaign` | Shared facts, disclosures, and message generation |
 | `config/project.json` | Public machine-readable project status |
 | `token` | Draft metadata and devnet-only token plan |
@@ -51,7 +51,7 @@ tab. No project API key is required.
 For the static site alone, use `pnpm dev:static` and open
 `http://127.0.0.1:4173`.
 
-Preview the bot without posting anything:
+Preview the campaign copy without posting anything:
 
 ```sh
 pnpm bot:dry-run
@@ -76,14 +76,25 @@ from that browser to OpenRouter.
 See [the meme generator guide](docs/MEME_GENERATOR.md) for the request flow, local
 configuration, Fly deployment, model selection, limits, and launch precautions.
 
+## Telegram bot
+
+The Telegram bot uses one shared OpenRouter connection for chat and tightly limited
+server-made images and videos. The public website still uses visitor-owned BYOK keys.
+The bot can also remember and resend images or videos uploaded to its chat, including
+media made in the BYOK studio.
+
+See [the Telegram guide](docs/TELEGRAM.md) for BotFather setup, commands, privacy,
+budgets, and deployment.
+
 ## Safety defaults
 
 - The public configuration has no token contract or grants-wallet address.
 - The token plan is locked to devnet and explicitly disables live deployment.
-- The bot has no live transport; it only renders proposed messages locally.
+- The bot replies only in private chats, when mentioned, or when directly replied to.
+- Shared chat and media have global and per-user hourly and daily limits.
 - Secrets belong in `.env`, which is ignored by Git.
-- The OpenRouter key is linked through OAuth PKCE, kept only in that browser tab, and
-  never sent to or stored by the STOPAI server.
+- Public BYOK keys stay in the visitor's browser tab. A separate admin-linked key is
+  stored on the private Fly volume only for Telegram chat and limited bot media.
 - The repository validation rejects premature `live` status and mainnet settings.
 
 Mainnet deployment, fundraising, custody, or live promotion requires the launch gates

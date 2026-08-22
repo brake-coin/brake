@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>STOPAI Admin — shared bot AI</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="admin-page">
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="STOPAI home">
+        <img src="./assets/brake-emblem-simple.svg" alt="" />
+        <span>$STOPAI ✋🏻😡</span>
+      </a>
+      <span class="status">Owner console</span>
+    </header>
+
+    <main class="admin-main">
+      <section class="admin-hero">
+        <p class="eyebrow">Private control panel</p>
+        <h1>Power the<br />STOPAI bot.</h1>
+        <p>
+          Link one budgeted OpenRouter key through OAuth PKCE. It powers Telegram chat
+          and limited server-made images and videos. The public website stays BYOK.
+        </p>
+      </section>
+
+      <section class="admin-card" id="admin-loading" aria-live="polite">
+        <p>Checking owner access…</p>
+      </section>
+
+      <section class="admin-card" id="admin-login" hidden>
+        <p class="eyebrow">Owner sign-in</p>
+        <h2>Unlock admin</h2>
+        <form id="admin-login-form">
+          <label for="admin-password">Admin password</label>
+          <input id="admin-password" name="password" type="password" autocomplete="current-password" required />
+          <button class="admin-primary-button" type="submit">Sign in</button>
+        </form>
+        <p class="admin-message" id="login-message" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="admin-card admin-warning" id="admin-unconfigured" hidden>
+        <p class="eyebrow">Setup required</p>
+        <h2>Admin password missing</h2>
+        <p>Set <code>BRAKE_ADMIN_PASSWORD</code> as a Fly secret, then reload this page.</p>
+      </section>
+
+      <section class="admin-card" id="admin-dashboard" hidden>
+        <div class="admin-card-heading">
+          <div>
+            <p class="eyebrow">Shared OpenRouter</p>
+            <h2 id="connection-title">Not connected</h2>
+          </div>
+          <span class="connection-dot" id="connection-dot" aria-hidden="true"></span>
+        </div>
+
+        <div class="connection-details" id="connection-details" hidden>
+          <dl>
+            <div><dt>Key fingerprint</dt><dd id="key-fingerprint"></dd></div>
+            <div><dt>Linked</dt><dd id="linked-at"></dd></div>
+            <div><dt>OpenRouter user</dt><dd id="openrouter-user"></dd></div>
+            <div><dt>Telegram bot</dt><dd id="telegram-status"></dd></div>
+          </dl>
+          <div class="admin-links">
+            <a id="key-settings-link" target="_blank" rel="noreferrer">Key settings ↗</a>
+            <a id="key-activity-link" target="_blank" rel="noreferrer">Usage activity ↗</a>
+          </div>
+        </div>
+
+        <p id="connection-copy">Connect OpenRouter to power the shared Telegram bot.</p>
+        <div class="admin-actions">
+          <button class="admin-primary-button" id="connect-openrouter" type="button">Connect OpenRouter</button>
+          <button class="admin-danger-button" id="disconnect-openrouter" type="button" hidden>Disconnect key</button>
+          <button class="admin-quiet-button" id="admin-logout" type="button">Sign out</button>
+        </div>
+        <p class="admin-message" id="admin-message" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="admin-notes">
+        <h2>Two separate paths</h2>
+        <p>
+          Telegram uses this shared key with hourly, daily, per-user, and dollar limits.
+          Public website image generation goes straight from each visitor’s browser to
+          OpenRouter with that visitor’s own PKCE key.
+        </p>
+        <p>
+          The shared key is stored on the server’s encrypted Fly volume and is never
+          returned to this page. Disconnect here and revoke it at OpenRouter if needed.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <span>STOPAI owner console</span>
+      <a href="./">Return to the meme machine</a>
+    </footer>
+    <script type="module" src="./admin.js"></script>
+  </body>
+</html>
