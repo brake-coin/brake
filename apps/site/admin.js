@@ -19,6 +19,14 @@ const connectionDetails = document.querySelector("#connection-details");
 const connectionCopy = document.querySelector("#connection-copy");
 const connectButton = document.querySelector("#connect-openrouter");
 const disconnectButton = document.querySelector("#disconnect-openrouter");
+const telegramForm = document.querySelector("#telegram-form");
+const telegramToken = document.querySelector("#telegram-token");
+const telegramTitle = document.querySelector("#telegram-title");
+const telegramDot = document.querySelector("#telegram-dot");
+const telegramCopy = document.querySelector("#telegram-copy");
+const telegramMessage = document.querySelector("#telegram-message");
+const connectTelegram = document.querySelector("#connect-telegram");
+const disconnectTelegram = document.querySelector("#disconnect-telegram");
 
 function showOnly(name) {
   for (const [key, panel] of Object.entries(panels)) panel.hidden = key !== name;
@@ -48,13 +56,26 @@ function renderConnection(status) {
   connectionCopy.textContent = status.connected
     ? "Shared Telegram chat and budgeted media can use this connection. The public website stays BYOK."
     : "Connect OpenRouter to power the shared Telegram bot.";
+
+  const telegram = status.telegram || {};
+  telegramDot.dataset.connected = telegram.running ? "true" : "false";
+  telegramTitle.textContent = telegram.running && telegram.username
+    ? `@${telegram.username}`
+    : telegram.configured ? "Configured, not running" : "Token not set";
+  connectTelegram.textContent = telegram.configured ? "Replace bot token" : "Connect bot";
+  disconnectTelegram.hidden = telegram.source !== "admin";
+  telegramCopy.textContent = telegram.running
+    ? "Verified and listening. Replace the token here if BotFather rotates it."
+    : telegram.source === "environment"
+      ? "Configured through a Fly secret. Admin replacement is available."
+      : telegram.configured
+        ? "The token is saved, but polling is not running. Check the bot token or logs."
+        : "Paste the token from BotFather. It will be verified before it is stored.";
+
   if (status.connected) {
     document.querySelector("#key-fingerprint").textContent = `${status.keyFingerprint}…`;
     document.querySelector("#linked-at").textContent = new Date(status.linkedAt).toLocaleString();
     document.querySelector("#openrouter-user").textContent = status.userId || "Not supplied";
-    document.querySelector("#telegram-status").textContent = status.telegram?.running
-      ? `@${status.telegram.username}`
-      : status.telegram?.configured ? "Configured, not running" : "Token not set";
     document.querySelector("#key-settings-link").href = status.settingsUrl;
     document.querySelector("#key-activity-link").href = status.activityUrl;
   }
@@ -111,8 +132,41 @@ disconnectButton.addEventListener("click", async () => {
   }
 });
 
+telegramForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  telegramMessage.textContent = "Checking the token with Telegram…";
+  connectTelegram.disabled = true;
+  try {
+    await api("./api/admin/telegram/connect", {
+      method: "POST",
+      body: JSON.stringify({ token: telegramToken.value.trim() })
+    });
+    telegramToken.value = "";
+    telegramMessage.textContent = "Telegram bot connected.";
+    await refreshStatus();
+  } catch (error) {
+    telegramMessage.textContent = error.message;
+  } finally {
+    connectTelegram.disabled = false;
+  }
+});
+
+disconnectTelegram.addEventListener("click", async () => {
+  if (!window.confirm("Disconnect and remove the saved Telegram bot token?")) return;
+  telegramMessage.textContent = "Disconnecting bot…";
+  try {
+    await api("./api/admin/telegram/disconnect", { method: "POST" });
+    telegramToken.value = "";
+    telegramMessage.textContent = "Telegram bot disconnected.";
+    await refreshStatus();
+  } catch (error) {
+    telegramMessage.textContent = error.message;
+  }
+});
+
 document.querySelector("#admin-logout").addEventListener("click", async () => {
   await api("./api/admin/logout", { method: "POST" });
+  telegramToken.value = "";
   showOnly("login");
 });
 

@@ -61,7 +61,6 @@
             <div><dt>Key fingerprint</dt><dd id="key-fingerprint"></dd></div>
             <div><dt>Linked</dt><dd id="linked-at"></dd></div>
             <div><dt>OpenRouter user</dt><dd id="openrouter-user"></dd></div>
-            <div><dt>Telegram bot</dt><dd id="telegram-status"></dd></div>
           </dl>
           <div class="admin-links">
             <a id="key-settings-link" target="_blank" rel="noreferrer">Key settings ↗</a>
@@ -76,6 +75,40 @@
           <button class="admin-quiet-button" id="admin-logout" type="button">Sign out</button>
         </div>
         <p class="admin-message" id="admin-message" role="status" aria-live="polite"></p>
+
+        <div class="telegram-admin">
+          <div class="admin-card-heading">
+            <div>
+              <p class="eyebrow">Telegram bot</p>
+              <h3 id="telegram-title">Token not set</h3>
+            </div>
+            <span class="connection-dot" id="telegram-dot" aria-hidden="true"></span>
+          </div>
+          <p id="telegram-copy">
+            Paste the token from BotFather. It will be verified before it is stored.
+          </p>
+          <form id="telegram-form">
+            <label for="telegram-token">Bot token</label>
+            <input
+              id="telegram-token"
+              name="token"
+              type="password"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="123456789:AA…"
+              required
+            />
+            <div class="admin-actions">
+              <button class="admin-primary-button" id="connect-telegram" type="submit">
+                Connect bot
+              </button>
+              <button class="admin-danger-button" id="disconnect-telegram" type="button" hidden>
+                Disconnect bot
+              </button>
+            </div>
+          </form>
+          <p class="admin-message" id="telegram-message" role="status" aria-live="polite"></p>
+        </div>
       </section>
 
       <section class="admin-notes">
@@ -86,8 +119,9 @@
           OpenRouter with that visitor’s own PKCE key.
         </p>
         <p>
-          The shared key is stored on the server’s encrypted Fly volume and is never
-          returned to this page. Disconnect here and revoke it at OpenRouter if needed.
+          The shared OpenRouter key and Telegram token are stored on the server’s
+          encrypted Fly volume and are never returned to this page. Disconnect here and
+          revoke the matching credential at its provider if needed.
         </p>
       </section>
     </main>

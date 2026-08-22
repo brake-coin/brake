@@ -85,6 +85,7 @@ export class TelegramService {
   }
 
   async start() {
+    if (this.running) return true;
     await this.store.load();
     if (!this.config.telegramToken) {
       this.logger.warn("[telegram] TELEGRAM_BOT_TOKEN is missing; bot is not started");
@@ -93,6 +94,7 @@ export class TelegramService {
     this.bot = new Telegraf(this.config.telegramToken, {
       handlerTimeout: this.config.telegramHandlerTimeoutMs
     });
+    this.lastError = null;
     this.#registerHandlers();
     this.bot.catch((error) => {
       this.lastError = safeErrorMessage(error);
@@ -132,6 +134,17 @@ export class TelegramService {
       this.logger.warn("[telegram] stop skipped", error.message);
     }
     await this.launchPromise?.catch(() => {});
+  }
+
+  async configureToken(token) {
+    await this.stop("reconfigure");
+    this.bot = null;
+    this.botInfo = null;
+    this.launchPromise = null;
+    this.lastError = null;
+    this.config.telegramToken = token || "";
+    if (!this.config.telegramToken) return false;
+    return this.start();
   }
 
   #registerHandlers() {

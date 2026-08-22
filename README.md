@@ -83,6 +83,10 @@ server-made images and videos. The public website still uses visitor-owned BYOK 
 The bot can also remember and resend images or videos uploaded to its chat, including
 media made in the BYOK studio.
 
+Owners connect both OpenRouter and the BotFather token through `/admin`. Both secrets
+are stored as private files on the encrypted Fly volume and are never returned to the
+browser.
+
 See [the Telegram guide](docs/TELEGRAM.md) for BotFather setup, commands, privacy,
 budgets, and deployment.
 
