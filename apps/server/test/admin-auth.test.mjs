@@ -17,7 +17,8 @@ test("admin passwords use a timing-safe digest comparison", () => {
 test("admin cookies are HTTP-only and readable by name", () => {
   const cookie = adminCookie("hello world", { secure: true });
   assert.match(cookie, /HttpOnly/);
-  assert.match(cookie, /SameSite=Strict/);
+  assert.match(cookie, /SameSite=Lax/);
+  assert.doesNotMatch(cookie, /SameSite=Strict/);
   assert.match(cookie, /Secure/);
   assert.equal(readCookie(`another=1; ${cookie}`, ADMIN_COOKIE), "hello world");
   assert.equal(readCookie(`${ADMIN_COOKIE}=%zz`, ADMIN_COOKIE), null);

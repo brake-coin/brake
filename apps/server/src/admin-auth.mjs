@@ -87,7 +87,7 @@ export function adminCookie(token, { secure = true, maxAge = 3600 } = {}) {
     `${ADMIN_COOKIE}=${encodeURIComponent(token)}`,
     "Path=/",
     "HttpOnly",
-    "SameSite=Strict",
+    "SameSite=Lax",
     `Max-Age=${maxAge}`
   ];
   if (secure) attributes.push("Secure");

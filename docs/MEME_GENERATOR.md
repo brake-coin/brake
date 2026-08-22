@@ -26,8 +26,9 @@ provider's own policy.
 
 `/admin` requires `BRAKE_ADMIN_PASSWORD`, which should be stored as a Fly runtime
 secret. This password protects access to the OAuth connection controls; it is not an
-OpenRouter credential. Successful sign-in creates a one-hour, HTTP-only, same-site
-cookie. Login attempts are rate-limited.
+OpenRouter credential. Successful sign-in creates a one-hour, HTTP-only,
+`SameSite=Lax` cookie so the top-level OpenRouter callback retains the admin session;
+cross-origin API requests are still rejected. Login attempts are rate-limited.
 
 PKCE state and verifiers live only in server memory for ten minutes and are tied to
 the admin session. If the Machine restarts during OAuth, simply start the connection
