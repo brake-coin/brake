@@ -1,0 +1,34 @@
+{
+  "name": "BRAKE",
+  "symbol": "BRAKE",
+  "description": "BRAKE is an independent speculative cultural token. It provides no equity, yield, governance, redemption right, ownership of RATi OSF, or claim on grant funds. Buying BRAKE is not a charitable donation. The independent project intends, subject to formal approvals, to contribute disclosed project-controlled fees to a public-interest grants program administered by RATi Open Software Foundation.",
+  "image": "ipfs://TBD",
+  "external_url": "https://TBD",
+  "attributes": [
+    {
+      "trait_type": "Network",
+      "value": "Solana"
+    },
+    {
+      "trait_type": "Transfer tax",
+      "value": "0%"
+    },
+    {
+      "trait_type": "Governance rights",
+      "value": "None"
+    },
+    {
+      "trait_type": "Project status",
+      "value": "Independent"
+    }
+  ],
+  "properties": {
+    "category": "image",
+    "files": [
+      {
+        "uri": "ipfs://TBD",
+        "type": "image/png"
+      }
+    ]
+  }
+}

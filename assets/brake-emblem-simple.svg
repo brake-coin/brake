@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">BRAKE emblem</title>
+  <desc id="desc">A white open hand centered in a red octagon with a charcoal outline.</desc>
+  <path
+    d="M300 70h424l230 230v424L724 954H300L70 724V300z"
+    fill="#E52322"
+    stroke="#17191B"
+    stroke-width="44"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M440 600l-54-84c-17-26-52-34-78-17s-33 53-16 80l102 167c41 65 106 104 186 104 130 0 215-90 215-230V385c0-33-24-57-55-57s-55 24-55 57v150-225c0-33-24-57-55-57s-55 24-55 57v190-230c0-33-24-57-55-57s-55 24-55 57v230-165c0-33-24-57-55-57s-55 24-55 57v235z"
+    fill="#F5F0E6"
+    stroke="#17191B"
+    stroke-width="24"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

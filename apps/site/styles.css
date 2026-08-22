@@ -1,0 +1,226 @@
+:root {
+  color-scheme: light;
+  --red: #e52322;
+  --ink: #17191b;
+  --paper: #f5f0e6;
+  --white: #fffdf7;
+  --line: rgba(23, 25, 27, 0.2);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+a {
+  color: inherit;
+}
+
+.site-header,
+main,
+footer {
+  width: min(1120px, calc(100% - 40px));
+  margin-inline: auto;
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: 24px;
+  border-bottom: 2px solid var(--ink);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+}
+
+.brand img {
+  width: 38px;
+  height: 38px;
+}
+
+.status,
+.notice {
+  border: 2px solid var(--ink);
+  background: var(--white);
+  font-weight: 750;
+}
+
+.status {
+  padding: 7px 12px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+}
+
+.hero {
+  min-height: 610px;
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr;
+  align-items: center;
+  gap: 64px;
+  padding-block: 72px;
+}
+
+.eyebrow {
+  margin: 0 0 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  max-width: 760px;
+  margin-bottom: 24px;
+  font-size: clamp(3.5rem, 9vw, 7.6rem);
+  line-height: 0.88;
+  letter-spacing: -0.07em;
+}
+
+.lede {
+  max-width: 650px;
+  font-size: clamp(1.15rem, 2vw, 1.55rem);
+  line-height: 1.45;
+}
+
+.notice {
+  display: inline-block;
+  margin-top: 20px;
+  padding: 14px 16px;
+  box-shadow: 6px 6px 0 var(--ink);
+}
+
+.hero-mark {
+  width: 100%;
+  max-width: 390px;
+  justify-self: center;
+}
+
+.principles,
+.flow,
+.disclosure {
+  border-top: 2px solid var(--ink);
+  padding-block: 64px;
+}
+
+h2 {
+  margin-bottom: 32px;
+  font-size: clamp(2rem, 5vw, 4rem);
+  letter-spacing: -0.05em;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.card-grid article {
+  min-height: 230px;
+  padding: 24px;
+  border: 2px solid var(--ink);
+  background: var(--white);
+}
+
+.card-grid article > span {
+  color: var(--red);
+  font-weight: 900;
+}
+
+.card-grid h3 {
+  margin: 48px 0 12px;
+  font-size: 1.45rem;
+}
+
+.card-grid p,
+.flow li span,
+.disclosure p {
+  line-height: 1.55;
+}
+
+.flow {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 64px;
+}
+
+.flow ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: fee-step;
+}
+
+.flow li {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  padding: 22px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.disclosure {
+  max-width: 860px;
+}
+
+.disclosure p {
+  font-size: 1.05rem;
+}
+
+footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding-block: 32px;
+  border-top: 2px solid var(--ink);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 760px) {
+  .hero,
+  .flow,
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero {
+    min-height: auto;
+    gap: 36px;
+    padding-block: 52px;
+  }
+
+  .hero-mark {
+    max-width: 250px;
+  }
+
+  .flow li {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  footer {
+    flex-direction: column;
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "name": "BRAKE",
+  "symbol": "BRAKE",
+  "status": "prelaunch",
+  "tagline": "Put the brakes on the AI race.",
+  "network": "Solana",
+  "cluster": "devnet",
+  "contractAddress": null,
+  "grantsWallet": null,
+  "livePostingEnabled": false,
+  "feePolicy": {
+    "projectControlledCreatorFeesToGrantsPercent": 100,
+    "excludes": [
+      "blockchain costs",
+      "conversion costs",
+      "fees never received by the project"
+    ]
+  },
+  "independenceNotice": "Independent pre-launch project. Not an official token of Stop the AI Race, Stop AI, PauseAI, RATi OSF, or any AI company.",
+  "riskNotice": "BRAKE would be a speculative cultural token that could lose all value. Buying BRAKE would not be a charitable donation and would not produce a tax receipt.",
+  "lastUpdated": "2026-08-21"
+}

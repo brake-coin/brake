@@ -1,0 +1,13 @@
+{
+  "name": "@brake/bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@brake/campaign": "workspace:*"
+  },
+  "scripts": {
+    "dry-run": "node src/index.mjs --dry-run",
+    "test": "node --test test/*.test.mjs"
+  }
+}

@@ -1,0 +1,19 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .: {}
+
+  apps/bot:
+    dependencies:
+      '@brake/campaign':
+        specifier: workspace:*
+        version: link:../../packages/campaign
+
+  apps/site: {}
+
+  packages/campaign: {}

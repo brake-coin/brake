@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "status": "design-only",
+  "network": "Solana",
+  "cluster": "devnet",
+  "liveDeploymentEnabled": false,
+  "name": "BRAKE",
+  "symbol": "BRAKE",
+  "decimals": 6,
+  "supplyTokens": "1000000000",
+  "transferFeeBasisPoints": 0,
+  "publicLaunchAllocationPercent": 100,
+  "insiderAllocationPercent": 0,
+  "mintAuthorityMustBeRevoked": true,
+  "freezeAuthorityMustBeRevoked": true,
+  "holderGovernance": false,
+  "holderYield": false,
+  "metadataFile": "token/brake-metadata.draft.json",
+  "canonicalImage": "assets/brake-emblem-simple.svg"
+}
