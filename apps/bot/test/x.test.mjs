@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveMediaMimeType, XClient } from "../src/x.mjs";
+import { resolveMediaMimeType, xPostReference, XClient } from "../src/x.mjs";
 
 function config(overrides = {}) {
   return {
@@ -27,6 +27,91 @@ test("X client creates an authorized text post with a user token", async () => {
   assert.equal(request.options.headers.Authorization, "Bearer private-user-token");
   assert.equal(JSON.parse(request.options.body).made_with_ai, true);
   assert.equal(result.url, "https://x.com/i/web/status/123");
+});
+
+test("X post references accept IDs and canonical post URLs only", () => {
+  assert.deepEqual(xPostReference("2091410624970711451"), {
+    id: "2091410624970711451",
+    url: "https://x.com/i/web/status/2091410624970711451"
+  });
+  assert.deepEqual(xPostReference("https://x.com/canadabirdie/status/2091410624970711451?s=20"), {
+    id: "2091410624970711451",
+    url: "https://x.com/canadabirdie/status/2091410624970711451"
+  });
+  assert.deepEqual(xPostReference("https://x.com/i/web/status/2091410624970711451"), {
+    id: "2091410624970711451",
+    url: "https://x.com/i/web/status/2091410624970711451"
+  });
+  assert.equal(xPostReference("https://example.com/canadabirdie/status/2091410624970711451"), null);
+});
+
+test("X client reads and normalizes a public post", async () => {
+  let requestUrl;
+  const client = new XClient({
+    config: config(),
+    credentialProvider: async () => ({ accessToken: "private-user-token" }),
+    fetchImpl: async (url) => {
+      requestUrl = url;
+      return new Response(JSON.stringify({
+        data: {
+          id: "2091410624970711451",
+          text: "AI won’t stop itself.",
+          author_id: "42",
+          created_at: "2026-08-23T04:00:00.000Z"
+        },
+        includes: { users: [{ id: "42", username: "STOPAICOIN", name: "STOPAI" }] }
+      }), { status: 200 });
+    }
+  });
+  const post = await client.readPost("2091410624970711451");
+  assert.match(requestUrl, /\/2\/tweets\/2091410624970711451\?/);
+  assert.equal(post.author.username, "STOPAICOIN");
+  assert.equal(post.url, "https://x.com/STOPAICOIN/status/2091410624970711451");
+});
+
+test("X client searches recent posts with public authors", async () => {
+  let requestUrl;
+  const client = new XClient({
+    config: config(),
+    credentialProvider: async () => ({ accessToken: "private-user-token" }),
+    fetchImpl: async (url) => {
+      requestUrl = url;
+      return new Response(JSON.stringify({
+        data: [{ id: "100", text: "Stop the AI race", author_id: "7" }],
+        includes: { users: [{ id: "7", username: "researcher", name: "Researcher" }] }
+      }), { status: 200 });
+    }
+  });
+  const posts = await client.searchRecent('"stop ai" -is:retweet', 3);
+  const parsed = new URL(requestUrl);
+  assert.equal(parsed.pathname, "/2/tweets/search/recent");
+  assert.equal(parsed.searchParams.get("query"), '"stop ai" -is:retweet');
+  assert.equal(parsed.searchParams.get("max_results"), "10");
+  assert.equal(posts[0].url, "https://x.com/researcher/status/100");
+});
+
+test("X client looks up a user and reads their original posts", async () => {
+  const requests = [];
+  const client = new XClient({
+    config: config(),
+    credentialProvider: async () => ({ accessToken: "private-user-token" }),
+    fetchImpl: async (url) => {
+      requests.push(url);
+      if (url.includes("/by/username/")) {
+        return new Response(JSON.stringify({
+          data: { id: "77", username: "canadabirdie", name: "Canada Birdie" }
+        }), { status: 200 });
+      }
+      return new Response(JSON.stringify({
+        data: [{ id: "101", text: "Pause the race", author_id: "77" }]
+      }), { status: 200 });
+    }
+  });
+  const result = await client.userPosts("@canadabirdie", 3);
+  assert.match(requests[0], /\/2\/users\/by\/username\/canadabirdie\?/);
+  assert.match(requests[1], /\/2\/users\/77\/tweets\?/);
+  assert.equal(new URL(requests[1]).searchParams.get("exclude"), "retweets,replies");
+  assert.equal(result.posts[0].url, "https://x.com/canadabirdie/status/101");
 });
 
 test("X client detects a Telegram image with a generic content type", async () => {

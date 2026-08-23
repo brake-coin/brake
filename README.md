@@ -98,12 +98,17 @@ limits agent-chosen community posts and a rotating autonomous schedule to the of
 See [the Telegram guide](docs/TELEGRAM.md) for BotFather setup, natural-language tools, privacy,
 budgets, and deployment.
 
+The Telegram agent can also read individual X posts, search the last seven days of public
+posts, and inspect a public account's recent originals. It can turn an @canadabirdie post
+into a new STOPAI meme and publish it with the original post URL visibly attached.
+
 ## Safety defaults
 
 - The public configuration pins one verified mainnet contract and creator-fee recipient.
 - The historical token plan remains locked to devnet and cannot deploy anything.
 - The bot replies only in private chats, when mentioned, or when directly replied to.
 - Shared chat and media have global and per-user hourly and daily limits.
+- X research has separate global and per-user hourly and daily limits.
 - The Telegram agent may publish clear user requests to X. A five-minute global cooldown,
   a fifteen-minute per-user cooldown, and hourly/daily caps prevent spam.
 - Autonomous X posting rotates text, image, and video with hourly, daily, and AI-spend caps.
