@@ -244,10 +244,16 @@ function mediaFromMessage(message) {
 }
 
 export function isAddressed({ message, chatType, botUsername, botId }) {
-  if (chatType === "private") return true;
+  if (chatType === "private") return false;
   const text = String(message?.text || message?.caption || "");
   if (botUsername && text.toLowerCase().includes(`@${botUsername}`.toLowerCase())) return true;
   return Boolean(botId && message?.reply_to_message?.from?.id === botId);
+}
+
+export function pickRandomMedia(items, random = Math.random) {
+  if (!Array.isArray(items) || !items.length) return null;
+  const index = Math.min(items.length - 1, Math.max(0, Math.floor(random() * items.length)));
+  return items[index];
 }
 
 export function isTelegramOperator({ configuredIds, userId, chatType, memberStatus }) {
@@ -495,8 +501,47 @@ export class TelegramService {
   }
 
   #registerHandlers() {
+    this.bot.use(async (ctx, next) => {
+      if (ctx.chat?.type === "private" && ctx.message && !ctx.message.from?.is_bot) {
+        await this.#handlePrivateMessage(ctx);
+        return;
+      }
+      await next();
+    });
     this.bot.on(["photo", "video", "document"], (ctx) => this.#handleIncomingMedia(ctx));
     this.bot.on("text", (ctx) => this.#handleText(ctx));
+  }
+
+  async #handlePrivateMessage(ctx) {
+    const groupUrl = this.config.telegramGroupUrl;
+    const replyOptions = {
+      reply_markup: {
+        inline_keyboard: [[{ text: "Join the STOPAI group", url: groupUrl }]]
+      }
+    };
+    const caption = [
+      "DMs are off. Come talk to STOPAI in the community group:",
+      groupUrl
+    ].join("\n");
+    let media = null;
+    try {
+      const group = await ctx.telegram.getChat(`@${this.config.telegramGroupHandle}`);
+      media = pickRandomMedia(this.store.listMedia(group.id, { limit: 20 }));
+    } catch (error) {
+      this.logger.warn("[telegram] could not load the group gallery for a DM", error.message);
+    }
+    if (!media) {
+      await ctx.reply(caption, replyOptions);
+      return;
+    }
+    const options = { ...replyOptions, caption };
+    try {
+      if (media.type === "video") await ctx.replyWithVideo(media.fileId, options);
+      else await ctx.replyWithPhoto(media.fileId, options);
+    } catch (error) {
+      this.logger.warn("[telegram] could not send the selected DM gallery item", error.message);
+      await ctx.reply(caption, replyOptions);
+    }
   }
 
   async #isOperator(ctx) {

@@ -18,12 +18,13 @@ test("homepage publishes the official live mint and verification links", async (
   assert.match(html, /Verify on Solana/);
   assert.equal(project.links.x, "https://x.com/STOPAICOIN");
   assert.match(html, /https:\/\/x\.com\/STOPAICOIN/);
+  assert.equal(project.links.telegram, "https://t.me/StopAiCoin");
   assert.equal(project.creatorFeeRecipient.handle, "@canadabirdie");
   assert.equal(project.creatorFeeRecipient.profileUrl, "https://x.com/canadabirdie");
   assert.match(html, /https:\/\/x\.com\/canadabirdie/);
   assert.match(html, /AI won’t stop itself/);
   assert.match(html, /Memes from the timeline/);
   assert.match(html, /Your memes/);
-  assert.match(html, /https:\/\/t\.me\/StopAiToken_bot/);
+  assert.match(html, /https:\/\/t\.me\/StopAiCoin/);
   assert.match(html, /stopai-social-preview\.png/);
 });

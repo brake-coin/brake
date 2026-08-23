@@ -16,7 +16,8 @@
   "links": {
     "bags": "https://bags.fm/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS",
     "solanaExplorer": "https://explorer.solana.com/address/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS",
-    "x": "https://x.com/STOPAICOIN"
+    "x": "https://x.com/STOPAICOIN",
+    "telegram": "https://t.me/StopAiCoin"
   },
   "creatorFeeRecipient": {
     "venue": "Bags",
@@ -35,5 +36,5 @@
   },
   "independenceNotice": "Independent token. Not an official token of Stop the AI Race, Stop AI, PauseAI, RATi OSF, or any AI company.",
   "riskNotice": "STOPAI is a speculative cultural token that could lose all value. Buying STOPAI is not a charitable donation and does not produce a tax receipt. Creator fees belong to the configured recipient and create no rights for token holders.",
-  "lastUpdated": "2026-08-22"
+  "lastUpdated": "2026-08-23"
 }

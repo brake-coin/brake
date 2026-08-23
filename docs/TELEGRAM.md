@@ -7,8 +7,9 @@ The bot has two clear AI paths:
 
 The public website never receives or uses the shared key.
 
-The community group is [@stopaitoken](https://t.me/stopaitoken). That is the group
-handle, not the bot account. The separate bot username is still pending in BotFather.
+The community group is [@StopAiCoin](https://t.me/StopAiCoin). The bot account is
+[@StopAiToken_bot](https://t.me/StopAiToken_bot), but normal conversations happen only
+inside the community group.
 
 ## Create the bot
 
@@ -54,10 +55,15 @@ The bot has no slash-command menu. Speak normally. For example:
 - `Search recent X posts about stopping the AI race.`
 - `Turn @canadabirdie's latest original post into a STOPAI meme and post it with attribution.` (media review is a second step)
 
-Reply to an image while asking for a new image or video to use it as a reference. Sending an image
-or video to the bot in a private chat saves only Telegram's reusable file ID and basic
-metadata. In a group, the upload must mention or reply to the bot. This lets people
-bring BYOK-made media into Telegram without charging the server again.
+Reply to an image while asking for a new image or video to use it as a reference. In the
+group, an upload must mention or reply to the bot. This lets people bring BYOK-made media
+into Telegram without charging the server again.
+
+Private chat is disabled at the application level. Any DM gets one random image or video
+from the community group's bot gallery plus a button linking to
+[@StopAiCoin](https://t.me/StopAiCoin). A DM never reaches the AI, spends shared budget,
+or saves uploaded media. If the group gallery is empty or unavailable, the bot sends the
+group link without media.
 
 A caption can also be the request. For example, upload an image with `remix this as a
 STOPAI poster` or `animate this`. The bot saves the upload, then uses it as the media

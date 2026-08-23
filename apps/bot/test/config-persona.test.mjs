@@ -11,6 +11,7 @@ import {
   isAddressed,
   isTelegramOperator,
   needsMediaReviewConfirmation,
+  pickRandomMedia,
   xPostIdsInText
 } from "../src/telegram.mjs";
 
@@ -24,6 +25,8 @@ test("bot defaults use strict shared media limits", () => {
   });
   assert.equal(config.videoDailyCap, 2);
   assert.equal(config.requireTelegram, false);
+  assert.equal(config.telegramGroupHandle, "StopAiCoin");
+  assert.equal(config.telegramGroupUrl, "https://t.me/StopAiCoin");
   assert.equal(config.xPostingEnabled, false);
   assert.equal(config.xExpectedUsername, "STOPAICOIN");
   assert.equal(config.xAutonomousPostingEnabled, false);
@@ -204,7 +207,7 @@ test("persona publishes only the official mint and keeps the weird hand", () => 
 
 test("group messages require a mention or direct reply", () => {
   const common = { botUsername: "stopai_bot", botId: 99 };
-  assert.equal(isAddressed({ ...common, chatType: "private", message: { text: "hello" } }), true);
+  assert.equal(isAddressed({ ...common, chatType: "private", message: { text: "hello" } }), false);
   assert.equal(isAddressed({ ...common, chatType: "group", message: { text: "hello" } }), false);
   assert.equal(isAddressed({ ...common, chatType: "group", message: { text: "@STOPAI_BOT hello" } }), true);
   assert.equal(isAddressed({
@@ -212,4 +215,12 @@ test("group messages require a mention or direct reply", () => {
     chatType: "group",
     message: { text: "hello", reply_to_message: { from: { id: 99 } } }
   }), true);
+});
+
+test("DM gallery selection returns one random group item", () => {
+  const items = [{ id: "first" }, { id: "second" }, { id: "third" }];
+  assert.equal(pickRandomMedia(items, () => 0), items[0]);
+  assert.equal(pickRandomMedia(items, () => 0.5), items[1]);
+  assert.equal(pickRandomMedia(items, () => 0.999), items[2]);
+  assert.equal(pickRandomMedia([], () => 0), null);
 });

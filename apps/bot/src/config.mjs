@@ -39,9 +39,14 @@ function stringList(value, fallback, separator = ",") {
 }
 
 export function createBotConfig(env = process.env) {
+  const telegramGroupHandle = String(env.TELEGRAM_GROUP_HANDLE || "StopAiCoin")
+    .trim()
+    .replace(/^@/, "");
   return {
     telegramToken: env.TELEGRAM_BOT_TOKEN || "",
     requireTelegram: boolean(env.STOPAI_REQUIRE_TELEGRAM, false),
+    telegramGroupHandle,
+    telegramGroupUrl: `https://t.me/${telegramGroupHandle}`,
     telegramRepliesEnabled: boolean(env.TELEGRAM_REPLIES_ENABLED, true),
     telegramImagesEnabled: boolean(env.TELEGRAM_IMAGES_ENABLED, true),
     telegramVideosEnabled: boolean(env.TELEGRAM_VIDEOS_ENABLED, true),
