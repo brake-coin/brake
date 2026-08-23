@@ -197,10 +197,17 @@ test("persona publishes only the official mint and keeps the weird hand", () => 
   assert.match(STOPAI_SYSTEM_PROMPT, /Never invent a contract address/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /peaceful, lawful/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /public education comes first/i);
+  assert.match(STOPAI_SYSTEM_PROMPT, /weird red hand in the Telegram trenches/i);
+  assert.match(STOPAI_SYSTEM_PROMPT, /little degen/i);
+  assert.match(STOPAI_SYSTEM_PROMPT, /mildly unhinged in a controlled way/i);
+  assert.match(STOPAI_SYSTEM_PROMPT, /Accuracy always outranks the joke/i);
+  assert.match(STOPAI_SYSTEM_PROMPT, /Never cosplay as a trader/i);
+  assert.match(STOPAI_SYSTEM_PROMPT, /does not make STOPAI affiliated with/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /private personal information/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /do not rely on model memory/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /1,000,000,000 STOPAI with 9 decimals/i);
   assert.match(buildImagePrompt("robot timeout"), /thumb attaches at an awkward angle/i);
+  assert.match(buildImagePrompt("robot timeout"), /slightly unhinged meme energy/i);
   const messages = buildChatMessages([], "what is the contract?");
   assert.equal(messages.at(-1).content, "what is the contract?");
 });

@@ -79,6 +79,11 @@ All normal replies go through the shared agent so it can decide whether to answe
 a tool. Ask `help`, `what is the CA?`, `what AI are you using?`, or `what is my
 Telegram ID?` naturally.
 
+The chat persona is deliberately a little degen: short, crypto-native, mischievous, and
+occasionally lowercase, with the weird hand as a recurring brake-operator character. It
+uses slang lightly and never turns the joke into price hype, trading advice, harassment,
+or vague claims. Contract details, research, attribution, and risk warnings stay exact.
+
 Ask `What is my Telegram ID?` and put that numeric ID in `TELEGRAM_OPERATOR_IDS`.
 Telegram administrators in the configured group are also treated as operators. Every user
 receives the X publishing tool, and the agent decides whether a request is clear, safe,

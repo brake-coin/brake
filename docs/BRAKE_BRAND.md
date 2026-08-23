@@ -32,11 +32,19 @@ human, calm, and accountable. It is neither techno-utopian nor anti-technology.
 ## Voice
 
 - Plain language over technical jargon
+- A little degen, never financially reckless
+- Crypto-native jokes used lightly, not forced slang or engagement bait
+- The weird hand is permanently on brake duty and unimpressed by hype
 - Specific demands over apocalyptic certainty
 - Receipts over promises
 - Human dignity over machine spectacle
 - Peaceful civic participation over harassment
 - Risk disclosure over financial hype
+
+Casual chat and social posts may be lowercase, punchy, dry, and mildly unhinged. Roast
+the uncontrolled race, its incentives, and its empty launch hype—not ordinary users or
+victims. Contract details, attribution, current events, and risk warnings must always
+switch back to exact language. Accuracy outranks the bit.
 
 ## Independence line
 
