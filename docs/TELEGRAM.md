@@ -111,11 +111,28 @@ for a connection made through admin.
 Image upload uses the simple media endpoint; video upload uses the INIT, APPEND,
 FINALIZE, and STATUS flow.
 
-The production service also runs a bounded autonomous schedule. By default it attempts
-one post every eight hours, rotates text, image, and video, and stops after three posts
-per UTC day. It waits one hour after startup, skips work until both X and OpenRouter are
-connected, and shares the existing chat, media, and $5 daily AI-spend limits. The admin
-page shows the schedule and provides one live test button for each post type.
+The production service also runs a persistent campaign agent. Every two hours it checks
+one rotating watched X account, one rotating X search, and a current AI-news RSS search.
+It ranks and saves the results, compares them with its durable goals, memories, and used
+sources, then decides whether there is anything worth posting. It may skip weak, stale,
+or repetitive cycles.
+
+Autonomous posts always keep the selected source link. The agent can choose text, image,
+or video, waits at least four hours between its own posts, and stops after three posts per
+UTC day. It waits fifteen minutes after startup and shares the existing chat, media, and
+$5 daily AI-spend limits. Research and posting history survive deploys on the encrypted
+Fly volume. The admin page shows goal, memory, research, and last-cycle counts alongside
+the live test buttons.
+
+Telegram users can ask `what are your goals and memories?` to inspect the campaign context.
+Group administrators and configured operator IDs may save stable notes or update goals in
+plain language. Ordinary users can still request cooldown-limited X posts, but cannot alter
+the long-term campaign identity.
+
+Before autonomous posting is enabled, X requires the account to use the Automated profile
+label, disclose the bot in its bio, and link a human-managed account. The campaign agent
+does not publish automated replies or unsolicited mentions, and it does not chase unrelated
+trending hashtags. The account owner remains responsible for the automated posts.
 
 The official posting account is [@STOPAICOIN](https://x.com/STOPAICOIN). It is separate
 from [@canadabirdie](https://x.com/canadabirdie), which is the configured Bags

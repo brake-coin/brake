@@ -1,9 +1,17 @@
 import { usageLimits } from "./config.mjs";
 import {
+  buildAgentDecisionMessages,
   buildAutonomousXMessages,
   buildImagePrompt,
-  buildVideoPrompt
+  buildVideoPrompt,
+  DEFAULT_AGENT_GOALS
 } from "./persona.mjs";
+import {
+  DEFAULT_NEWS_FEEDS,
+  NewsResearchClient,
+  xPostResearchItem
+} from "./research.mjs";
+import { xWeightedLength } from "./x.mjs";
 
 const POST_TYPES = new Set(["text", "image", "video"]);
 const AUTONOMOUS_USER = "x-autonomous";
@@ -17,7 +25,7 @@ function autonomousLimits(config) {
   };
 }
 
-function cleanPostText(value, maximum) {
+function cleanPostText(value, maximum = 240) {
   let text = String(value || "")
     .replace(/\[([^\]]+)]\((https?:\/\/[^)]+)\)/g, "$1 $2")
     .replace(/\*\*|__|~~|`/g, "")
@@ -27,8 +35,64 @@ function cleanPostText(value, maximum) {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
   const limit = Math.min(240, maximum);
-  if (text.length > limit) text = `${text.slice(0, Math.max(1, limit - 1)).trimEnd()}…`;
+  if ([...text].length > limit) text = `${[...text].slice(0, Math.max(1, limit - 1)).join("").trimEnd()}…`;
   return text;
+}
+
+function postTextWithSource(value, sourceUrl, maximum) {
+  const source = /^https:\/\//i.test(String(sourceUrl || "")) ? String(sourceUrl) : "";
+  let caption = cleanPostText(value, 220)
+    .replace(/@[A-Za-z0-9_]{1,15}\b/g, "")
+    .replace(/[ \t]+/g, " ")
+    .trim();
+  if (!source) return caption;
+  let combined = `${caption}\n\n${source}`;
+  while (caption && xWeightedLength(combined) > maximum) {
+    const characters = [...caption];
+    characters.splice(Math.max(0, characters.length - 8));
+    caption = `${characters.join("").trimEnd()}…`;
+    combined = `${caption}\n\n${source}`;
+  }
+  return combined;
+}
+
+function jsonDecision(value) {
+  const raw = String(value || "").trim().replace(/^```(?:json)?\s*|\s*```$/gi, "");
+  const first = raw.indexOf("{");
+  const last = raw.lastIndexOf("}");
+  if (first < 0 || last <= first) throw new Error("The campaign agent returned an invalid decision.");
+  let parsed;
+  try {
+    parsed = JSON.parse(raw.slice(first, last + 1));
+  } catch {
+    throw new Error("The campaign agent returned an invalid decision.");
+  }
+  const action = parsed?.action === "post" ? "post" : "skip";
+  return {
+    action,
+    reason: String(parsed?.reason || "No reason supplied.").slice(0, 500),
+    sourceKey: String(parsed?.source_key || "").slice(0, 200),
+    type: POST_TYPES.has(parsed?.media_type) ? parsed.media_type : "image",
+    text: cleanPostText(parsed?.post_text, 190),
+    mediaPrompt: String(parsed?.media_prompt || "").trim().slice(0, 1_000),
+    topic: String(parsed?.topic || "").trim().slice(0, 120)
+  };
+}
+
+function publicCandidate(item) {
+  return {
+    key: item.key,
+    kind: item.kind,
+    title: item.title,
+    url: item.url,
+    author: item.author || null,
+    publisher: item.publisher || null,
+    publishedAt: item.publishedAt || null,
+    score: item.score || 0,
+    seenCount: item.seenCount || 1,
+    summary: item.kind === "news" ? item.summary || "" : "",
+    metrics: item.kind === "x" ? item.metrics || null : null
+  };
 }
 
 export class AutonomousXService {
@@ -38,8 +102,10 @@ export class AutonomousXService {
     openRouter,
     xClient,
     canonicalReferenceDataUrl,
+    newsResearch = null,
     fetchImpl = fetch,
     logger = console,
+    now = () => new Date(),
     setTimeoutImpl = setTimeout,
     clearTimeoutImpl = clearTimeout
   }) {
@@ -50,6 +116,14 @@ export class AutonomousXService {
     this.canonicalReferenceDataUrl = canonicalReferenceDataUrl;
     this.fetchImpl = fetchImpl;
     this.logger = logger;
+    this.now = now;
+    this.newsResearch = newsResearch || new NewsResearchClient({
+      feedUrls: config.agentNewsFeeds.length ? config.agentNewsFeeds : DEFAULT_NEWS_FEEDS,
+      fetchImpl,
+      timeoutMs: Math.min(config.xTimeoutMs, 30_000),
+      logger,
+      now
+    });
     this.setTimeoutImpl = setTimeoutImpl;
     this.clearTimeoutImpl = clearTimeoutImpl;
     this.timer = null;
@@ -65,6 +139,17 @@ export class AutonomousXService {
       intervalMinutes: this.config.xAutonomousIntervalMinutes,
       dailyCap: this.config.xAutonomousDailyCap,
       types: this.config.xAutonomousTypes,
+      researchEnabled: this.config.agentResearchEnabled,
+      minPostIntervalMinutes: this.config.agentMinPostIntervalMinutes,
+      watchAccounts: this.config.agentWatchAccounts,
+      newsFeedCount: this.newsResearch.feedUrls.length,
+      memory: this.store.agentStatus?.() || {
+        goalCount: 0,
+        memoryCount: 0,
+        researchCount: 0,
+        lastResearchAt: null,
+        lastCycle: null
+      },
       lastResult: this.lastResult
     };
   }
@@ -74,7 +159,7 @@ export class AutonomousXService {
     this.running = true;
     this.#schedule(this.config.xAutonomousStartDelayMinutes * 60_000);
     this.logger.info(
-      `[x] autonomous schedule enabled every ${this.config.xAutonomousIntervalMinutes} minutes`
+      `[agent] research and decision cycle enabled every ${this.config.xAutonomousIntervalMinutes} minutes`
     );
     return true;
   }
@@ -94,51 +179,206 @@ export class AutonomousXService {
   }
 
   async #runOnce({ type, test }) {
+    let postingClaim = null;
     try {
+      await this.store.load();
+      await this.store.ensureAgentGoals(DEFAULT_AGENT_GOALS);
       if (!await this.xClient.connected()) {
-        return this.#remember({ ok: false, skipped: true, reason: "x_not_connected" });
+        return this.#finish({ ok: false, skipped: true, action: "skip", reason: "x_not_connected" });
       }
       if (!await this.openRouter.connected()) {
-        return this.#remember({ ok: false, skipped: true, reason: "openrouter_not_connected" });
+        return this.#finish({ ok: false, skipped: true, action: "skip", reason: "openrouter_not_connected" });
+      }
+      if (test) return await this.#runTest(type);
+
+      const candidates = this.config.agentResearchEnabled ? await this.#research() : [];
+      if (!candidates.length) {
+        return this.#finish({
+          ok: true,
+          skipped: true,
+          action: "skip",
+          reason: "No fresh, unused research candidate was available."
+        });
+      }
+      const decision = await this.#decide(candidates);
+      if (decision.action !== "post") {
+        return this.#finish({
+          ok: true,
+          skipped: true,
+          action: "skip",
+          reason: decision.reason
+        });
+      }
+      const source = candidates.find((candidate) => candidate.key === decision.sourceKey);
+      if (!source || !decision.text) {
+        return this.#finish({
+          ok: true,
+          skipped: true,
+          action: "skip",
+          reason: "The proposed post did not select a valid research source."
+        });
+      }
+      const selectedType = this.config.xAutonomousTypes.includes(decision.type)
+        ? decision.type
+        : this.config.xAutonomousTypes[0];
+      postingClaim = await this.store.claimUsage(
+        "x_auto",
+        AUTONOMOUS_USER,
+        autonomousLimits(this.config),
+        { globalCooldownMs: this.config.agentMinPostIntervalMinutes * 60_000 }
+      );
+      if (!postingClaim.allowed) {
+        return this.#finish({
+          ok: true,
+          skipped: true,
+          action: "skip",
+          reason: postingClaim.reason,
+          sourceKey: source.key,
+          type: selectedType
+        });
       }
 
-      const limits = autonomousLimits(this.config);
-      const before = this.store.usageStatus("x_auto", AUTONOMOUS_USER, limits);
-      const selectedType = POST_TYPES.has(type)
-        ? type
-        : this.config.xAutonomousTypes[before.daily % this.config.xAutonomousTypes.length];
-      const claim = await this.store.claimUsage("x_auto", AUTONOMOUS_USER, limits);
-      if (!claim.allowed) {
-        return this.#remember({ ok: false, skipped: true, reason: claim.reason, type: selectedType });
-      }
-
-      const text = await this.#makePostText(selectedType, test);
+      const text = postTextWithSource(decision.text, source.url, this.config.xMaxPostCharacters);
       const media = selectedType === "image"
-        ? await this.#makeImage(text)
+        ? await this.#makeImage(text, decision.mediaPrompt)
         : selectedType === "video"
-          ? await this.#makeVideo(text)
+          ? await this.#makeVideo(text, decision.mediaPrompt)
           : null;
       const posted = await this.xClient.post({ text, media });
-      return this.#remember({
+      await this.store.markResearchUsed(source.key, { postedUrl: posted.url });
+      await this.store.rememberAgent({
+        kind: "autonomous-x-post",
+        text: `Posted: ${text}`,
+        topic: decision.topic || source.title,
+        sourceKey: source.key,
+        sourceUrl: source.url
+      });
+      postingClaim = null;
+      return this.#finish({
         ok: true,
         skipped: false,
+        action: "post",
         type: selectedType,
-        test,
+        sourceKey: source.key,
+        sourceUrl: source.url,
         url: posted.url,
-        postedAt: new Date().toISOString()
+        postedAt: this.now().toISOString()
       });
     } catch (error) {
-      this.#remember({
+      if (postingClaim?.eventId) await this.store.releaseUsage(postingClaim.eventId).catch(() => {});
+      await this.#finish({
         ok: false,
         skipped: false,
-        reason: error?.message || "autonomous_post_failed",
-        failedAt: new Date().toISOString()
+        action: "error",
+        reason: error?.message || "autonomous_post_failed"
       });
       throw error;
     }
   }
 
-  async #makePostText(type, test) {
+  async #runTest(type) {
+    const selectedType = POST_TYPES.has(type) ? type : "text";
+    const claim = await this.store.claimUsage("x_auto", AUTONOMOUS_USER, autonomousLimits(this.config));
+    if (!claim.allowed) {
+      return this.#finish({ ok: false, skipped: true, action: "skip", reason: claim.reason, type: selectedType });
+    }
+    try {
+      const text = await this.#makeTestPostText(selectedType);
+      const media = selectedType === "image"
+        ? await this.#makeImage(text, "Live STOPAI systems test")
+        : selectedType === "video"
+          ? await this.#makeVideo(text, "Live STOPAI systems test")
+          : null;
+      const posted = await this.xClient.post({ text, media });
+      return this.#finish({
+        ok: true,
+        skipped: false,
+        action: "post",
+        type: selectedType,
+        test: true,
+        url: posted.url,
+        postedAt: this.now().toISOString()
+      });
+    } catch (error) {
+      await this.store.releaseUsage(claim.eventId).catch(() => {});
+      throw error;
+    }
+  }
+
+  async #research() {
+    const items = [];
+    const cycleCount = this.store.agentStatus().cycleCount;
+    const watched = this.config.agentWatchAccounts.length
+      ? [this.config.agentWatchAccounts[cycleCount % this.config.agentWatchAccounts.length]]
+      : [];
+    const queries = this.config.agentXQueries.length
+      ? [this.config.agentXQueries[cycleCount % this.config.agentXQueries.length]]
+      : [];
+    for (const username of watched) {
+      const result = await this.#xResearchCall(() => this.xClient.userPosts(username, 6));
+      for (const post of result?.posts || []) {
+        items.push(xPostResearchItem(post, {
+          priority: username.toLowerCase() === "canadabirdie" ? 2 : 1,
+          now: this.now()
+        }));
+      }
+    }
+    for (const query of queries) {
+      const posts = await this.#xResearchCall(() => this.xClient.searchRecent(query, 8));
+      for (const post of posts || []) items.push(xPostResearchItem(post, { now: this.now() }));
+    }
+    items.push(...await this.newsResearch.latest({ limit: 20 }));
+    await this.store.recordResearch(items);
+    return this.store.agentSnapshot({ researchLimit: 50 }).research
+      .filter((item) => !item.usedAt)
+      .slice(0, this.config.agentCandidateLimit)
+      .map(publicCandidate);
+  }
+
+  async #xResearchCall(task) {
+    const claim = await this.store.claimUsage(
+      "agent_x_research",
+      AUTONOMOUS_USER,
+      usageLimits(this.config, "agent_x_research")
+    );
+    if (!claim.allowed) {
+      this.logger.info(`[agent] X research skipped: ${claim.reason}`);
+      return null;
+    }
+    try {
+      return await task();
+    } catch (error) {
+      await this.store.releaseUsage(claim.eventId).catch(() => {});
+      this.logger.warn("[agent] X research call failed", error.message);
+      return null;
+    }
+  }
+
+  async #decide(candidates) {
+    const claim = await this.store.claimUsage(
+      "chat",
+      AUTONOMOUS_USER,
+      usageLimits(this.config, "chat")
+    );
+    if (!claim.allowed) throw new Error("The shared chat limit blocked the campaign agent.");
+    let costUsd = 0;
+    try {
+      const result = await this.openRouter.chat(buildAgentDecisionMessages({
+        candidates,
+        agent: this.store.agentSnapshot(),
+        allowedTypes: this.config.xAutonomousTypes,
+        now: this.now()
+      }));
+      costUsd = result.costUsd;
+      await this.store.recordCost(claim.eventId, costUsd);
+      return jsonDecision(result.text);
+    } catch (error) {
+      await this.store.recordCost(claim.eventId, costUsd || Number(error?.costUsd) || 0);
+      throw error;
+    }
+  }
+
+  async #makeTestPostText(type) {
     const claim = await this.store.claimUsage(
       "chat",
       AUTONOMOUS_USER,
@@ -147,7 +387,7 @@ export class AutonomousXService {
     if (!claim.allowed) throw new Error("The shared chat limit blocked autonomous posting.");
     let costUsd = 0;
     try {
-      const result = await this.openRouter.chat(buildAutonomousXMessages(type, { test }));
+      const result = await this.openRouter.chat(buildAutonomousXMessages(type, { test: true }));
       costUsd = result.costUsd;
       const text = cleanPostText(result.text, this.config.xMaxPostCharacters);
       if (!text) throw new Error("The autonomous post writer returned no text.");
@@ -159,7 +399,7 @@ export class AutonomousXService {
     }
   }
 
-  async #makeImage(text) {
+  async #makeImage(text, mediaPrompt) {
     const claim = await this.store.claimUsage(
       "image",
       AUTONOMOUS_USER,
@@ -169,8 +409,9 @@ export class AutonomousXService {
     if (!claim.allowed) throw new Error("The shared image limit blocked autonomous posting.");
     let costUsd = 0;
     try {
+      const idea = mediaPrompt || `Create a visual for this X caption: ${text}`;
       const result = await this.openRouter.generateImage({
-        prompt: buildImagePrompt(`Create a visual for this X caption: ${text}`),
+        prompt: buildImagePrompt(idea),
         referenceDataUrls: [this.canonicalReferenceDataUrl]
       });
       costUsd = result.costUsd;
@@ -187,7 +428,7 @@ export class AutonomousXService {
     }
   }
 
-  async #makeVideo(text) {
+  async #makeVideo(text, mediaPrompt) {
     const claim = await this.store.claimUsage(
       "video",
       AUTONOMOUS_USER,
@@ -197,8 +438,9 @@ export class AutonomousXService {
     if (!claim.allowed) throw new Error("The shared video limit blocked autonomous posting.");
     let costUsd = 0;
     try {
+      const idea = mediaPrompt || `Create a visual for this X caption: ${text}`;
       const result = await this.openRouter.generateVideo({
-        prompt: buildVideoPrompt(`Create a visual for this X caption: ${text}`),
+        prompt: buildVideoPrompt(idea),
         referenceDataUrl: this.canonicalReferenceDataUrl
       });
       costUsd = result.costUsd;
@@ -226,8 +468,11 @@ export class AutonomousXService {
     return { buffer, mimeType, type: "image" };
   }
 
-  #remember(result) {
+  async #finish(result) {
     this.lastResult = result;
+    await this.store.recordAgentCycle(result).catch((error) => {
+      this.logger.error("[agent] could not save cycle history", error);
+    });
     return result;
   }
 
@@ -235,10 +480,10 @@ export class AutonomousXService {
     this.timer = this.setTimeoutImpl(async () => {
       try {
         const result = await this.runOnce();
-        if (result.ok) this.logger.info(`[x] autonomous ${result.type} post: ${result.url}`);
-        else this.logger.info(`[x] autonomous post skipped: ${result.reason}`);
+        if (result.ok && !result.skipped) this.logger.info(`[agent] autonomous ${result.type} post: ${result.url}`);
+        else this.logger.info(`[agent] cycle ${result.action || "skip"}: ${result.reason}`);
       } catch (error) {
-        this.logger.error("[x] autonomous post failed", error);
+        this.logger.error("[agent] autonomous cycle failed", error);
       } finally {
         if (this.running) this.#schedule(this.config.xAutonomousIntervalMinutes * 60_000);
       }

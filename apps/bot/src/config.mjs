@@ -30,6 +30,14 @@ function enumList(value, fallback, allowed) {
   return items.length ? [...new Set(items)] : fallback;
 }
 
+function stringList(value, fallback, separator = ",") {
+  const items = String(value || "")
+    .split(separator)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return items.length ? [...new Set(items)] : fallback;
+}
+
 export function createBotConfig(env = process.env) {
   return {
     telegramToken: env.TELEGRAM_BOT_TOKEN || "",
@@ -106,11 +114,11 @@ export function createBotConfig(env = process.env) {
     xResearchUserHourlyCap: integer(env.X_RESEARCH_USER_HOURLY_CAP, 5, { minimum: 1, maximum: 30 }),
     xResearchUserDailyCap: integer(env.X_RESEARCH_USER_DAILY_CAP, 20, { minimum: 1, maximum: 100 }),
     xAutonomousPostingEnabled: boolean(env.X_AUTONOMOUS_POSTING_ENABLED, false),
-    xAutonomousIntervalMinutes: integer(env.X_AUTONOMOUS_INTERVAL_MINUTES, 480, {
+    xAutonomousIntervalMinutes: integer(env.X_AUTONOMOUS_INTERVAL_MINUTES, 120, {
       minimum: 60,
       maximum: 7 * 24 * 60
     }),
-    xAutonomousStartDelayMinutes: integer(env.X_AUTONOMOUS_START_DELAY_MINUTES, 60, {
+    xAutonomousStartDelayMinutes: integer(env.X_AUTONOMOUS_START_DELAY_MINUTES, 15, {
       minimum: 5,
       maximum: 24 * 60
     }),
@@ -127,6 +135,32 @@ export function createBotConfig(env = process.env) {
       ["text", "image", "video"],
       ["text", "image", "video"]
     ),
+    agentResearchEnabled: boolean(env.AGENT_RESEARCH_ENABLED, true),
+    agentXQueries: stringList(env.AGENT_X_QUERIES, [
+      '("AI race" OR "pause AI" OR "stop AI") lang:en -is:retweet -from:STOPAICOIN',
+      '(superintelligence OR "frontier AI") (safety OR risk OR governance OR moratorium) lang:en -is:retweet -from:STOPAICOIN'
+    ], ";;"),
+    agentWatchAccounts: stringList(env.AGENT_WATCH_ACCOUNTS, [
+      "canadabirdie",
+      "PauseAI"
+    ]).map((item) => item.replace(/^@/, "")).filter((item) => /^[A-Za-z0-9_]{1,15}$/.test(item)),
+    agentNewsFeeds: stringList(env.AGENT_NEWS_FEEDS, []),
+    agentCandidateLimit: integer(env.AGENT_CANDIDATE_LIMIT, 14, {
+      minimum: 4,
+      maximum: 30
+    }),
+    agentXResearchHourlyCap: integer(env.AGENT_X_RESEARCH_HOURLY_CAP, 4, {
+      minimum: 1,
+      maximum: 20
+    }),
+    agentXResearchDailyCap: integer(env.AGENT_X_RESEARCH_DAILY_CAP, 24, {
+      minimum: 1,
+      maximum: 100
+    }),
+    agentMinPostIntervalMinutes: integer(env.AGENT_MIN_POST_INTERVAL_MINUTES, 240, {
+      minimum: 60,
+      maximum: 7 * 24 * 60
+    }),
     maxImageBytes: integer(env.MAX_IMAGE_BYTES, 15 * 1024 * 1024),
     maxVideoBytes: integer(env.MAX_VIDEO_BYTES, 48 * 1024 * 1024),
     maxReferenceBytes: integer(env.MAX_REFERENCE_BYTES, 10 * 1024 * 1024)
@@ -172,6 +206,14 @@ export function usageLimits(config, type) {
       daily: config.xResearchDailyCap,
       userHourly: config.xResearchUserHourlyCap,
       userDaily: config.xResearchUserDailyCap
+    };
+  }
+  if (type === "agent_x_research") {
+    return {
+      hourly: config.agentXResearchHourlyCap,
+      daily: config.agentXResearchDailyCap,
+      userHourly: config.agentXResearchHourlyCap,
+      userDaily: config.agentXResearchDailyCap
     };
   }
   return { hourly: 0, daily: 0, userHourly: 0, userDaily: 0 };

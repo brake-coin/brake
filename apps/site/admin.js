@@ -121,9 +121,17 @@ function renderConnection(status) {
   }
   const automation = x.automation || {};
   xAutomation.hidden = !xConnected;
+  const memory = automation.memory || {};
+  const lastCycle = memory.lastCycle;
   xAutomationCopy.textContent = automation.enabled
-    ? `Running every ${automation.intervalMinutes || 480} minutes, up to ${automation.dailyCap || 3} posts per UTC day. Rotation: ${(automation.types || []).join(", ")}.`
-    : "Autonomous posting is disabled. Live admin tests remain available.";
+    ? [
+        `Researching every ${automation.intervalMinutes || 120} minutes and posting at most ${automation.dailyCap || 3} times per UTC day.`,
+        `Minimum ${automation.minPostIntervalMinutes || 240} minutes between autonomous posts.`,
+        `Watching: ${(automation.watchAccounts || []).map((name) => `@${name}`).join(", ") || "configured X searches"}.`,
+        `Durable state: ${memory.goalCount || 0} goals, ${memory.memoryCount || 0} memories, ${memory.researchCount || 0} research items.`,
+        lastCycle ? `Last cycle: ${lastCycle.action} — ${lastCycle.reason || lastCycle.url || "complete"}.` : "No research cycle has completed yet."
+      ].join(" ")
+    : "The persistent campaign agent is disabled. Live admin tests remain available.";
   for (const button of xTestButtons) button.disabled = !xConnected || !status.connected;
 }
 

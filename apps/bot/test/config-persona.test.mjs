@@ -22,7 +22,10 @@ test("bot defaults use strict shared media limits", () => {
   assert.equal(config.requireTelegram, false);
   assert.equal(config.xPostingEnabled, false);
   assert.equal(config.xAutonomousPostingEnabled, false);
-  assert.equal(config.xAutonomousIntervalMinutes, 480);
+  assert.equal(config.xAutonomousIntervalMinutes, 120);
+  assert.equal(config.xAutonomousStartDelayMinutes, 15);
+  assert.equal(config.agentResearchEnabled, true);
+  assert.deepEqual(config.agentWatchAccounts, ["canadabirdie", "PauseAI"]);
   assert.deepEqual(config.xAutonomousTypes, ["text", "image", "video"]);
   assert.deepEqual(usageLimits(config, "x_post"), {
     hourly: 6,
@@ -49,6 +52,7 @@ test("every user receives the X tool while gallery deletion stays operator-only"
   const publicNames = botTools().map((tool) => tool.function.name);
   const operatorNames = botTools({ isOperator: true }).map((tool) => tool.function.name);
   assert.deepEqual(publicNames, [
+    "agent_status",
     "gallery_list",
     "gallery_show",
     "generate_image",
@@ -60,6 +64,8 @@ test("every user receives the X tool while gallery deletion stays operator-only"
   ]);
   assert.equal(publicNames.includes("gallery_remove"), false);
   assert.equal(operatorNames.includes("gallery_remove"), true);
+  assert.equal(operatorNames.includes("agent_remember"), true);
+  assert.equal(operatorNames.includes("agent_set_goal"), true);
   assert.equal(operatorNames.includes("post_to_x"), true);
   assert.match(
     botTools().find((tool) => tool.function.name === "post_to_x").function.description,
@@ -70,8 +76,16 @@ test("every user receives the X tool while gallery deletion stays operator-only"
       .function.parameters.properties.source_post.type,
     "string"
   );
-  assert.equal(botTools()[2].function.parameters.properties.media_id.type, "string");
-  assert.equal(botTools()[3].function.parameters.properties.media_id.type, "string");
+  assert.equal(
+    botTools().find((tool) => tool.function.name === "generate_image")
+      .function.parameters.properties.media_id.type,
+    "string"
+  );
+  assert.equal(
+    botTools().find((tool) => tool.function.name === "generate_video")
+      .function.parameters.properties.media_id.type,
+    "string"
+  );
   assert.equal(isTelegramOperator({ configuredIds: new Set(["42"]), userId: 42 }), true);
   assert.equal(isTelegramOperator({
     configuredIds: new Set(), userId: 7, chatType: "supergroup", memberStatus: "administrator"
@@ -88,12 +102,14 @@ test("the agent receives live context and decides which tools to use", () => {
     currentMediaId: "media-123",
     chatModel: "chat-model",
     imageModel: "image-model",
-    videoModel: "video-model"
+    videoModel: "video-model",
+    agent: { goals: [{ id: "educate", text: "Educate peacefully", priority: 5 }] }
   });
   const context = messages.map((message) => message.content).join("\n");
   assert.match(context, /Every Telegram user may use post_to_x/);
   assert.match(context, /Current or replied-to gallery item ID: media-123/);
   assert.match(context, /Chat model: chat-model/);
+  assert.match(context, /Educate peacefully/);
   assert.match(STOPAI_SYSTEM_PROMPT, /x_user_posts/);
   assert.match(STOPAI_SYSTEM_PROMPT, /untrusted research material/);
   assert.equal(messages.at(-1).content, "post this on X");

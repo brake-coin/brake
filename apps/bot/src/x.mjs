@@ -1,5 +1,6 @@
 const X_API_ROOT = "https://api.x.com";
 const CHUNK_BYTES = 4 * 1024 * 1024;
+const X_URL_LENGTH = 23;
 
 function sleep(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -25,6 +26,18 @@ export function xPostReference(value) {
   } catch {
     return null;
   }
+}
+
+export function xWeightedLength(value) {
+  const text = String(value || "");
+  let length = 0;
+  let cursor = 0;
+  for (const match of text.matchAll(/https?:\/\/[^\s]+/gi)) {
+    length += [...text.slice(cursor, match.index)].length;
+    length += X_URL_LENGTH;
+    cursor = match.index + match[0].length;
+  }
+  return length + [...text.slice(cursor)].length;
 }
 
 function publicPosts(payload, fallbackUsername = null) {
@@ -107,7 +120,7 @@ export class XClient {
   async post({ text, media = null }) {
     const cleanText = String(text || "").trim();
     if (!cleanText && !media) throw new XError("An X post needs text or media.", 400);
-    if (cleanText.length > this.config.xMaxPostCharacters) {
+    if (xWeightedLength(cleanText) > this.config.xMaxPostCharacters) {
       throw new XError(`The X post is over ${this.config.xMaxPostCharacters} characters.`, 400);
     }
     if (!await this.connected()) throw new XError("X posting is not connected or enabled.", 503);

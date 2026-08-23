@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveMediaMimeType, xPostReference, XClient } from "../src/x.mjs";
+import { resolveMediaMimeType, xPostReference, xWeightedLength, XClient } from "../src/x.mjs";
 
 function config(overrides = {}) {
   return {
@@ -43,6 +43,11 @@ test("X post references accept IDs and canonical post URLs only", () => {
     url: "https://x.com/i/web/status/2091410624970711451"
   });
   assert.equal(xPostReference("https://example.com/canadabirdie/status/2091410624970711451"), null);
+});
+
+test("X weighted length counts long links at the transformed URL length", () => {
+  const longUrl = `https://news.google.com/rss/articles/${"x".repeat(400)}`;
+  assert.equal(xWeightedLength(`Read this ${longUrl}`), 33);
 });
 
 test("X client reads and normalizes a public post", async () => {
