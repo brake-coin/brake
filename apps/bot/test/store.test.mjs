@@ -37,6 +37,8 @@ test("store remembers Telegram media IDs without media bytes", async (t) => {
   });
   assert.equal(store.latestMedia("42").fileId, "telegram-file-id");
   assert.equal(store.latestMedia("42").type, "video");
+  assert.equal(store.findMediaByFileId("42", "telegram-file-id").caption, "BYOK clip");
+  assert.equal(store.findMediaByFileId("99", "telegram-file-id"), null);
 });
 
 test("store manages chat-scoped galleries and expiring confirmations", async (t) => {

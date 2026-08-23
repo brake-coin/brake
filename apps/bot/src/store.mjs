@@ -76,6 +76,12 @@ export class BotStore {
       || null;
   }
 
+  findMediaByFileId(chatId, fileId) {
+    return this.#state.media.find((item) => (
+      item.chatId === String(chatId) && item.fileId === String(fileId)
+    )) || null;
+  }
+
   usageStatus(type, userId, limits) {
     const now = this.now();
     const currentHour = hourKey(now);

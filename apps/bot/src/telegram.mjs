@@ -10,6 +10,9 @@ import {
 import { imageBufferToDataUrl, OpenRouterError } from "./openrouter.mjs";
 import { XError } from "./x.mjs";
 
+const OFFICIAL_MINT = "2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS";
+const OFFICIAL_BAGS_URL = `https://bags.fm/${OFFICIAL_MINT}`;
+
 const BASE_TOOLS = [
   {
     type: "function",
@@ -48,7 +51,13 @@ const BASE_TOOLS = [
       description: "Create and send a new STOPAI image, then save it to the chat gallery.",
       parameters: {
         type: "object",
-        properties: { prompt: { type: "string", minLength: 1, maxLength: 1200 } },
+        properties: {
+          prompt: { type: "string", minLength: 1, maxLength: 1200 },
+          media_id: {
+            type: "string",
+            description: "Optional gallery ID, caption search, or latest image to remix. A replied-to image is used automatically."
+          }
+        },
         required: ["prompt"],
         additionalProperties: false
       }
@@ -61,7 +70,13 @@ const BASE_TOOLS = [
       description: "Create and send a short STOPAI video, then save it to the chat gallery.",
       parameters: {
         type: "object",
-        properties: { prompt: { type: "string", minLength: 1, maxLength: 1000 } },
+        properties: {
+          prompt: { type: "string", minLength: 1, maxLength: 1000 },
+          media_id: {
+            type: "string",
+            description: "Optional gallery ID, caption search, or latest image to animate. A replied-to image is used automatically."
+          }
+        },
         required: ["prompt"],
         additionalProperties: false
       }
@@ -140,6 +155,55 @@ export function hasExplicitXPostIntent(text) {
     || /\b(x|twitter)\b[\s\S]{0,80}\b(post|publish|tweet|send|share)\b/i.test(value);
 }
 
+export function hasMediaActionIntent(text) {
+  return /\b(?:animate|create|generate|make|post|publish|remix|share|tweet|turn)\b/i
+    .test(String(text || ""));
+}
+
+export function builtInReply({ text, userId, isOperator = false, config } = {}) {
+  const value = String(text || "").trim();
+  if (!value) return null;
+  if (/\b(?:my|the)\s+telegram\s+(?:user\s+)?id\b/i.test(value)) {
+    return `Your Telegram user ID is ${userId || "unknown"}.`;
+  }
+  if (/\b(?:am i (?:an? )?operator|operator status)\b/i.test(value)) {
+    return isOperator
+      ? "You are a configured STOPAI operator. You can remove gallery items and prepare confirmed X posts."
+      : "You are not a configured STOPAI operator. An admin can add your numeric Telegram ID to TELEGRAM_OPERATOR_IDS.";
+  }
+  if (/\b(?:what|which)\s+(?:ai|model|models)\b/i.test(value)
+    || /\b(?:ai|model)\s+(?:are you|do you|is this)\s+(?:using|use|running)\b/i.test(value)) {
+    return [
+      `Chat: ${config?.openRouterChatModel || "OpenRouter auto"}`,
+      `Images: ${config?.openRouterImageModel || "OpenRouter image model"}`,
+      `Videos: ${config?.openRouterVideoModel || "OpenRouter video model"}`,
+      "Telegram uses the shared admin connection. Website image generation is BYOK."
+    ].join("\n");
+  }
+  if (/\b(?:ca|contract|mint|token address)\b/i.test(value)) {
+    return [
+      "Official STOPAI Solana mint:",
+      OFFICIAL_MINT,
+      OFFICIAL_BAGS_URL,
+      "Ignore every other mint."
+    ].join("\n");
+  }
+  if (/^(?:hi|hello|hey|help)[!?.]*$/i.test(value)
+    || /\bwhat can you do\b/i.test(value)
+    || /\bhow (?:do|can) i use (?:this|the bot|you)\b/i.test(value)) {
+    return [
+      "I’m STOPAI ✋🏻😡. Talk to me normally — no slash commands.",
+      "• Ask about STOPAI or the AI race.",
+      "• Ask me to make an image or short video.",
+      "• Reply to an image to remix or animate it.",
+      "• Ask to list, show, or search this chat’s gallery.",
+      ...(isOperator ? ["• Ask me to remove gallery items or prepare an X post. Public posts always need confirmation."] : []),
+      `Official CA: ${OFFICIAL_MINT}`
+    ].join("\n");
+  }
+  return null;
+}
+
 function hasExplicitDeleteIntent(text) {
   return /\b(delete|remove|forget)\b/i.test(String(text || ""));
 }
@@ -175,6 +239,17 @@ function withTimeout(promise, milliseconds, message) {
       timer = setTimeout(() => reject(new Error(message)), milliseconds);
     })
   ]).finally(() => clearTimeout(timer));
+}
+
+async function withChatAction(ctx, action, task) {
+  await ctx.sendChatAction(action).catch(() => {});
+  const timer = setInterval(() => ctx.sendChatAction(action).catch(() => {}), 4_000);
+  timer.unref?.();
+  try {
+    return await task();
+  } finally {
+    clearInterval(timer);
+  }
 }
 
 function parseArguments(toolCall) {
@@ -310,15 +385,13 @@ export class TelegramService {
     const isOperator = this.#isOperator(ctx.from?.id);
 
     if (userText.startsWith("/")) {
-      await ctx.reply([
-        "No slash commands here — just ask in normal words.",
-        "I can manage this chat's gallery, make images and videos, and prepare X posts for an operator.",
-        `Your Telegram user ID is ${ctx.from?.id || "unknown"}.`
-      ].join("\n"));
-      return;
-    }
-    if (/\b(?:my|the)\s+telegram\s+(?:user\s+)?id\b/i.test(userText)) {
-      await ctx.reply(`Your Telegram user ID is ${ctx.from?.id || "unknown"}.`);
+      const welcome = builtInReply({
+        text: "help",
+        userId: ctx.from?.id,
+        isOperator,
+        config: this.config
+      });
+      await ctx.reply(`${welcome}\nYour Telegram user ID is ${ctx.from?.id || "unknown"}.`);
       return;
     }
     if (isPostConfirmation(userText)) {
@@ -331,8 +404,25 @@ export class TelegramService {
       await ctx.reply(action ? "X draft discarded." : "There is no pending X draft.");
       return;
     }
+    const directReply = builtInReply({
+      text: userText,
+      userId: ctx.from?.id,
+      isOperator,
+      config: this.config
+    });
+    if (directReply) {
+      await ctx.reply(directReply);
+      return;
+    }
+    await this.#runAssistant(ctx, userText, { isOperator });
+  }
+
+  async #runAssistant(ctx, userText, { isOperator, currentMediaId = null }) {
     if (!await this.openRouter.connected()) {
-      await ctx.reply("The shared OpenRouter account is not connected yet.");
+      await ctx.reply([
+        "The shared OpenRouter account is not connected yet, so chat and generation are paused.",
+        "I can still give the official CA, explain what I can do, or show which models are configured."
+      ].join("\n"));
       return;
     }
 
@@ -371,7 +461,11 @@ export class TelegramService {
           break;
         }
         for (const toolCall of toolCalls) {
-          const toolResult = await this.#executeTool(ctx, toolCall, { userText, isOperator });
+          const toolResult = await this.#executeTool(ctx, toolCall, {
+            userText,
+            isOperator,
+            currentMediaId
+          });
           messages.push({
             role: "tool",
             tool_call_id: toolCall.id,
@@ -391,7 +485,7 @@ export class TelegramService {
     }
   }
 
-  async #executeTool(ctx, toolCall, { userText, isOperator }) {
+  async #executeTool(ctx, toolCall, { userText, isOperator, currentMediaId = null }) {
     const name = toolCall?.function?.name;
     try {
       const args = parseArguments(toolCall);
@@ -416,10 +510,17 @@ export class TelegramService {
         await this.store.removeMedia({ chatId: ctx.chat.id, mediaId: media.id });
         return { ok: true, removed: shortMedia(media), telegram_message_deleted: false };
       }
-      if (name === "generate_image") return this.#generateImage(ctx, args.prompt);
-      if (name === "generate_video") return this.#generateVideo(ctx, args.prompt);
+      if (name === "generate_image") {
+        return this.#generateImage(ctx, { ...args, media_id: args.media_id || currentMediaId });
+      }
+      if (name === "generate_video") {
+        return this.#generateVideo(ctx, { ...args, media_id: args.media_id || currentMediaId });
+      }
       if (name === "post_to_x") {
-        return this.#prepareXPost(ctx, args, { userText, isOperator });
+        return this.#prepareXPost(ctx, {
+          ...args,
+          media_id: args.media_id || currentMediaId
+        }, { userText, isOperator });
       }
       return { ok: false, error: "Unknown tool." };
     } catch (error) {
@@ -428,8 +529,8 @@ export class TelegramService {
     }
   }
 
-  async #generateImage(ctx, promptValue) {
-    const prompt = String(promptValue || "").trim().slice(0, 1_200);
+  async #generateImage(ctx, args) {
+    const prompt = String(args?.prompt || "").trim().slice(0, 1_200);
     if (!prompt) return { ok: false, error: "An image idea is required." };
     if (!this.config.telegramImagesEnabled) {
       return { ok: false, error: "Shared image generation is turned off. Website BYOK still works." };
@@ -442,14 +543,17 @@ export class TelegramService {
     );
     if (!claim.allowed) return { ok: false, error: limitMessage("image", claim) };
 
-    await ctx.reply("Putting the weird hand to work…");
-    await ctx.sendChatAction("upload_photo").catch(() => {});
-    const repliedReference = await this.#referenceFromReply(ctx);
-    const references = [this.canonicalReferenceDataUrl, repliedReference].filter(Boolean);
-    const result = await this.openRouter.generateImage({
-      prompt: buildImagePrompt(prompt),
-      referenceDataUrls: references
-    });
+    await ctx.reply(args?.media_id || mediaFromMessage(ctx.message?.reply_to_message)
+      ? "Remixing that image with the weird hand…"
+      : "Putting the weird hand to work…");
+    const selectedReference = await this.#imageReference(ctx, args?.media_id);
+    const references = [this.canonicalReferenceDataUrl, selectedReference].filter(Boolean);
+    const result = await withChatAction(ctx, "upload_photo", () => (
+      this.openRouter.generateImage({
+        prompt: buildImagePrompt(prompt),
+        referenceDataUrls: references
+      })
+    ));
     await this.store.recordCost(claim.eventId, result.costUsd);
     const sent = await ctx.replyWithPhoto(result.buffer ? { source: result.buffer } : result.url, {
       caption: `STOPAI ✋🏻😡\n${prompt.slice(0, 700)}`
@@ -467,8 +571,8 @@ export class TelegramService {
     return { ok: true, sent: true, saved: true, item: shortMedia(media) };
   }
 
-  async #generateVideo(ctx, promptValue) {
-    const prompt = String(promptValue || "").trim().slice(0, 1_000);
+  async #generateVideo(ctx, args) {
+    const prompt = String(args?.prompt || "").trim().slice(0, 1_000);
     if (!prompt) return { ok: false, error: "A video idea is required." };
     if (!this.config.telegramVideosEnabled) {
       return { ok: false, error: "Shared video generation is turned off." };
@@ -482,12 +586,14 @@ export class TelegramService {
     if (!claim.allowed) return { ok: false, error: limitMessage("video", claim) };
 
     await ctx.reply("Starting a short STOPAI clip. This can take several minutes…");
-    await ctx.sendChatAction("upload_video").catch(() => {});
-    const referenceDataUrl = await this.#referenceFromReply(ctx) || this.canonicalReferenceDataUrl;
-    const result = await this.openRouter.generateVideo({
-      prompt: buildVideoPrompt(prompt),
-      referenceDataUrl
-    });
+    const referenceDataUrl = await this.#imageReference(ctx, args?.media_id)
+      || this.canonicalReferenceDataUrl;
+    const result = await withChatAction(ctx, "upload_video", () => (
+      this.openRouter.generateVideo({
+        prompt: buildVideoPrompt(prompt),
+        referenceDataUrl
+      })
+    ));
     await this.store.recordCost(claim.eventId, result.costUsd);
     const sent = await ctx.replyWithVideo({ source: result.buffer }, {
       caption: `STOPAI ✋🏻😡\n${prompt.slice(0, 700)}`,
@@ -523,6 +629,8 @@ export class TelegramService {
     if (args.media_id) {
       media = this.store.findMedia(ctx.chat.id, args.media_id);
       if (!media) return { ok: false, error: "No matching gallery item was found." };
+    } else {
+      media = await this.#mediaRecordFromMessage(ctx, ctx.message?.reply_to_message);
     }
     await this.store.stagePendingAction({
       type: "x_post",
@@ -588,18 +696,26 @@ export class TelegramService {
       botUsername: this.botInfo?.username,
       botId: this.botInfo?.id
     })) return;
-    const record = await this.store.recordMedia({
+    const caption = removeBotMention(ctx.message.caption || "", this.botInfo?.username);
+    const existing = this.store.findMediaByFileId(ctx.chat.id, media.fileId);
+    const record = existing || await this.store.recordMedia({
       chatId: ctx.chat.id,
       userId: ctx.from?.id,
       type: media.type,
       fileId: media.fileId,
-      caption: removeBotMention(ctx.message.caption || "", this.botInfo?.username),
+      caption,
       source: "telegram-upload"
     });
     await ctx.reply([
       `Saved that ${media.type} in this chat's gallery as ${record.id.slice(0, 8)}.`,
       "Ask me naturally to show it, remix it, animate it, or prepare it for X."
     ].join("\n"));
+    if (caption && hasMediaActionIntent(caption) && this.config.telegramRepliesEnabled) {
+      await this.#runAssistant(ctx, caption, {
+        isOperator: this.#isOperator(ctx.from?.id),
+        currentMediaId: record.id
+      });
+    }
   }
 
   async #sendMedia(ctx, media) {
@@ -630,9 +746,32 @@ export class TelegramService {
     return { buffer, mimeType, type: media.type };
   }
 
-  async #referenceFromReply(ctx) {
-    const reference = mediaFromMessage(ctx.message?.reply_to_message);
-    if (reference?.type !== "image") return null;
+  async #mediaRecordFromMessage(ctx, message) {
+    const media = mediaFromMessage(message);
+    if (!media) return null;
+    const existing = this.store.findMediaByFileId(ctx.chat.id, media.fileId);
+    if (existing) return existing;
+    return this.store.recordMedia({
+      chatId: ctx.chat.id,
+      userId: ctx.from?.id,
+      type: media.type,
+      fileId: media.fileId,
+      caption: removeBotMention(message?.caption || "", this.botInfo?.username),
+      source: "telegram-reference"
+    });
+  }
+
+  async #imageReference(ctx, mediaId = null) {
+    let reference = null;
+    if (mediaId) {
+      reference = this.store.findMedia(ctx.chat.id, mediaId);
+      if (!reference) throw new Error("No matching gallery item was found.");
+      if (reference.type !== "image") throw new Error("That gallery item is not an image.");
+    } else {
+      const messageMedia = mediaFromMessage(ctx.message?.reply_to_message);
+      if (messageMedia?.type === "image") reference = messageMedia;
+    }
+    if (!reference) return null;
     const media = await this.#downloadMedia(ctx, { ...reference, type: "image" });
     if (!media.mimeType.startsWith("image/")) throw new Error("That reply is not a usable image.");
     if (media.buffer.length > this.config.maxReferenceBytes) {
