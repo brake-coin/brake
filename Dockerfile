@@ -5,6 +5,7 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY README.md ./
+COPY Dockerfile ./
 COPY apps ./apps
 COPY packages ./packages
 COPY scripts ./scripts
