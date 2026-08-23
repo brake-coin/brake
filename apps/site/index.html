@@ -5,13 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://openrouter.ai; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self' https://openrouter.ai; frame-ancestors 'none'"
+      content="default-src 'self'; img-src 'self' data: blob: https://pbs.twimg.com; connect-src 'self' https://openrouter.ai https://stopai-coin.fly.dev; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self' https://openrouter.ai; frame-ancestors 'none'"
     />
     <meta
       name="description"
-      content="The official $STOPAI Solana mint, independent project disclosures, and meme generator."
+      content="AI won’t stop itself. So we built $STOPAI: a Solana memecoin, BYOK meme machine, and autonomous campaign bot putting a peaceful hand up to the AI race."
     />
-    <title>$STOPAI ✋🏻😡 — Stop the AI race</title>
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://brake-coin.github.io/brake/" />
+    <meta property="og:title" content="$STOPAI ✋🏻😡 — AI won’t stop itself" />
+    <meta property="og:description" content="A Solana memecoin, BYOK meme machine, and campaign bot putting a peaceful hand up to the AI race." />
+    <meta property="og:image" content="https://brake-coin.github.io/brake/assets/stopai-social-preview.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="$STOPAI ✋🏻😡 — AI won’t stop itself" />
+    <meta name="twitter:description" content="A memecoin, meme machine, and campaign bot putting a peaceful hand up to the AI race." />
+    <meta name="twitter:image" content="https://brake-coin.github.io/brake/assets/stopai-social-preview.png" />
+    <title>$STOPAI ✋🏻😡 — AI won’t stop itself</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -26,11 +37,11 @@
     <main>
       <section class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Independent Solana memecoin</p>
-          <h1>Stop the AI race.</h1>
+          <p class="eyebrow">A memecoin with one job</p>
+          <h1>AI won’t stop itself.<br />So we built $STOPAI.</h1>
           <p class="lede">
-            A simple cultural token built around a peaceful message, a fixed Solana
-            mint, and a public creator-fee recipient.
+            Put a hand up to the AI race. Make the warning impossible to ignore with
+            memes, a campaign bot, and one loud red stop sign for the timeline.
           </p>
           <div class="notice contract-notice" id="contract-notice">
             <span>Official Solana mint</span>
@@ -57,20 +68,20 @@
               href="https://bags.fm/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS"
               target="_blank"
               rel="noreferrer"
-            >Official $STOPAI page <span>↗</span></a>
-            <a class="hero-cta" href="#meme-machine">Make a $STOPAI meme <span>↓</span></a>
+            >Get $STOPAI on Bags <span>↗</span></a>
+            <a class="hero-cta" href="#meme-machine">Make a meme <span>↓</span></a>
             <a
               class="hero-cta telegram-cta"
               href="https://t.me/stopaitoken"
               target="_blank"
               rel="noreferrer"
-            >Join @stopaitoken <span>↗</span></a>
+            >Join the Telegram <span>↗</span></a>
             <a
               class="hero-cta"
               href="https://x.com/STOPAICOIN"
               target="_blank"
               rel="noreferrer"
-            >Follow @STOPAICOIN <span>↗</span></a>
+            >See @STOPAICOIN <span>↗</span></a>
           </div>
         </div>
         <img
@@ -82,30 +93,30 @@
 
       <section class="meme-machine" id="meme-machine" aria-labelledby="meme-title">
         <div class="meme-intro">
-          <p class="eyebrow">The peaceful propaganda machine</p>
-          <h2 id="meme-title">Send $STOPAI.<br />Get meme.</h2>
+          <p class="eyebrow">The $STOPAI meme machine</p>
+          <h2 id="meme-title">Send an idea.<br />Get a meme.</h2>
           <p>
-            Describe the joke. The machine remixes our gloriously wrong hand into a
-            square meme ready to download or share.
+            Type the joke. Bring your own OpenRouter key. The machine puts our
+            intentionally busted hand to work and gives you an image to remix or share.
           </p>
           <div class="meme-reference" aria-label="The intentionally strange STOPAI hand">
             <img src="./assets/brake-emblem-meme-reference.png" alt="STOPAI's intentionally odd open-hand emblem" />
-            <span>The hand stays weird.</span>
+            <span>Yes, the hand is supposed to look like that.</span>
           </div>
         </div>
 
         <div class="meme-studio">
           <section class="openrouter-connect" aria-labelledby="openrouter-title">
             <div>
-              <p class="eyebrow">BYOK OpenRouter</p>
-              <h3 id="openrouter-title">Your key. Your images.</h3>
+              <p class="eyebrow">Private BYOK</p>
+              <h3 id="openrouter-title">Connect. Generate. Disconnect.</h3>
               <p id="openrouter-state">
-                Connect your OpenRouter account. You pay OpenRouter directly for each image.
+                OpenRouter gives this tab a key. We never receive it or add it to our server.
               </p>
             </div>
             <div class="openrouter-actions">
               <button id="connect-openrouter" class="openrouter-primary" type="button">
-                Connect with OAuth PKCE
+                Connect OpenRouter
               </button>
               <button id="disconnect-openrouter" type="button" hidden>Disconnect this tab</button>
               <a id="openrouter-activity" target="_blank" rel="noreferrer" hidden>Usage ↗</a>
@@ -114,20 +125,20 @@
           </section>
 
           <form id="meme-form">
-            <label for="meme-idea">What should the meme say?</label>
+            <label for="meme-idea">Give the weird hand a job</label>
             <textarea
               id="meme-idea"
               name="idea"
               maxlength="280"
               rows="4"
-              placeholder="When they call another trillion parameters ‘responsible scaling’..."
+              placeholder="AI won’t stop itself, so the weird hand showed up to work..."
               required
             ></textarea>
 
             <div class="prompt-starters" aria-label="Meme idea starters">
-              <button type="button" data-prompt="AI labs racing toward the cliff while STOPAI holds up the tiny weird hand">Racing to the cliff</button>
-              <button type="button" data-prompt="Me asking the AI race to pause for literally one second">Literally one second</button>
-              <button type="button" data-prompt="Breaking news: the weird hand has entered the alignment debate">Breaking news</button>
+              <button type="button" data-prompt="AI labs racing toward the cliff while the STOPAI hand reaches for the emergency brake">Find the brake</button>
+              <button type="button" data-prompt="The AI race hearing ‘maybe slow down’ and immediately adding another data center">Maybe slow down</button>
+              <button type="button" data-prompt="Breaking news: the weird STOPAI hand has entered the alignment debate">Breaking news</button>
             </div>
 
             <div class="studio-controls">
@@ -141,14 +152,14 @@
                 </select>
               </label>
               <button class="generate-button" id="generate-button" type="submit" disabled>
-                <span class="button-ready">Generate meme</span>
-                <span class="button-working" hidden>Applying brakes…</span>
+                <span class="button-ready">Make my meme</span>
+                <span class="button-working" hidden>Hand at work…</span>
               </button>
             </div>
           </form>
 
           <p class="generator-status" id="generator-status" role="status" aria-live="polite">
-            Checking the meme machine…
+            Connecting the meme machine…
           </p>
 
           <div class="meme-output" id="meme-output" hidden>
@@ -161,53 +172,103 @@
           </div>
 
           <p class="generator-fine-print">
-            Your OAuth key is kept only in this browser tab and is never sent to a STOPAI
-            server. OpenRouter and its selected model provider receive your prompt and image
-            reference and charge your account. Never send tokens to use this demo. AI output
-            can be weird or wrong — review before posting. Model:
+            Your OpenRouter key exists only in this browser tab. OpenRouter and the selected
+            image provider receive your prompt and reference image and charge your account.
+            $STOPAI is never required to generate. AI can get words and hands wrong — that is
+            partly the point, but review before sharing. Model:
             <span id="model-label">Nano Banana 2</span>.
           </p>
         </div>
       </section>
 
+      <section class="meme-gallery" id="x-gallery" aria-labelledby="gallery-title">
+        <div class="gallery-heading">
+          <div>
+            <p class="eyebrow">Live from @STOPAICOIN</p>
+            <h2 id="gallery-title">Memes from the timeline.</h2>
+            <p>Recent images and videos published by the campaign agent on the official X account.</p>
+          </div>
+          <a href="https://x.com/STOPAICOIN" target="_blank" rel="noreferrer">Follow @STOPAICOIN ↗</a>
+        </div>
+        <p class="gallery-empty" id="gallery-status" role="status" aria-live="polite">Loading the latest memes from X…</p>
+        <div class="gallery-grid" id="gallery-grid"></div>
+      </section>
+
+      <section class="meme-gallery personal-gallery" id="your-gallery" aria-labelledby="your-gallery-title">
+        <div class="gallery-heading">
+          <div>
+            <p class="eyebrow">Private to this device</p>
+            <h2 id="your-gallery-title">Your memes.</h2>
+            <p>The latest 12 memes you generate stay in this browser unless you delete them.</p>
+          </div>
+          <button id="clear-personal-gallery" type="button" hidden>Clear your gallery</button>
+        </div>
+        <p class="gallery-empty" id="personal-gallery-status">Your weird hand has not made anything yet.</p>
+        <div class="gallery-grid" id="personal-gallery-grid"></div>
+      </section>
+
+      <section class="agent" aria-labelledby="agent-title">
+        <div>
+          <p class="eyebrow">The campaign agent</p>
+          <h2 id="agent-title">Research.<br />Meme.<br />Post. Repeat.</h2>
+        </div>
+        <div class="agent-copy">
+          <p>
+            <strong>@StopAiToken_bot</strong> lives in Telegram. Talk to it like a person:
+            it can research the AI race, make images and short videos, manage the chat
+            gallery, and publish to <strong>@STOPAICOIN</strong> on X.
+          </p>
+          <ul>
+            <li><strong>Read the race</strong><span>Search X, watch selected accounts, and follow current AI news.</span></li>
+            <li><strong>Make the response</strong><span>Turn a trend, post, or chat idea into original STOPAI media.</span></li>
+            <li><strong>Ship with limits</strong><span>Post with cooldowns, daily caps, source links, and durable receipts.</span></li>
+          </ul>
+          <div class="agent-actions">
+            <a href="https://t.me/StopAiToken_bot" target="_blank" rel="noreferrer">Talk to the bot ↗</a>
+            <a href="https://t.me/stopaitoken" target="_blank" rel="noreferrer">Join the group ↗</a>
+            <a href="https://x.com/STOPAICOIN" target="_blank" rel="noreferrer">Watch it on X ↗</a>
+          </div>
+        </div>
+      </section>
+
       <section class="principles" aria-labelledby="principles-title">
-        <h2 id="principles-title">Three rules</h2>
+        <h2 id="principles-title">What $STOPAI is</h2>
         <div class="card-grid">
           <article>
             <span>01</span>
-            <h3>Fixed mint</h3>
-            <p>One billion tokens. Mint and freeze authorities are revoked.</p>
+            <h3>One real mint</h3>
+            <p>One billion tokens. Mint and freeze authorities are revoked. Ignore copies.</p>
           </article>
           <article>
             <span>02</span>
-            <h3>Public recipient</h3>
-            <p>Bags lists @canadabirdie as the creator-fee recipient.</p>
+            <h3>Public fee route</h3>
+            <p>Bags lists @canadabirdie as the recipient. Holders have no claim on the fees.</p>
           </article>
           <article>
             <span>03</span>
-            <h3>Peaceful message</h3>
-            <p>Make bold memes and support lawful public discussion about the AI race.</p>
+            <h3>Memes, not mayhem</h3>
+            <p>Use jokes, art, and peaceful public pressure to question the AI race.</p>
           </article>
         </div>
       </section>
 
       <section class="flow" aria-labelledby="flow-title">
         <div>
-          <p class="eyebrow">Creator-fee routing</p>
-          <h2 id="flow-title">Bags fees. Public recipient.</h2>
+          <p class="eyebrow">Follow the money</p>
+          <h2 id="flow-title">Know where the fees go.</h2>
         </div>
         <ol>
-          <li><strong>Trading venue</strong><span>Bags</span></li>
+          <li><strong>Token</strong><span>the official mint on Bags</span></li>
           <li>
-            <strong>Creator-fee recipient</strong>
-            <span><a href="https://x.com/canadabirdie" target="_blank" rel="noreferrer">@canadabirdie ↗</a></span>
+            <strong>Creator fees</strong>
+            <span>routed by Bags to <a href="https://x.com/canadabirdie" target="_blank" rel="noreferrer">@canadabirdie ↗</a></span>
           </li>
-          <li><strong>Holder rights</strong><span>no yield, revenue share, or claim on fees</span></li>
+          <li><strong>What holders get</strong><span>the token — no yield, revenue share, or claim on fees</span></li>
         </ol>
       </section>
 
       <section class="disclosure" aria-labelledby="disclosure-title">
-        <h2 id="disclosure-title">Live token. Independent project.</h2>
+        <h2 id="disclosure-title">Memecoin. Not a donation.</h2>
         <p id="risk-notice">
           STOPAI is speculative and could lose all value. Buying it is not a charitable
           donation and does not produce a tax receipt. Creator fees belong to the
@@ -220,7 +281,7 @@
     </main>
 
     <footer>
-      <span>$STOPAI ✋🏻😡 is live on Solana. Creator-fee recipient: <a href="https://x.com/canadabirdie" target="_blank" rel="noreferrer">@canadabirdie</a>.</span>
+      <span>$STOPAI ✋🏻😡 Put a hand up to the AI race. Live on Solana. Public fee recipient: <a href="https://x.com/canadabirdie" target="_blank" rel="noreferrer">@canadabirdie</a>.</span>
       <span id="last-updated"></span>
     </footer>
     <script type="module" src="./app.js"></script>
