@@ -9,7 +9,8 @@ import {
   hasExplicitXPostIntent,
   hasMediaActionIntent,
   isAddressed,
-  isPostConfirmation
+  isTelegramOperator,
+  shouldAttachLatestMedia
 } from "../src/telegram.mjs";
 
 test("bot defaults use strict shared media limits", () => {
@@ -23,6 +24,13 @@ test("bot defaults use strict shared media limits", () => {
   assert.equal(config.videoDailyCap, 2);
   assert.equal(config.requireTelegram, false);
   assert.equal(config.xPostingEnabled, false);
+  assert.equal(config.xAutonomousPostingEnabled, false);
+  assert.equal(config.xAutonomousIntervalMinutes, 480);
+  assert.deepEqual(config.xAutonomousTypes, ["text", "image", "video"]);
+  assert.deepEqual(
+    createBotConfig({ X_AUTONOMOUS_TYPES: "video,text,unknown,video" }).xAutonomousTypes,
+    ["video", "text"]
+  );
   assert.deepEqual([...createBotConfig({ TELEGRAM_OPERATOR_IDS: "12, nope,34" }).telegramOperatorIds], ["12", "34"]);
 });
 
@@ -32,16 +40,25 @@ test("only operators receive destructive and public posting tools", () => {
   assert.deepEqual(publicNames, ["gallery_list", "gallery_show", "generate_image", "generate_video"]);
   assert.equal(operatorNames.includes("gallery_remove"), true);
   assert.equal(operatorNames.includes("post_to_x"), true);
+  assert.match(
+    botTools({ isOperator: true }).find((tool) => tool.function.name === "post_to_x").function.description,
+    /immediately/i
+  );
   assert.equal(botTools()[2].function.parameters.properties.media_id.type, "string");
   assert.equal(botTools()[3].function.parameters.properties.media_id.type, "string");
   assert.equal(hasExplicitXPostIntent("post the latest image on X"), true);
   assert.equal(hasExplicitXPostIntent("show the latest image"), false);
+  assert.equal(shouldAttachLatestMedia("Post it on X saying AI won’t stop itself."), true);
+  assert.equal(shouldAttachLatestMedia("Post on X saying AI won’t stop itself."), false);
   assert.equal(hasMediaActionIntent("animate this picture"), true);
   assert.equal(hasMediaActionIntent("a picture from the march"), false);
-  assert.equal(isPostConfirmation("confirm post"), true);
-  assert.equal(isPostConfirmation("go ahead"), true);
-  assert.equal(isPostConfirmation("yes, post it"), true);
-  assert.equal(isPostConfirmation("go ahead with the remix"), false);
+  assert.equal(isTelegramOperator({ configuredIds: new Set(["42"]), userId: 42 }), true);
+  assert.equal(isTelegramOperator({
+    configuredIds: new Set(), userId: 7, chatType: "supergroup", memberStatus: "administrator"
+  }), true);
+  assert.equal(isTelegramOperator({
+    configuredIds: new Set(), userId: 7, chatType: "private", memberStatus: "administrator"
+  }), false);
 });
 
 test("built-in facts remain available without an AI request", () => {

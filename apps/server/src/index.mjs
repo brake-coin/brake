@@ -3,11 +3,12 @@ import { readFile, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
+import { AutonomousXService } from "../../bot/src/autonomous-x.mjs";
 import { createBotConfig } from "../../bot/src/config.mjs";
-import { OpenRouterClient } from "../../bot/src/openrouter.mjs";
+import { OpenRouterClient, OpenRouterError } from "../../bot/src/openrouter.mjs";
 import { BotStore } from "../../bot/src/store.mjs";
 import { TelegramService } from "../../bot/src/telegram.mjs";
-import { XClient } from "../../bot/src/x.mjs";
+import { XClient, XError } from "../../bot/src/x.mjs";
 import {
   ADMIN_COOKIE,
   adminCookie,
@@ -118,6 +119,13 @@ const xClient = new XClient({
   config: botConfig,
   credentialProvider: xCredentialProvider
 });
+const xAutomation = new AutonomousXService({
+  config: botConfig,
+  store: botStore,
+  openRouter,
+  xClient,
+  canonicalReferenceDataUrl
+});
 const telegram = new TelegramService({
   config: botConfig,
   store: botStore,
@@ -159,6 +167,7 @@ class FixedWindowRateLimiter {
 
 const loginLimiter = new FixedWindowRateLimiter({ limit: 5, windowMs: 15 * 60 * 1_000 });
 const telegramConnectLimiter = new FixedWindowRateLimiter({ limit: 10, windowMs: 60 * 60 * 1_000 });
+const xTestPostLimiter = new FixedWindowRateLimiter({ limit: 3, windowMs: 60 * 60 * 1_000 });
 
 async function telegramAdminStatus() {
   return {
@@ -171,12 +180,15 @@ async function telegramAdminStatus() {
 }
 
 async function xAdminStatus() {
-  return publicXCredentialStatus(await xCredentialStore.read(), {
-    environmentToken: Boolean(environmentXAccessToken),
-    postingEnabled: botConfig.xPostingEnabled,
-    callbackUrl: xCallbackUrl,
-    expectedUsername: expectedXUsername
-  });
+  return {
+    ...publicXCredentialStatus(await xCredentialStore.read(), {
+      environmentToken: Boolean(environmentXAccessToken),
+      postingEnabled: botConfig.xPostingEnabled,
+      callbackUrl: xCallbackUrl,
+      expectedUsername: expectedXUsername
+    }),
+    automation: xAutomation.status()
+  };
 }
 
 function setSecurityHeaders(response) {
@@ -441,6 +453,44 @@ async function handleAdminApi(request, response, url) {
     sendJson(response, 200, { ok: true, x: await xAdminStatus() });
     return true;
   }
+
+  if (request.method === "POST" && url.pathname === "/api/admin/x/post-test") {
+    if (!requestOriginAllowed(request)) {
+      sendJson(response, 403, { error: "Origin not allowed." });
+      return true;
+    }
+    if (!requireAdmin(request, response)) return true;
+    const body = await readJsonBody(request);
+    const type = String(body.type || "").toLowerCase();
+    if (!["text", "image", "video"].includes(type)) {
+      throw new UserInputError("Choose text, image, or video.");
+    }
+    if (!await xClient.connected()) {
+      sendJson(response, 409, { error: "Connect @STOPAICOIN before running live-post tests." });
+      return true;
+    }
+    if (!await openRouter.connected()) {
+      sendJson(response, 409, { error: "Connect the shared OpenRouter account before running live-post tests." });
+      return true;
+    }
+    if (!xTestPostLimiter.take(clientKey(request))) {
+      sendJson(response, 429, { error: "The three hourly live-post tests have already been used." });
+      return true;
+    }
+    try {
+      const result = await xAutomation.runOnce({ type, test: true });
+      if (!result.ok) {
+        sendJson(response, 409, { error: `The live test was skipped: ${result.reason}.`, result });
+      } else sendJson(response, 200, { ok: true, result, x: await xAdminStatus() });
+    } catch (error) {
+      console.error(`[x] ${type} test failed`, error);
+      const known = error instanceof XError || error instanceof OpenRouterError;
+      sendJson(response, known ? error.status : 502, {
+        error: known ? error.message : `The ${type} live test failed.`
+      });
+    }
+    return true;
+  }
   return false;
 }
 
@@ -573,11 +623,13 @@ telegram.start().catch((error) => {
   console.error("Telegram startup failed", error);
   if (botConfig.requireTelegram) process.exitCode = 1;
 });
+xAutomation.start();
 
 let shuttingDown = false;
 async function shutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
+  xAutomation.stop();
   await telegram.stop(signal);
   await new Promise((resolve) => server.close(resolve));
 }

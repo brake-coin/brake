@@ -103,7 +103,7 @@ const OPERATOR_TOOLS = [
     type: "function",
     function: {
       name: "post_to_x",
-      description: "Prepare a public X post for operator confirmation. It never posts immediately.",
+      description: "Publish a public X post immediately after an explicit operator request.",
       parameters: {
         type: "object",
         properties: {
@@ -156,9 +156,19 @@ export function hasExplicitXPostIntent(text) {
     || /\b(x|twitter)\b[\s\S]{0,80}\b(post|publish|tweet|send|share)\b/i.test(value);
 }
 
+export function shouldAttachLatestMedia(text) {
+  return /\b(?:it|this|that|image|meme|video|latest)\b/i.test(String(text || ""));
+}
+
 export function hasMediaActionIntent(text) {
   return /\b(?:animate|create|generate|make|post|publish|remix|share|tweet|turn)\b/i
     .test(String(text || ""));
+}
+
+export function isTelegramOperator({ configuredIds, userId, chatType, memberStatus }) {
+  if (configuredIds?.has(String(userId || ""))) return true;
+  return ["group", "supergroup"].includes(chatType)
+    && ["creator", "administrator"].includes(memberStatus);
 }
 
 export function builtInReply({ text, userId, isOperator = false, config } = {}) {
@@ -169,7 +179,7 @@ export function builtInReply({ text, userId, isOperator = false, config } = {}) 
   }
   if (/\b(?:am i (?:an? )?operator|operator status)\b/i.test(value)) {
     return isOperator
-      ? "You are a configured STOPAI operator. You can remove gallery items and prepare confirmed X posts."
+      ? "You are a configured STOPAI operator. You can remove gallery items and publish X posts."
       : "You are not a configured STOPAI operator. An admin can add your numeric Telegram ID to TELEGRAM_OPERATOR_IDS.";
   }
   if (/\b(?:what|which)\s+(?:ai|model|models)\b/i.test(value)
@@ -206,7 +216,7 @@ export function builtInReply({ text, userId, isOperator = false, config } = {}) 
       "• Ask me to make an image or short video.",
       "• Reply to an image to remix or animate it.",
       "• Ask to list, show, or search this chat’s gallery.",
-      ...(isOperator ? ["• Ask me to remove gallery items or prepare an X post. Public posts always need confirmation."] : []),
+      ...(isOperator ? ["• Ask me to remove gallery items or publish an X post immediately."] : []),
       "• Follow the official project account: @STOPAICOIN.",
       `Official CA: ${OFFICIAL_MINT}`
     ].join("\n");
@@ -218,13 +228,12 @@ function hasExplicitDeleteIntent(text) {
   return /\b(delete|remove|forget)\b/i.test(String(text || ""));
 }
 
-export function isPostConfirmation(text) {
-  const value = String(text || "").trim().replace(/[.!]+$/, "");
-  return /^(?:(?:yes|yep|yeah|ok(?:ay)?)(?:[,]?\s+(?:please\s+)?(?:go ahead|post it|publish it|send it|do it|confirm(?:\s+(?:the|x))?\s+post))?|(?:please\s+)?(?:go ahead|post it|publish it|send it|do it|looks good|approved?|confirm(?:\s+(?:the|x))?\s+post))(?:\s+please)?$/i.test(value);
-}
-
-function isPostCancellation(text) {
-  return /^(?:cancel|discard)(?:\s+(?:the|x))?\s+post[.!]?$/i.test(String(text || "").trim());
+function cleanXPostText(text) {
+  return String(text || "")
+    .replace(/\[([^\]]+)]\((https?:\/\/[^)]+)\)/g, "$1 $2")
+    .replace(/\*\*|__|~~|`/g, "")
+    .replace(/^#{1,6}\s+/gm, "")
+    .trim();
 }
 
 function limitMessage(type, claim) {
@@ -391,8 +400,26 @@ export class TelegramService {
     this.bot.on("text", (ctx) => this.#handleText(ctx));
   }
 
-  #isOperator(userId) {
-    return this.config.telegramOperatorIds?.has(String(userId || "")) || false;
+  async #isOperator(ctx) {
+    if (isTelegramOperator({
+      configuredIds: this.config.telegramOperatorIds,
+      userId: ctx.from?.id,
+      chatType: ctx.chat?.type,
+      memberStatus: null
+    })) return true;
+    if (!["group", "supergroup"].includes(ctx.chat?.type)) return false;
+    try {
+      const member = await ctx.telegram.getChatMember(ctx.chat.id, ctx.from.id);
+      return isTelegramOperator({
+        configuredIds: this.config.telegramOperatorIds,
+        userId: ctx.from?.id,
+        chatType: ctx.chat.type,
+        memberStatus: member?.status
+      });
+    } catch (error) {
+      this.logger.warn("[telegram] could not check group administrator", error.message);
+      return false;
+    }
   }
 
   async #handleText(ctx) {
@@ -408,7 +435,7 @@ export class TelegramService {
 
     const userText = removeBotMention(message.text, this.botInfo?.username);
     if (!userText) return;
-    const isOperator = this.#isOperator(ctx.from?.id);
+    const isOperator = await this.#isOperator(ctx);
 
     if (userText.startsWith("/")) {
       const welcome = builtInReply({
@@ -420,15 +447,15 @@ export class TelegramService {
       await ctx.reply(`${welcome}\nYour Telegram user ID is ${ctx.from?.id || "unknown"}.`);
       return;
     }
-    if (isPostConfirmation(userText)) {
-      await this.#confirmXPost(ctx, isOperator);
-      return;
-    }
-    if (isPostCancellation(userText)) {
-      const action = this.store.pendingAction({ type: "x_post", chatId: ctx.chat.id, userId: ctx.from?.id });
-      if (action) await this.store.completePendingAction(action.id);
-      await ctx.reply(action ? "X draft discarded." : "There is no pending X draft.");
-      return;
+    if (hasExplicitXPostIntent(userText)) {
+      if (!isOperator) {
+        await ctx.reply("Only a configured operator or Telegram group administrator can publish to X.");
+        return;
+      }
+      if (!this.xClient || !await this.xClient.connected()) {
+        await ctx.reply("X is not connected yet. The owner needs to connect @STOPAICOIN in the private admin page.");
+        return;
+      }
     }
     const directReply = builtInReply({
       text: userText,
@@ -477,7 +504,7 @@ export class TelegramService {
     let totalCostUsd = 0;
     let finalText = "";
     try {
-      for (let round = 0; round < 4; round += 1) {
+      assistantLoop: for (let round = 0; round < 4; round += 1) {
         const mustPrepareXPost = round === 0 && isOperator && hasExplicitXPostIntent(userText);
         const result = await this.openRouter.chatStep(messages, tools, {
           toolChoice: mustPrepareXPost
@@ -503,6 +530,10 @@ export class TelegramService {
             name: toolCall.function?.name,
             content: JSON.stringify(toolResult)
           });
+          if (toolCall.function?.name === "post_to_x" && toolResult.posted) {
+            finalText = `Posted to X: ${toolResult.url}`;
+            break assistantLoop;
+          }
         }
       }
       if (!finalText) finalText = "I finished the tool work.";
@@ -549,7 +580,7 @@ export class TelegramService {
         return this.#generateVideo(ctx, { ...args, media_id: args.media_id || currentMediaId });
       }
       if (name === "post_to_x") {
-        return this.#prepareXPost(ctx, {
+        return this.#postToX(ctx, {
           ...args,
           media_id: args.media_id || currentMediaId
         }, { userText, isOperator });
@@ -644,18 +675,18 @@ export class TelegramService {
     return { ok: true, sent: true, saved: true, item: shortMedia(media) };
   }
 
-  async #prepareXPost(ctx, args, { userText, isOperator }) {
-    if (!isOperator) return { ok: false, error: "Only an operator can prepare X posts." };
+  async #postToX(ctx, args, { userText, isOperator }) {
+    if (!isOperator) return { ok: false, error: "Only an operator can publish X posts." };
     if (!hasExplicitXPostIntent(userText)) {
       return { ok: false, error: "Ask explicitly to post or publish on X first." };
     }
     if (!this.xClient || !await this.xClient.connected()) {
       return { ok: false, error: "X posting is not connected or enabled." };
     }
-    const text = String(args.text || "").trim();
-    if (!text) return { ok: false, error: "The X draft needs text." };
+    const text = cleanXPostText(args.text);
+    if (!text) return { ok: false, error: "The X post needs text." };
     if (text.length > this.config.xMaxPostCharacters) {
-      return { ok: false, error: `The X draft is over ${this.config.xMaxPostCharacters} characters.` };
+      return { ok: false, error: `The X post is over ${this.config.xMaxPostCharacters} characters.` };
     }
     let media = null;
     if (args.media_id) {
@@ -663,60 +694,19 @@ export class TelegramService {
       if (!media) return { ok: false, error: "No matching gallery item was found." };
     } else {
       media = await this.#mediaRecordFromMessage(ctx, ctx.message?.reply_to_message);
+      if (!media && shouldAttachLatestMedia(userText)) {
+        media = this.store.latestMedia(ctx.chat.id);
+      }
     }
-    await this.store.stagePendingAction({
-      type: "x_post",
-      chatId: ctx.chat.id,
-      userId: ctx.from?.id,
-      payload: { text, mediaId: media?.id || null }
-    });
-    await ctx.reply([
-      "X draft — not posted yet:",
-      text,
-      media ? `Media: ${media.type} ${media.id.slice(0, 8)} (${media.caption || "untitled"})` : "Media: none",
-      "Reply exactly “confirm post” to publish, or “cancel post” to discard."
-    ].join("\n"));
+    const downloadedMedia = media ? await this.#downloadMedia(ctx, media) : null;
+    await ctx.reply(`Posting ${media ? `the ${media.type} and text` : "the text"} to X…`);
+    const result = await this.xClient.post({ text, media: downloadedMedia });
     return {
       ok: true,
-      posted: false,
-      confirmation_required: true,
-      draft: { text, media: media ? shortMedia(media) : null },
-      instruction: "The exact draft and confirmation instruction were already shown to the operator. Do not claim it was posted."
+      posted: true,
+      url: result.url,
+      post: { text, media: media ? shortMedia(media) : null }
     };
-  }
-
-  async #confirmXPost(ctx, isOperator) {
-    if (!isOperator) {
-      await ctx.reply("Only a configured operator can publish to X.");
-      return;
-    }
-    if (!this.xClient || !await this.xClient.connected()) {
-      await ctx.reply("X posting is not connected or enabled.");
-      return;
-    }
-    const action = await this.store.takePendingAction({
-      type: "x_post",
-      chatId: ctx.chat.id,
-      userId: ctx.from?.id
-    });
-    if (!action) {
-      await ctx.reply("There is no pending X draft. Ask me to prepare one first.");
-      return;
-    }
-    try {
-      let media = null;
-      if (action.payload.mediaId) {
-        const record = this.store.findMedia(ctx.chat.id, action.payload.mediaId);
-        if (!record) throw new XError("The draft's gallery item no longer exists.", 400);
-        media = await this.#downloadMedia(ctx, record);
-      }
-      await ctx.reply("Posting the approved draft to X…");
-      const result = await this.xClient.post({ text: action.payload.text, media });
-      await ctx.reply(`Posted to X: ${result.url}`);
-    } catch (error) {
-      this.logger.error("[telegram] X post failed", error);
-      await ctx.reply(`${safeErrorMessage(error)} The draft was discarded to prevent a duplicate post.`);
-    }
   }
 
   async #handleIncomingMedia(ctx) {
@@ -740,11 +730,11 @@ export class TelegramService {
     });
     await ctx.reply([
       `Saved that ${media.type} in this chat's gallery as ${record.id.slice(0, 8)}.`,
-      "Ask me naturally to show it, remix it, animate it, or prepare it for X."
+      "Ask me naturally to show it, remix it, animate it, or post it to X."
     ].join("\n"));
     if (caption && hasMediaActionIntent(caption) && this.config.telegramRepliesEnabled) {
       await this.#runAssistant(ctx, caption, {
-        isOperator: this.#isOperator(ctx.from?.id),
+        isOperator: await this.#isOperator(ctx),
         currentMediaId: record.id
       });
     }

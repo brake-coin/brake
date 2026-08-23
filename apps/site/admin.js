@@ -40,6 +40,9 @@ const xCallbackUrl = document.querySelector("#x-callback-url");
 const xMessage = document.querySelector("#x-message");
 const connectX = document.querySelector("#connect-x");
 const disconnectX = document.querySelector("#disconnect-x");
+const xAutomation = document.querySelector("#x-automation");
+const xAutomationCopy = document.querySelector("#x-automation-copy");
+const xTestButtons = [...document.querySelectorAll("[data-x-test]")];
 
 function showOnly(name) {
   for (const [key, panel] of Object.entries(panels)) panel.hidden = key !== name;
@@ -105,7 +108,7 @@ function renderConnection(status) {
   xClientId.required = !x.connected;
   xCallbackUrl.textContent = x.callbackUrl || "https://stopai-coin.fly.dev/admin/x/callback";
   xCopy.textContent = xConnected
-    ? "Ready for operator-confirmed posts from Telegram. Access renews automatically."
+    ? "Ready for immediate operator posts and bounded autonomous posts. Access renews automatically."
     : x.connected
       ? "The credential exists, but posting is disabled by the server setting."
       : `Connect @${x.expectedUsername || "STOPAICOIN"} through OAuth PKCE.`;
@@ -116,6 +119,12 @@ function renderConnection(status) {
       ? `${new Date(x.expiresAt).toLocaleString()} (automatic)`
       : "Managed outside admin";
   }
+  const automation = x.automation || {};
+  xAutomation.hidden = !xConnected;
+  xAutomationCopy.textContent = automation.enabled
+    ? `Running every ${automation.intervalMinutes || 480} minutes, up to ${automation.dailyCap || 3} posts per UTC day. Rotation: ${(automation.types || []).join(", ")}.`
+    : "Autonomous posting is disabled. Live admin tests remain available.";
+  for (const button of xTestButtons) button.disabled = !xConnected || !status.connected;
 }
 
 async function refreshStatus() {
@@ -230,6 +239,25 @@ disconnectX.addEventListener("click", async () => {
   }
 });
 
+for (const button of xTestButtons) {
+  button.addEventListener("click", async () => {
+    const type = button.dataset.xTest;
+    xMessage.textContent = `Generating and publishing the live ${type} test…`;
+    for (const item of xTestButtons) item.disabled = true;
+    try {
+      const result = await api("./api/admin/x/post-test", {
+        method: "POST",
+        body: JSON.stringify({ type })
+      });
+      xMessage.textContent = `Posted live ${type} test: ${result.result.url}`;
+      await refreshStatus();
+    } catch (error) {
+      xMessage.textContent = error.message;
+      await refreshStatus();
+    }
+  });
+}
+
 document.querySelector("#admin-logout").addEventListener("click", async () => {
   await api("./api/admin/logout", { method: "POST" });
   telegramToken.value = "";
@@ -243,7 +271,7 @@ if (oauthResult) {
     connected: "OpenRouter connected to the shared bot.",
     expired: "That connection attempt expired. Please try again.",
     failed: "OpenRouter could not be connected. Please try again.",
-    x_connected: "X connected. Telegram operators can now prepare confirmed posts.",
+    x_connected: "X connected. Telegram operators and the bounded schedule can now publish.",
     x_expired: "That X connection attempt expired. Please try again.",
     x_failed: "X could not be connected. Check the Client ID, callback URL, and app permissions.",
     x_wrong_account: "X refused the connection because it was not authorized as @STOPAICOIN."

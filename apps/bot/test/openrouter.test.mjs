@@ -69,7 +69,7 @@ test("shared chat passes tools through and returns tool calls", async () => {
   assert.equal(result.costUsd, 0.02);
 });
 
-test("shared chat can require the X draft tool for explicit posting requests", async () => {
+test("shared chat can require the X posting tool for explicit posting requests", async () => {
   let body;
   const client = new OpenRouterClient({
     config: config(),

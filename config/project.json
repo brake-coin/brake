@@ -25,7 +25,7 @@
     "profileUrl": "https://x.com/canadabirdie",
     "status": "configured"
   },
-  "livePostingEnabled": false,
+  "livePostingEnabled": true,
   "memeGenerator": {
     "enabled": true,
     "mode": "openrouter-oauth-pkce-byok",

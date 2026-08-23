@@ -22,6 +22,14 @@ function idSet(value) {
     .filter((item) => /^\d+$/.test(item)));
 }
 
+function enumList(value, fallback, allowed) {
+  const items = String(value || "")
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter((item) => allowed.includes(item));
+  return items.length ? [...new Set(items)] : fallback;
+}
+
 export function createBotConfig(env = process.env) {
   return {
     telegramToken: env.TELEGRAM_BOT_TOKEN || "",
@@ -81,6 +89,28 @@ export function createBotConfig(env = process.env) {
       minimum: 1,
       maximum: 280
     }),
+    xAutonomousPostingEnabled: boolean(env.X_AUTONOMOUS_POSTING_ENABLED, false),
+    xAutonomousIntervalMinutes: integer(env.X_AUTONOMOUS_INTERVAL_MINUTES, 480, {
+      minimum: 60,
+      maximum: 7 * 24 * 60
+    }),
+    xAutonomousStartDelayMinutes: integer(env.X_AUTONOMOUS_START_DELAY_MINUTES, 60, {
+      minimum: 5,
+      maximum: 24 * 60
+    }),
+    xAutonomousHourlyCap: integer(env.X_AUTONOMOUS_HOURLY_CAP, 3, {
+      minimum: 1,
+      maximum: 6
+    }),
+    xAutonomousDailyCap: integer(env.X_AUTONOMOUS_DAILY_CAP, 3, {
+      minimum: 1,
+      maximum: 12
+    }),
+    xAutonomousTypes: enumList(
+      env.X_AUTONOMOUS_TYPES,
+      ["text", "image", "video"],
+      ["text", "image", "video"]
+    ),
     maxImageBytes: integer(env.MAX_IMAGE_BYTES, 15 * 1024 * 1024),
     maxVideoBytes: integer(env.MAX_VIDEO_BYTES, 48 * 1024 * 1024),
     maxReferenceBytes: integer(env.MAX_REFERENCE_BYTES, 10 * 1024 * 1024)

@@ -93,7 +93,7 @@ browser.
 
 Owners also connect the official [@STOPAICOIN](https://x.com/STOPAICOIN) account
 through X OAuth PKCE in `/admin`. The bot refreshes access automatically and still
-requires an operator to confirm every public post.
+limits immediate operator posts and a rotating autonomous schedule to the official account.
 
 See [the Telegram guide](docs/TELEGRAM.md) for BotFather setup, natural-language tools, privacy,
 budgets, and deployment.
@@ -104,7 +104,8 @@ budgets, and deployment.
 - The historical token plan remains locked to devnet and cannot deploy anything.
 - The bot replies only in private chats, when mentioned, or when directly replied to.
 - Shared chat and media have global and per-user hourly and daily limits.
-- X posting is disabled by default, operator-only, and needs a second confirmation.
+- Telegram X tools are operator-only. Explicit posting requests publish immediately.
+- Autonomous X posting rotates text, image, and video with hourly, daily, and AI-spend caps.
 - Secrets belong in `.env`, which is ignored by Git.
 - Public BYOK keys stay in the visitor's browser tab. A separate admin-linked key is
   stored on the private Fly volume only for Telegram chat and limited bot media.
