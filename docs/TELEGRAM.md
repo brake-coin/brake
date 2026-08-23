@@ -7,9 +7,10 @@ The bot has two clear AI paths:
 
 The public website never receives or uses the shared key.
 
-The community group is [@StopAiCoin](https://t.me/StopAiCoin). The bot account is
+The public Telegram entry is [@StopAiCoin](https://t.me/StopAiCoin). It may show a
+verification or gateway screen before the community chat. The bot account is
 [@StopAiToken_bot](https://t.me/StopAiToken_bot), but normal conversations happen only
-inside the community group.
+inside the community chat reached from the public entry.
 
 ## Create the bot
 
@@ -53,17 +54,18 @@ The bot has no slash-command menu. Speak normally. For example:
 - `Post the latest image on X with this text: ...`
 - `Read this X post and summarize it: https://x.com/.../status/...`
 - `Search recent X posts about stopping the AI race.`
-- `Turn @canadabirdie's latest original post into a STOPAI meme and post it with attribution.` (media review is a second step)
+- `Turn a public account's latest original post into a STOPAI meme with attribution.`
 
 Reply to an image while asking for a new image or video to use it as a reference. In the
 group, an upload must mention or reply to the bot. This lets people bring BYOK-made media
 into Telegram without charging the server again.
 
 Private chat is disabled at the application level. Any DM gets one random image or video
-from the community group's bot gallery plus a button linking to
+from the configured community gallery plus a button linking to
 [@StopAiCoin](https://t.me/StopAiCoin). A DM never reaches the AI, spends shared budget,
-or saves uploaded media. If the group gallery is empty or unavailable, the bot sends the
-group link without media.
+or saves uploaded media. If the gallery is empty or unavailable, the bot sends the public
+community link without media. `TELEGRAM_COMMUNITY_URL` controls the public destination;
+`TELEGRAM_GALLERY_CHAT_ID` can point at a different numeric chat ID or `@handle`.
 
 A caption can also be the request. For example, upload an image with `remix this as a
 STOPAI poster` or `animate this`. The bot saves the upload, then uses it as the media
@@ -78,6 +80,12 @@ text itself from that context. If context for an uploaded item is too weak, it m
 or ask a natural question; there is no required confirmation sentence or user-supplied
 alt-text form. The server adds an honest provenance-based fallback if the agent omits alt
 text, while the X client still attaches alt text before publishing.
+
+Every Telegram update ID is claimed in the private durable store before its handler runs.
+This suppresses Telegram redelivery across concurrent requests and restarts. Recent claims
+expire after eight days. Operational log events include only action names, timings, costs,
+and keyed short hashes for update, user, and chat IDs. They do not include message text,
+prompts, names, tokens, or source URLs.
 
 All normal replies go through the shared agent so it can decide whether to answer, use a
 tool, or refuse a weak use of scarce capacity. Each turn includes live global and current-
@@ -213,7 +221,8 @@ the official mint `2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS` and official Ba
 link. It identifies [@canadabirdie](https://x.com/canadabirdie) as the holder of a
 100% share of the STOPAI creator-fee distribution on Bags. This means 100% of Bags
 creator fees, not all trading or protocol fees. STOPAI is independent. The bot never tells people to buy or
-pump the token.
+pump the token. The public route does not verify how the recipient uses the fees, so the
+bot may not say the fees support, fund, finance, or donate to any person or work.
 
 Telegram stores chat content and uploaded media under its own terms. OpenRouter and
 the selected model providers process prompts and server-generated media. Video jobs

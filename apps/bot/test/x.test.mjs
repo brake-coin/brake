@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   resolveMediaMimeType,
+  hasUnsupportedFeeUseClaim,
   validateTopLevelXPost,
   validateXQuoteSource,
   validateXPostReceipt,
@@ -110,6 +111,14 @@ test("X publishing narrowly allows the complete public fee-route disclosure", ()
   assert.throws(() => validateTopLevelXPost({
     text: "100% of all fees go to @canadabirdie. STOPAI is not affiliated. holders have no claim."
   }), /unsolicited @mentions/i);
+  assert.equal(hasUnsupportedFeeUseClaim("Bags creator fees provide direct support for advocacy"), true);
+  assert.equal(hasUnsupportedFeeUseClaim("Bags creator fees do not fund STOPAI or create holder rights"), false);
+  assert.equal(hasUnsupportedFeeUseClaim(
+    "Bags creator fees do not fund holders. The fees provide direct support for advocacy."
+  ), true);
+  assert.throws(() => validateTopLevelXPost({
+    text: "Bags creator fees fund AI safety advocacy."
+  }), /not invent how the recipient uses them/i);
 });
 
 test("quote sources must be original posts from another account", () => {

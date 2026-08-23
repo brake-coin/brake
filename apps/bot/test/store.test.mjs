@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, stat } from "node:fs/promises";
+import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -24,6 +24,26 @@ test("store applies global and per-user limits atomically", async (t) => {
   now = new Date("2026-08-22T11:00:00.000Z");
   assert.equal((await store.claimUsage("image", "alice", limits)).allowed, true);
   assert.equal((await stat(filePath)).mode & 0o777, 0o600);
+});
+
+test("store suppresses duplicate Telegram updates across concurrency and restarts", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-telegram-updates-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const filePath = path.join(directory, "bot.json");
+  const store = new BotStore(filePath, {
+    now: () => new Date("2026-08-22T10:00:00.000Z")
+  });
+  const claims = await Promise.all([
+    store.claimTelegramUpdate(123456),
+    store.claimTelegramUpdate(123456)
+  ]);
+  assert.equal(claims.filter((claim) => claim.allowed).length, 1);
+  assert.equal(claims.find((claim) => !claim.allowed).reason, "duplicate_update");
+
+  const reloaded = await new BotStore(filePath).load();
+  assert.equal((await reloaded.claimTelegramUpdate(123456)).allowed, false);
+  assert.equal(reloaded.agentStatus().recentTelegramUpdateCount, 1);
+  assert.equal((await reloaded.claimTelegramUpdate(undefined)).reason, "untracked_update");
 });
 
 test("the agent sees scarce shared capacity and whether the current user is new", async (t) => {
@@ -216,4 +236,48 @@ test("store persists campaign goals, memory, research use, and cycle history", a
   assert.equal(reloaded.recentXReceipts()[0].id, "456");
   assert.equal(reloaded.agentStatus().quotedSourceCount, 1);
   assert.equal((await reloaded.claimXSourcePost({ sourcePostId: "123" })).reason, "source_already_posted");
+});
+
+test("default goals refresh stale reserved goals without deleting custom goals", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-agent-goals-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const filePath = path.join(directory, "bot.json");
+  await writeFile(filePath, JSON.stringify({
+    version: 6,
+    agent: {
+      goals: [{
+        id: "amplify-with-credit",
+        text: "Always amplify one named account",
+        priority: 5,
+        active: true
+      }]
+    }
+  }));
+  const loaded = await new BotStore(filePath, {
+    now: () => new Date("2026-08-22T10:00:00.000Z")
+  }).load();
+  await loaded.upsertAgentGoal({ id: "operator-custom", text: "Keep this custom goal", priority: 2 });
+  await loaded.ensureAgentGoals([{
+    id: "amplify-with-credit",
+    text: "Amplify useful public voices with clear attribution.",
+    priority: 4
+  }]);
+  let goals = loaded.agentSnapshot().goals;
+  assert.equal(goals.find((goal) => goal.id === "amplify-with-credit").text,
+    "Amplify useful public voices with clear attribution.");
+  assert.equal(goals.find((goal) => goal.id === "operator-custom").text, "Keep this custom goal");
+
+  await loaded.upsertAgentGoal({
+    id: "amplify-with-credit",
+    text: "Operator deliberately changed this reserved goal",
+    priority: 3
+  });
+  await loaded.ensureAgentGoals([{
+    id: "amplify-with-credit",
+    text: "Amplify useful public voices with clear attribution.",
+    priority: 4
+  }]);
+  goals = loaded.agentSnapshot().goals;
+  assert.equal(goals.find((goal) => goal.id === "amplify-with-credit").text,
+    "Operator deliberately changed this reserved goal");
 });

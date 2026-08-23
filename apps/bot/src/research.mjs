@@ -149,6 +149,17 @@ function ageScore(createdAt, now) {
   return Math.max(0, 4 - (ageHours / 24));
 }
 
+export function isRelevantAIResearchText(value) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return false;
+  if (/\bstop ai paragoni\b/i.test(text)) return false;
+  if (/\b(?:artificial intelligence|machine learning|deep learning|large language models?|llms?|agi|superintelligence|frontier models?|foundation models?|neural networks?|pauseai|controlai)\b/i.test(text)) {
+    return true;
+  }
+  if (/\bAI\b/.test(text)) return true;
+  return /\bai\b/i.test(text) && /\b(?:model|lab|agent|compute|automation|safety|alignment|governance|regulat|moratorium|race|crypto|training|inference|capabilit|risk|chip|gpu|datacenter|data center)\w*\b/i.test(text);
+}
+
 export function xPostResearchItem(post, { priority = 0, now = new Date() } = {}) {
   const metrics = post?.metrics || {};
   const engagement = (Number(metrics.like_count) || 0)

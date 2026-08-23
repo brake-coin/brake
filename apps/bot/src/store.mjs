@@ -3,10 +3,11 @@ import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const EMPTY_STATE = Object.freeze({
-  version: 6,
+  version: 7,
   messages: {},
   media: [],
   usage: [],
+  telegramUpdates: {},
   xReceipts: [],
   xSourcePosts: {},
   agent: {
@@ -57,10 +58,20 @@ function cleanXSourcePosts(value) {
     }]));
 }
 
+function cleanTelegramUpdates(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value)
+    .filter(([updateId, record]) => /^\d{1,20}$/.test(updateId) && record && typeof record === "object")
+    .map(([updateId, record]) => [updateId, {
+      updateId,
+      at: record.at || null
+    }]));
+}
+
 function cleanState(value) {
   const agent = value?.agent && typeof value.agent === "object" ? value.agent : {};
   const cleaned = {
-    version: 6,
+    version: 7,
     messages: value?.messages && typeof value.messages === "object"
       ? Object.fromEntries(Object.entries(value.messages).map(([key, messages]) => (
         [key, Array.isArray(messages) ? messages.map((item) => ({ ...item })) : []]
@@ -68,6 +79,7 @@ function cleanState(value) {
       : {},
     media: Array.isArray(value?.media) ? value.media.map((item) => ({ ...item })) : [],
     usage: Array.isArray(value?.usage) ? value.usage.map((item) => ({ ...item })) : [],
+    telegramUpdates: cleanTelegramUpdates(value?.telegramUpdates),
     xReceipts: Array.isArray(value?.xReceipts) ? value.xReceipts.map((item) => ({ ...item })) : [],
     xSourcePosts: cleanXSourcePosts(value?.xSourcePosts),
     agent: {
@@ -183,6 +195,7 @@ export class BotStore {
       memoryCount: agent.memories.length,
       researchCount: agent.research.length,
       cycleCount: agent.cycleSequence,
+      recentTelegramUpdateCount: Object.keys(this.#state.telegramUpdates).length,
       quotedSourceCount: Object.values(this.#state.xSourcePosts)
         .filter((item) => item.status === "confirmed").length,
       uncertainSourceCount: Object.values(this.#state.xSourcePosts)
@@ -198,15 +211,52 @@ export class BotStore {
 
   async ensureAgentGoals(goals) {
     await this.#mutate((state) => {
-      const existing = new Set(state.agent.goals.map((goal) => goal.id));
       for (const input of goals || []) {
         const goal = cleanGoal(input);
-        if (!goal || existing.has(goal.id)) continue;
-        state.agent.goals.push({ ...goal, updatedAt: this.now().toISOString() });
-        existing.add(goal.id);
+        if (!goal) continue;
+        const index = state.agent.goals.findIndex((item) => item.id === goal.id);
+        if (index < 0) {
+          state.agent.goals.push({
+            ...goal,
+            managedDefault: true,
+            operatorOverride: false,
+            updatedAt: this.now().toISOString()
+          });
+          continue;
+        }
+        const current = state.agent.goals[index];
+        if (current.operatorOverride === true) continue;
+        if (current.text === goal.text
+          && current.priority === goal.priority
+          && current.active === goal.active
+          && current.managedDefault === true) continue;
+        state.agent.goals[index] = {
+          ...goal,
+          managedDefault: true,
+          operatorOverride: false,
+          updatedAt: this.now().toISOString()
+        };
       }
     });
     return this.agentSnapshot().goals;
+  }
+
+  async claimTelegramUpdate(updateId) {
+    const id = String(updateId ?? "");
+    if (!/^\d{1,20}$/.test(id)) {
+      return { allowed: true, reason: "untracked_update", updateId: null };
+    }
+    let result;
+    await this.#mutate((state) => {
+      this.#prune(state);
+      if (state.telegramUpdates[id]) {
+        result = { allowed: false, reason: "duplicate_update", updateId: id };
+        return;
+      }
+      state.telegramUpdates[id] = { updateId: id, at: this.now().toISOString() };
+      result = { allowed: true, reason: null, updateId: id };
+    });
+    return result;
   }
 
   async upsertAgentGoal(goal) {
@@ -215,7 +265,12 @@ export class BotStore {
     let saved;
     await this.#mutate((state) => {
       const index = state.agent.goals.findIndex((item) => item.id === cleaned.id);
-      saved = { ...cleaned, updatedAt: this.now().toISOString() };
+      saved = {
+        ...cleaned,
+        managedDefault: false,
+        operatorOverride: true,
+        updatedAt: this.now().toISOString()
+      };
       if (index >= 0) state.agent.goals[index] = saved;
       else state.agent.goals.push(saved);
       state.agent.goals = state.agent.goals.slice(0, 30);
@@ -698,6 +753,10 @@ export class BotStore {
   #prune(state = this.#state) {
     const cutoff = this.now().getTime() - (8 * 24 * 60 * 60 * 1_000);
     state.usage = state.usage.filter((item) => new Date(item.at).getTime() >= cutoff);
+    state.telegramUpdates = Object.fromEntries(Object.entries(state.telegramUpdates)
+      .filter(([, item]) => new Date(item.at || 0).getTime() >= cutoff)
+      .sort(([, left], [, right]) => new Date(right.at).getTime() - new Date(left.at).getTime())
+      .slice(0, 2_000));
     state.media = state.media.slice(0, 200);
     state.xReceipts = state.xReceipts.slice(0, 200);
     state.agent.memories = state.agent.memories.slice(0, 250);

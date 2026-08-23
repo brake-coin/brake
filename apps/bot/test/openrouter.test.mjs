@@ -6,6 +6,7 @@ import { OpenRouterClient } from "../src/openrouter.mjs";
 function config(overrides = {}) {
   return {
     openRouterChatModel: "openrouter/auto",
+    openRouterChatFallbackModel: "",
     openRouterImageModel: "google/gemini-3.1-flash-image",
     openRouterVideoModel: "google/veo-3.1-lite",
     openRouterSiteUrl: "https://stopai.example",
@@ -98,6 +99,37 @@ test("shared chat retries one empty completion and counts both costs", async () 
   assert.equal(requests, 2);
   assert.equal(result.message.content, "Recovered reply");
   assert.ok(Math.abs(result.costUsd - 0.03) < 1e-9);
+});
+
+test("shared chat falls back after the primary model stays empty", async () => {
+  const models = [];
+  const client = new OpenRouterClient({
+    config: config({
+      openRouterChatModel: "primary/model",
+      openRouterChatFallbackModel: "fallback/model"
+    }),
+    credentialProvider: async () => ({ key: "sk-or-private-test" }),
+    fetchImpl: async (_url, options) => {
+      const model = JSON.parse(options.body).model;
+      models.push(model);
+      return new Response(JSON.stringify(model === "fallback/model"
+        ? {
+            model,
+            choices: [{ message: { content: "Fallback reply" } }],
+            usage: { cost: 0.02 }
+          }
+        : {
+            model,
+            choices: [{ message: { content: null } }],
+            usage: { cost: 0.01 }
+          }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+  });
+  const result = await client.chatStep([{ role: "user", content: "hello" }]);
+  assert.deepEqual(models, ["primary/model", "primary/model", "fallback/model"]);
+  assert.equal(result.message.content, "Fallback reply");
+  assert.equal(result.model, "fallback/model");
+  assert.equal(result.costUsd, 0.04);
 });
 
 test("image generation sends canonical and user references", async () => {

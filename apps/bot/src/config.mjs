@@ -38,15 +38,30 @@ function stringList(value, fallback, separator = ",") {
   return items.length ? [...new Set(items)] : fallback;
 }
 
+function telegramCommunityUrl(value, fallback) {
+  try {
+    const url = new URL(String(value || fallback));
+    if (url.protocol !== "https:" || !["t.me", "www.t.me"].includes(url.hostname.toLowerCase())) {
+      return fallback;
+    }
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return fallback;
+  }
+}
+
 export function createBotConfig(env = process.env) {
   const telegramGroupHandle = String(env.TELEGRAM_GROUP_HANDLE || "StopAiCoin")
     .trim()
     .replace(/^@/, "");
+  const defaultTelegramUrl = `https://t.me/${telegramGroupHandle}`;
   return {
     telegramToken: env.TELEGRAM_BOT_TOKEN || "",
     requireTelegram: boolean(env.STOPAI_REQUIRE_TELEGRAM, false),
     telegramGroupHandle,
-    telegramGroupUrl: `https://t.me/${telegramGroupHandle}`,
+    telegramGroupUrl: defaultTelegramUrl,
+    telegramCommunityUrl: telegramCommunityUrl(env.TELEGRAM_COMMUNITY_URL, defaultTelegramUrl),
+    telegramGalleryChatId: String(env.TELEGRAM_GALLERY_CHAT_ID || `@${telegramGroupHandle}`).trim(),
     telegramRepliesEnabled: boolean(env.TELEGRAM_REPLIES_ENABLED, true),
     telegramImagesEnabled: boolean(env.TELEGRAM_IMAGES_ENABLED, true),
     telegramVideosEnabled: boolean(env.TELEGRAM_VIDEOS_ENABLED, true),
@@ -56,6 +71,7 @@ export function createBotConfig(env = process.env) {
       maximum: 900_000
     }),
     openRouterChatModel: env.OPENROUTER_CHAT_MODEL || "~google/gemini-flash-latest",
+    openRouterChatFallbackModel: env.OPENROUTER_CHAT_FALLBACK_MODEL || "openrouter/auto",
     openRouterImageModel:
       env.OPENROUTER_SERVER_IMAGE_MODEL || "google/gemini-3.1-flash-image",
     openRouterVideoModel: env.OPENROUTER_VIDEO_MODEL || "google/veo-3.1-lite",

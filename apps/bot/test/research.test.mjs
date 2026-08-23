@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { NewsResearchClient, parseNewsFeed, xPostResearchItem } from "../src/research.mjs";
+import {
+  isRelevantAIResearchText,
+  NewsResearchClient,
+  parseNewsFeed,
+  xPostResearchItem
+} from "../src/research.mjs";
 
 const RSS = `
   <rss><channel>
@@ -49,4 +54,12 @@ test("X research scoring rewards engagement and watched-source priority", () => 
   const watched = xPostResearchItem(base, { priority: 2, now: new Date("2026-08-22T20:00:00.000Z") });
   assert.equal(normal.key, "x:1");
   assert.ok(watched.score > normal.score);
+});
+
+test("X research rejects the unrelated Italian stop-ai phrase", () => {
+  assert.equal(isRelevantAIResearchText("stop ai paragoni tra questi due calciatori"), false);
+  assert.equal(isRelevantAIResearchText("stop ai paragoni: AI agents are not people"), false);
+  assert.equal(isRelevantAIResearchText("AI labs keep racing toward larger frontier models"), true);
+  assert.equal(isRelevantAIResearchText("lowercase ai safety needs a brake"), true);
+  assert.equal(isRelevantAIResearchText("ordinary football transfer news"), false);
 });
