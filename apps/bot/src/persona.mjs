@@ -3,9 +3,8 @@ const FACTS = [
   "The only official mint is 2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS.",
   "The official token page is https://bags.fm/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS.",
   "Its message is: Stop the AI race.",
-  "The project proposes sending 100% of project-controlled creator fees, after stated costs, to a restricted peaceful grants program.",
-  "RATi Open Software Foundation is only a proposed grants administrator, subject to board and legal approval.",
-  "There is no published grants wallet or live grants program yet.",
+  "The Bags creator-fee recipient is the X account @canadabirdie: https://x.com/canadabirdie.",
+  "Creator fees belong to the configured recipient and do not create holder rights or a charitable donation.",
   "STOPAI is not official to Stop the AI Race, Stop AI, PauseAI, RATi OSF, OpenAI, Anthropic, or any AI company.",
   "Buying STOPAI is not a charitable donation, does not create a tax receipt, and could lose all value."
 ];
@@ -19,7 +18,7 @@ Known facts:
 ${FACTS.map((fact) => `- ${fact}`).join("\n")}
 
 Hard rules:
-- Never invent a contract address, wallet, launch date, grant recipient, partnership, endorsement, price, return, or transaction.
+- Never invent a contract address, wallet, launch date, fee use, partnership, endorsement, price, return, or transaction.
 - Never give financial advice or tell people to buy, hold, or pump a token.
 - If asked for the contract address, give only the official mint and Bags link in Known facts. Warn that any other mint is unofficial.
 - Clearly separate current facts from proposals.

@@ -19,7 +19,6 @@ const requireValue = (condition, message) => {
 requireValue(project.status === "live", "Public project status must be live.");
 requireValue(project.cluster === "mainnet-beta", "Public configuration must use mainnet-beta.");
 requireValue(project.contractAddress === mainnetToken.mint, "Published contract must match the verified mainnet mint.");
-requireValue(project.grantsWallet === null, "Grants wallet must remain empty.");
 requireValue(project.livePostingEnabled === false, "Live posting must remain disabled.");
 requireValue(project.name === "STOPAI", "Public project name must remain STOPAI.");
 requireValue(project.symbol === "STOPAI", "Public token symbol must remain STOPAI.");
@@ -36,15 +35,18 @@ requireValue(project.token.mintAuthorityRevoked === true, "Public mint-authority
 requireValue(project.token.freezeAuthorityRevoked === true, "Public freeze-authority status must remain revoked.");
 requireValue(project.links.bags === mainnetToken.bagsUrl, "Public Bags link must match the mainnet token.");
 requireValue(project.links.solanaExplorer === mainnetToken.solanaExplorerUrl, "Public explorer link must match the mainnet token.");
+requireValue(project.creatorFeeRecipient.venue === "Bags", "Creator-fee venue must remain Bags.");
+requireValue(project.creatorFeeRecipient.platform === "X", "Creator-fee recipient platform must remain X.");
+requireValue(project.creatorFeeRecipient.handle === "@canadabirdie", "Creator-fee recipient must remain @canadabirdie.");
+requireValue(
+  project.creatorFeeRecipient.profileUrl === "https://x.com/canadabirdie",
+  "Creator-fee recipient profile must remain public."
+);
+requireValue(project.creatorFeeRecipient.status === "configured", "Creator-fee recipient status must remain configured.");
 requireValue(
   project.memeGenerator.enabled === true &&
     project.memeGenerator.mode === "openrouter-oauth-pkce-byok",
   "Meme generation must use visitor-owned OpenRouter OAuth PKCE."
-);
-requireValue(
-  project.feePolicy.status === "proposed" &&
-  project.feePolicy.projectControlledCreatorFeesToGrantsPercent === 100,
-  "Creator-fee grant policy must remain clearly proposed at 100%."
 );
 requireValue(tokenPlan.cluster === "devnet", "Token plan must remain on devnet.");
 requireValue(
@@ -70,6 +72,20 @@ for (const relativePath of [
   requireValue(
     content.includes(mainnetToken.mint),
     `${relativePath} must publish the verified mainnet mint.`
+  );
+}
+
+for (const relativePath of [
+  "README.md",
+  "apps/site/index.html",
+  "apps/bot/src/persona.mjs",
+  "docs/BRAKE_SIMPLE.md",
+  "docs/TELEGRAM.md"
+]) {
+  const content = await readFile(path.join(root, relativePath), "utf8");
+  requireValue(
+    content.includes("https://x.com/canadabirdie"),
+    `${relativePath} must publish the configured creator-fee recipient.`
   );
 }
 

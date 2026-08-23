@@ -80,9 +80,11 @@ turns that feature off.
 ## Safety and project facts
 
 The bot is instructed to support peaceful and lawful public action. It must not invent
-a contract, wallet, grant, partnership, price, return, or endorsement. It gives only
+a contract, wallet, fee use, partnership, price, return, or endorsement. It gives only
 the official mint `2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS` and official Bags
-link. STOPAI is independent. The bot never tells people to buy or pump the token.
+link. It identifies [@canadabirdie](https://x.com/canadabirdie) as the configured Bags
+creator-fee recipient. STOPAI is independent. The bot never tells people to buy or
+pump the token.
 
 Telegram stores chat content and uploaded media under its own terms. OpenRouter and
 the selected model providers process prompts and server-generated media. Video jobs

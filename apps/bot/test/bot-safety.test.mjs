@@ -8,7 +8,8 @@ test("public project configuration keeps live posting disabled", async () => {
   assert.equal(project.livePostingEnabled, false);
   assert.equal(project.status, "live");
   assert.equal(project.contractAddress, "2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS");
-  assert.equal(project.grantsWallet, null);
+  assert.equal(project.creatorFeeRecipient.handle, "@canadabirdie");
+  assert.equal(project.creatorFeeRecipient.profileUrl, "https://x.com/canadabirdie");
 });
 
 test("Telegram bot source has no slash command handlers or command menu", async () => {

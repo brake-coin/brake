@@ -17,7 +17,13 @@
     "bags": "https://bags.fm/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS",
     "solanaExplorer": "https://explorer.solana.com/address/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS"
   },
-  "grantsWallet": null,
+  "creatorFeeRecipient": {
+    "venue": "Bags",
+    "platform": "X",
+    "handle": "@canadabirdie",
+    "profileUrl": "https://x.com/canadabirdie",
+    "status": "configured"
+  },
   "livePostingEnabled": false,
   "memeGenerator": {
     "enabled": true,
@@ -26,16 +32,7 @@
     "modelLabel": "Nano Banana 2",
     "statusMessage": "Connect your own OpenRouter account to generate images."
   },
-  "feePolicy": {
-    "status": "proposed",
-    "projectControlledCreatorFeesToGrantsPercent": 100,
-    "excludes": [
-      "blockchain costs",
-      "conversion costs",
-      "fees never received by the project"
-    ]
-  },
   "independenceNotice": "Independent token. Not an official token of Stop the AI Race, Stop AI, PauseAI, RATi OSF, or any AI company.",
-  "riskNotice": "STOPAI is a speculative cultural token that could lose all value. Buying STOPAI is not a charitable donation and does not produce a tax receipt. The grants program remains proposed and is not live.",
+  "riskNotice": "STOPAI is a speculative cultural token that could lose all value. Buying STOPAI is not a charitable donation and does not produce a tax receipt. Creator fees belong to the configured recipient and create no rights for token holders.",
   "lastUpdated": "2026-08-22"
 }

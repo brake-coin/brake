@@ -2,23 +2,22 @@
 
 **Stop the AI race.**
 
-STOPAI is an independent memecoin project designed to direct transparent,
-project-controlled creator fees toward small grants for peaceful public education and
-civic action concerning the uncontrolled AI race.
+STOPAI is an independent cultural memecoin and media project about stopping the
+uncontrolled AI race.
 
 The token is live on Solana mainnet. The only official mint is
 `2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS`. Verify it on
 [Bags](https://bags.fm/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS) or the
 [Solana explorer](https://explorer.solana.com/address/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS).
-The grants wallet and grants program are not live yet.
+Bags creator fees are configured to the X account
+[@canadabirdie](https://x.com/canadabirdie).
 
 ## Simple model
 
 - Fixed supply of 1,000,000,000 STOPAI on Solana
 - No transfer tax, staking, yield, DAO, redemption, or holder governance
-- 100% of project-controlled creator fees proposed for a restricted grants program
-- RATi Open Software Foundation as proposed grants administrator, subject to board and
-  legal approval
+- Public creator-fee recipient: [@canadabirdie](https://x.com/canadabirdie)
+- No holder claim on creator fees
 
 The original design called for a 100% public launch with no insider allocation. The
 mint account proves supply and authority status, but this repository does not yet
@@ -97,7 +96,7 @@ budgets, and deployment.
 
 ## Safety defaults
 
-- The public configuration pins one verified mainnet contract and no grants wallet.
+- The public configuration pins one verified mainnet contract and creator-fee recipient.
 - The historical token plan remains locked to devnet and cannot deploy anything.
 - The bot replies only in private chats, when mentioned, or when directly replied to.
 - Shared chat and media have global and per-user hourly and daily limits.
@@ -106,10 +105,6 @@ budgets, and deployment.
 - Public BYOK keys stay in the visitor's browser tab. A separate admin-linked key is
   stored on the private Fly volume only for Telegram chat and limited bot media.
 - Repository validation locks the public address, supply, authorities, and verification links to the mainnet record.
-
-The token exists, but that does not activate the proposed grants program or make RATi
-its administrator. Those steps still require the gates in `docs/BRAKE_SIMPLE.md`,
-including legal review and formal RATi board approval.
 
 ## Independence and risk
 
