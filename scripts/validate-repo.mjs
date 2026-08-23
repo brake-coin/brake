@@ -10,6 +10,7 @@ const project = await readJson("config/project.json");
 const tokenPlan = await readJson("token/brake-token-plan.devnet.json");
 const metadata = await readJson("token/brake-metadata.draft.json");
 const mainnetToken = await readJson("token/stopai-mainnet.json");
+const dockerfile = await readFile(path.join(root, "Dockerfile"), "utf8");
 
 const failures = [];
 const requireValue = (condition, message) => {
@@ -44,6 +45,10 @@ requireValue(
   "Creator-fee recipient profile must remain public."
 );
 requireValue(project.creatorFeeRecipient.status === "configured", "Creator-fee recipient status must remain configured.");
+requireValue(
+  dockerfile.includes("COPY --from=build --chown=node:node /app/config ./config"),
+  "The production image must include the project configuration."
+);
 requireValue(
   project.memeGenerator.enabled === true &&
     project.memeGenerator.mode === "openrouter-oauth-pkce-byok",
