@@ -88,6 +88,7 @@ requireValue(metadata.symbol === tokenPlan.symbol, "Metadata symbol must match t
 for (const relativePath of [
   "README.md",
   "apps/site/index.html",
+  "apps/site/mint.html",
   "apps/bot/src/persona.mjs",
   "docs/BRAKE_SIMPLE.md",
   "docs/TELEGRAM.md"
@@ -102,6 +103,7 @@ for (const relativePath of [
 for (const relativePath of [
   "README.md",
   "apps/site/index.html",
+  "apps/site/mint.html",
   "apps/bot/src/persona.mjs",
   "docs/BRAKE_SIMPLE.md",
   "docs/TELEGRAM.md"

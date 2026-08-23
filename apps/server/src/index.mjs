@@ -145,6 +145,8 @@ const mimeTypes = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".txt": "text/plain; charset=utf-8",
+  ".xml": "application/xml; charset=utf-8",
   ".png": "image/png",
   ".svg": "image/svg+xml"
 };
@@ -263,6 +265,8 @@ async function serveStatic(urlPath, response) {
   try {
     relativePath = urlPath === "/"
       ? "index.html"
+      : urlPath === "/mint" || urlPath === "/mint/"
+        ? "mint.html"
       : urlPath === "/admin" || urlPath === "/admin/"
         ? "admin.html"
         : decodeURIComponent(urlPath).replace(/^\/+/, "");

@@ -12,6 +12,8 @@ const contentTypes = new Map([
   [".html", "text/html; charset=utf-8"],
   [".js", "text/javascript; charset=utf-8"],
   [".json", "application/json; charset=utf-8"],
+  [".txt", "text/plain; charset=utf-8"],
+  [".xml", "application/xml; charset=utf-8"],
   [".png", "image/png"],
   [".svg", "image/svg+xml"]
 ]);
@@ -20,6 +22,11 @@ const server = createServer(async (request, response) => {
   const requestUrl = new URL(request.url || "/", "http://localhost");
   const siteFiles = new Map([
     ["/", "/apps/site/index.html"],
+    ["/mint", "/apps/site/mint.html"],
+    ["/mint/", "/apps/site/mint.html"],
+    ["/mint.html", "/apps/site/mint.html"],
+    ["/robots.txt", "/apps/site/robots.txt"],
+    ["/sitemap.xml", "/apps/site/sitemap.xml"],
     ["/app.js", "/apps/site/app.js"],
     ["/openrouter.js", "/apps/site/openrouter.js"],
     ["/meme-ideas.js", "/apps/site/meme-ideas.js"],

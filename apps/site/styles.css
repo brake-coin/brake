@@ -197,6 +197,52 @@ h1 {
   justify-self: center;
 }
 
+.mint-main {
+  padding-bottom: 32px;
+}
+
+.mint-hero {
+  min-height: 610px;
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr;
+  align-items: center;
+  gap: 64px;
+  padding-block: 72px;
+}
+
+.mint-contract {
+  display: grid;
+}
+
+.mint-facts {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 64px;
+  border-top: 2px solid var(--ink);
+  padding-block: 64px;
+}
+
+.mint-facts dl {
+  margin: 0;
+}
+
+.mint-facts dl > div {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 24px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.mint-facts dt {
+  font-weight: 900;
+}
+
+.mint-facts dd {
+  margin: 0;
+  line-height: 1.5;
+}
+
 .meme-machine {
   display: grid;
   grid-template-columns: 0.8fr 1.2fr;
@@ -978,6 +1024,8 @@ footer {
 
 @media (max-width: 760px) {
   .hero,
+  .mint-hero,
+  .mint-facts,
   .agent,
   .flow,
   .card-grid,
@@ -985,7 +1033,8 @@ footer {
     grid-template-columns: 1fr;
   }
 
-  .hero {
+  .hero,
+  .mint-hero {
     min-height: auto;
     gap: 36px;
     padding-block: 52px;

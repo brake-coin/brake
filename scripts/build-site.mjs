@@ -11,7 +11,10 @@ await mkdir(path.join(output, "config"), { recursive: true });
 
 for (const file of [
   "index.html",
+  "mint.html",
   "admin.html",
+  "robots.txt",
+  "sitemap.xml",
   "styles.css",
   "app.js",
   "admin.js",

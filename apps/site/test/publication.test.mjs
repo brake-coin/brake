@@ -38,4 +38,37 @@ test("homepage publishes the official live mint and verification links", async (
   assert.match(html, /styles\.css\?v=\d+-\d+/);
   assert.match(html, /app\.js\?v=\d+-\d+/);
   assert.match(html, /stopai-social-preview\.png/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/stopai-coin\.fly\.dev\/"/);
+  assert.match(html, /<meta property="og:url" content="https:\/\/stopai-coin\.fly\.dev\/"/);
+  assert.match(html, /https:\/\/stopai-coin\.fly\.dev\/assets\/stopai-social-preview\.png/);
+  assert.doesNotMatch(html, /brake-coin\.github\.io/);
+  assert.match(html, /href="\.\/mint\.html"/);
+});
+
+test("mint discovery page publishes exact token facts and official links", async () => {
+  const html = await readFile(new URL("../mint.html", import.meta.url), "utf8");
+  assert.ok((html.match(new RegExp(MINT, "g")) || []).length >= 4);
+  assert.match(html, /<link rel="canonical" href="https:\/\/stopai-coin\.fly\.dev\/mint\.html"/);
+  assert.match(html, /Official Solana mainnet mint/);
+  assert.match(html, /1,000,000,000 STOPAI/);
+  assert.match(html, /Mint authority[\s\S]*Revoked/);
+  assert.match(html, /Freeze authority[\s\S]*Revoked/);
+  assert.match(html, /https:\/\/bags\.fm\//);
+  assert.match(html, /https:\/\/explorer\.solana\.com\/address\//);
+  assert.match(html, /https:\/\/x\.com\/STOPAICOIN/);
+  assert.match(html, /https:\/\/t\.me\/StopAiCoin/);
+  assert.match(html, /https:\/\/x\.com\/canadabirdie/);
+  assert.match(html, /could lose all value/i);
+  assert.doesNotMatch(html, /brake-coin\.github\.io/);
+});
+
+test("crawler files point to the official domain and mint page", async () => {
+  const [robots, sitemap] = await Promise.all([
+    readFile(new URL("../robots.txt", import.meta.url), "utf8"),
+    readFile(new URL("../sitemap.xml", import.meta.url), "utf8")
+  ]);
+  assert.match(robots, /User-agent: \*/);
+  assert.match(robots, /Sitemap: https:\/\/stopai-coin\.fly\.dev\/sitemap\.xml/);
+  assert.match(sitemap, /<loc>https:\/\/stopai-coin\.fly\.dev\/<\/loc>/);
+  assert.match(sitemap, /<loc>https:\/\/stopai-coin\.fly\.dev\/mint\.html<\/loc>/);
 });
