@@ -467,7 +467,7 @@ export class AutonomousXService {
           || post.author?.username?.toLowerCase() === this.config.xExpectedUsername.toLowerCase()
           || !isRelevantAIResearchText(post.text)) continue;
         items.push(xPostResearchItem(post, {
-          priority: username.toLowerCase() === "canadabirdie" ? 2 : 1,
+          priority: 1,
           now: this.now()
         }));
       }
