@@ -91,7 +91,7 @@ function cleanPart(value, maximum) {
 }
 
 function composeIdea({ style, theme, message }) {
-  return `${style}: ${theme}. Message: “${message}”`.slice(0, 280);
+  return `A ${style} where ${theme}. The joke: “${message}”`.slice(0, 280);
 }
 
 export function normalizeMemeIdea(input) {

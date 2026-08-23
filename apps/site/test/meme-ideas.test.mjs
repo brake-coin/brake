@@ -14,7 +14,8 @@ test("offline idea rolls combine a large three-part corpus", () => {
   assert.equal(first.memeStyle, "poster");
   assert.match(first.theme, /AI lab/i);
   assert.equal(first.message, "More speed is not more wisdom");
-  assert.match(first.idea, /Message:/);
+  assert.match(first.idea, /^A bootleg action-movie poster where/);
+  assert.match(first.idea, /The joke:/);
   assert.ok(first.idea.length <= 280);
 });
 
@@ -29,7 +30,7 @@ test("idea rolls require style, theme, message, and an image format", () => {
     theme: "the weird hand forecasts a 100% chance of acceleration",
     message: "bring a brake",
     memeStyle: "news",
-    idea: "strange weather map: the weird hand forecasts a 100% chance of acceleration. Message: “bring a brake”"
+    idea: "A strange weather map where the weird hand forecasts a 100% chance of acceleration. The joke: “bring a brake”"
   });
   assert.throws(
     () => normalizeMemeIdea({ style: "poster", theme: "race", memeStyle: "poster" }),

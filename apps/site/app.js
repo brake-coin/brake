@@ -7,14 +7,14 @@ import {
   generateMemeIdea,
   generateMeme,
   keyLinks
-} from "./openrouter.js";
-import { LOCAL_IDEA_COMBINATIONS, rollLocalMemeIdea } from "./meme-ideas.js";
+} from "./openrouter.js?v=20260823-2";
+import { LOCAL_IDEA_COMBINATIONS, rollLocalMemeIdea } from "./meme-ideas.js?v=20260823-2";
 import {
   clearGalleryMemes,
   deleteGalleryMeme,
   listGalleryMemes,
   saveGalleryMeme
-} from "./gallery.js";
+} from "./gallery.js?v=20260823-2";
 
 const PKCE_STORAGE_KEY = "stopai:openrouter-pkce";
 const API_KEY_STORAGE_KEY = "stopai:openrouter-key";
@@ -38,9 +38,6 @@ const ideaRollButton = document.querySelector("#idea-roll-button");
 const ideaRollReady = ideaRollButton.querySelector(".roll-ready");
 const ideaRollWorking = ideaRollButton.querySelector(".roll-working");
 const ideaRollStatus = document.querySelector("#idea-roll-status");
-const ideaStyle = document.querySelector("#idea-style");
-const ideaTheme = document.querySelector("#idea-theme");
-const ideaMessage = document.querySelector("#idea-message");
 const generateButton = document.querySelector("#generate-button");
 const readyLabel = generateButton.querySelector(".button-ready");
 const workingLabel = generateButton.querySelector(".button-working");
@@ -68,10 +65,12 @@ let ideaModel = DEFAULT_IDEA_MODEL;
 let latestMeme = null;
 let generating = false;
 let rollingIdea = false;
+let hasRolledIdea = false;
 let referenceImagePromise;
 
 function setGeneratorStatus(message, state = "") {
   generatorStatus.textContent = message;
+  generatorStatus.hidden = !message;
   if (state) generatorStatus.dataset.state = state;
   else delete generatorStatus.dataset.state;
 }
@@ -87,14 +86,12 @@ function setIdeaRolling(nextRolling) {
 }
 
 function renderControlStates() {
-  generateButton.disabled = generating || rollingIdea || !openRouterKey;
+  generateButton.disabled = generating || rollingIdea || !openRouterKey || !hasRolledIdea;
   readyLabel.hidden = generating;
   workingLabel.hidden = !generating;
   ideaRollButton.disabled = generating || rollingIdea;
   ideaRollReady.hidden = rollingIdea;
   ideaRollWorking.hidden = !rollingIdea;
-  memeIdea.disabled = generating || rollingIdea;
-  memeStyle.disabled = generating || rollingIdea;
   connectButton.disabled = generating || rollingIdea;
   disconnectButton.disabled = generating || rollingIdea;
 }
@@ -114,11 +111,15 @@ async function renderConnection() {
     const links = await keyLinks(openRouterKey);
     activityLink.href = links.activityUrl;
     settingsLink.href = links.settingsUrl;
-    setGeneratorStatus("Ready. Your key stays in this tab; OpenRouter bills your account.", "ready");
-    ideaRollStatus.textContent = "Connected rolls use the idea LLM. Each roll may use a small amount of your OpenRouter credit.";
+    setGeneratorStatus("");
+    ideaRollStatus.textContent = hasRolledIdea
+      ? "Ready to generate this meme with AI. Roll again anytime."
+      : "Roll a meme. Connected rolls use OpenRouter to invent a fresh idea.";
   } else {
-    setGeneratorStatus("Connect OpenRouter to put the weird hand to work.");
-    ideaRollStatus.textContent = `Offline rolls mix ${LOCAL_IDEA_COMBINATIONS.toLocaleString()} built-in style, theme, and message combinations.`;
+    setGeneratorStatus("");
+    ideaRollStatus.textContent = hasRolledIdea
+      ? "Connect OpenRouter above to generate this meme with AI."
+      : `Roll a meme offline from ${LOCAL_IDEA_COMBINATIONS.toLocaleString()} built-in combinations.`;
   }
   setGenerating(false);
 }
@@ -239,9 +240,10 @@ function openPersonalGalleryMeme(item) {
   latestMeme = item.image;
   generatedMeme.src = item.image;
   memeIdea.value = item.idea;
-  if ([...memeStyle.options].some((option) => option.value === item.style)) {
-    memeStyle.value = item.style;
-  }
+  resizeMemeResult();
+  memeStyle.value = item.style || "reaction";
+  hasRolledIdea = true;
+  renderControlStates();
   memeOutput.hidden = false;
   setGeneratorStatus("Your saved meme is open. Remix it or share it.", "ready");
   memeOutput.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -395,21 +397,23 @@ async function shareLatestMeme() {
 }
 
 function showIdeaRoll(roll) {
-  ideaStyle.textContent = roll.style;
-  ideaTheme.textContent = roll.theme;
-  ideaMessage.textContent = roll.message;
   memeIdea.value = roll.idea;
-  if ([...memeStyle.options].some((option) => option.value === roll.memeStyle)) {
-    memeStyle.value = roll.memeStyle;
-  }
+  resizeMemeResult();
+  memeStyle.value = roll.memeStyle;
+  hasRolledIdea = true;
+}
+
+function resizeMemeResult() {
+  memeIdea.style.height = "auto";
+  memeIdea.style.height = `${Math.max(122, memeIdea.scrollHeight)}px`;
 }
 
 ideaRollButton.addEventListener("click", async () => {
   setIdeaRolling(true);
   const useLlm = Boolean(openRouterKey);
   ideaRollStatus.textContent = useLlm
-    ? "The idea LLM is spinning all three reels…"
-    : "Mixing the built-in idea reels…";
+    ? "OpenRouter is rolling a fresh meme…"
+    : "Rolling a meme…";
   try {
     const roll = useLlm
       ? await generateMemeIdea({
@@ -420,14 +424,12 @@ ideaRollButton.addEventListener("click", async () => {
       : rollLocalMemeIdea();
     showIdeaRoll(roll);
     ideaRollStatus.textContent = useLlm
-      ? "Fresh AI roll. Edit it, roll again, or make the meme."
-      : "Offline roll. Edit it, roll again, or connect OpenRouter to make the meme.";
-    memeIdea.focus();
-  } catch (error) {
+      ? "Fresh AI idea. Generate it below or roll again."
+      : "Connect OpenRouter above to generate this meme with AI.";
+  } catch {
     const roll = rollLocalMemeIdea();
     showIdeaRoll(roll);
-    ideaRollStatus.textContent = `The idea LLM missed the reel, so this roll came from the built-in corpus. ${error.message}`;
-    memeIdea.focus();
+    ideaRollStatus.textContent = "OpenRouter missed that roll, so this idea came from the offline collection. You can still generate it below.";
   } finally {
     setIdeaRolling(false);
   }

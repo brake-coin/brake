@@ -1,4 +1,4 @@
-import { normalizeMemeIdea } from "./meme-ideas.js";
+import { normalizeMemeIdea } from "./meme-ideas.js?v=20260823-2";
 
 export const DEFAULT_IMAGE_MODEL = "google/gemini-3.1-flash-image";
 export const DEFAULT_IDEA_MODEL = "~google/gemini-flash-latest";

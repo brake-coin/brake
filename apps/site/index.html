@@ -23,7 +23,7 @@
     <meta name="twitter:description" content="A memecoin, meme machine, and campaign bot putting a peaceful hand up to the AI race." />
     <meta name="twitter:image" content="https://brake-coin.github.io/brake/assets/stopai-social-preview.png" />
     <title>$STOPAI ✋🏻😡 — AI won’t stop itself</title>
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20260823-2" />
   </head>
   <body>
     <header class="site-header">
@@ -125,47 +125,35 @@
           </section>
 
           <form id="meme-form">
-            <label for="meme-idea">Give the weird hand a job</label>
-            <textarea
-              id="meme-idea"
-              name="idea"
-              maxlength="280"
-              rows="4"
-              placeholder="AI won’t stop itself, so the weird hand showed up to work..."
-              required
-            ></textarea>
-
-            <section class="idea-machine" aria-labelledby="idea-machine-title">
-              <div class="idea-machine-heading">
+            <section class="meme-roll" aria-labelledby="meme-roll-title">
+              <div class="meme-roll-heading">
                 <div>
-                  <span class="idea-kicker">Idea slot machine</span>
-                  <strong id="idea-machine-title">Style × theme × message</strong>
+                  <span class="idea-kicker">Meme idea</span>
+                  <strong id="meme-roll-title">Let the weird hand decide.</strong>
                 </div>
                 <button id="idea-roll-button" type="button">
-                  <span class="roll-ready">Roll a weird idea</span>
+                  <span class="roll-ready">Roll a meme</span>
                   <span class="roll-working" hidden>Rolling…</span>
                 </button>
               </div>
-              <div class="idea-reels" aria-live="polite">
-                <p><span>Style</span><strong id="idea-style">Waiting for a roll</strong></p>
-                <p><span>Theme</span><strong id="idea-theme">Waiting for a roll</strong></p>
-                <p><span>Message</span><strong id="idea-message">Waiting for a roll</strong></p>
-              </div>
-              <p class="idea-roll-status" id="idea-roll-status">Loading the idea reels…</p>
+              <label for="meme-idea">Your rolled meme</label>
+              <textarea
+                class="meme-result"
+                id="meme-idea"
+                name="idea"
+                maxlength="280"
+                rows="4"
+                placeholder="Press “Roll a meme” to get one."
+                readonly
+                required
+              ></textarea>
+              <p class="idea-roll-status" id="idea-roll-status">Loading the meme roller…</p>
             </section>
 
-            <div class="studio-controls">
-              <label for="meme-style">
-                Image format
-                <select id="meme-style" name="style">
-                  <option value="reaction">Reaction meme</option>
-                  <option value="poster">Protest poster</option>
-                  <option value="surreal">Surreal chaos</option>
-                  <option value="news">Breaking news</option>
-                </select>
-              </label>
+            <div class="studio-controls roll-controls">
+              <input id="meme-style" name="style" type="hidden" value="reaction" />
               <button class="generate-button" id="generate-button" type="submit" disabled>
-                <span class="button-ready">Make my meme</span>
+                <span class="button-ready">Generate meme with AI</span>
                 <span class="button-working" hidden>Hand at work…</span>
               </button>
             </div>
@@ -297,6 +285,6 @@
       <span>$STOPAI ✋🏻😡 Put a hand up to the AI race. Live on Solana. Public fee recipient: <a href="https://x.com/canadabirdie" target="_blank" rel="noreferrer">@canadabirdie</a>.</span>
       <span id="last-updated"></span>
     </footer>
-    <script type="module" src="./app.js"></script>
+    <script type="module" src="./app.js?v=20260823-2"></script>
   </body>
 </html>
