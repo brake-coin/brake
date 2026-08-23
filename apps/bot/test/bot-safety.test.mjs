@@ -10,3 +10,10 @@ test("public project configuration keeps live posting disabled", async () => {
   assert.equal(project.contractAddress, "2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS");
   assert.equal(project.grantsWallet, null);
 });
+
+test("Telegram bot source has no slash command handlers or command menu", async () => {
+  const source = await readFile(new URL("../src/telegram.mjs", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /\.command\s*\(/);
+  assert.doesNotMatch(source, /setMyCommands/);
+  assert.match(source, /deleteMyCommands/);
+});

@@ -2,7 +2,13 @@ import { randomUUID } from "node:crypto";
 import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-const EMPTY_STATE = Object.freeze({ version: 1, messages: {}, media: [], usage: [] });
+const EMPTY_STATE = Object.freeze({
+  version: 2,
+  messages: {},
+  media: [],
+  usage: [],
+  pendingActions: []
+});
 
 function hourKey(date) {
   return date.toISOString().slice(0, 13);
@@ -14,10 +20,11 @@ function dayKey(date) {
 
 function cleanState(value) {
   return {
-    version: 1,
+    version: 2,
     messages: value?.messages && typeof value.messages === "object" ? value.messages : {},
     media: Array.isArray(value?.media) ? value.media : [],
-    usage: Array.isArray(value?.usage) ? value.usage : []
+    usage: Array.isArray(value?.usage) ? value.usage : [],
+    pendingActions: Array.isArray(value?.pendingActions) ? value.pendingActions : []
   };
 }
 
@@ -51,6 +58,22 @@ export class BotStore {
     return this.#state.media.find((item) => (
       item.chatId === String(chatId) && (!type || item.type === type)
     )) || null;
+  }
+
+  listMedia(chatId, { type = null, limit = 8 } = {}) {
+    return this.#state.media
+      .filter((item) => item.chatId === String(chatId) && (!type || item.type === type))
+      .slice(0, Math.max(1, Math.min(20, Number(limit) || 8)));
+  }
+
+  findMedia(chatId, query = "latest") {
+    const items = this.#state.media.filter((item) => item.chatId === String(chatId));
+    const needle = String(query || "latest").trim().toLowerCase();
+    if (!needle || needle === "latest") return items[0] || null;
+    return items.find((item) => item.id.toLowerCase() === needle)
+      || items.find((item) => item.id.toLowerCase().startsWith(needle))
+      || items.find((item) => String(item.caption || "").toLowerCase().includes(needle))
+      || null;
   }
 
   usageStatus(type, userId, limits) {
@@ -94,6 +117,67 @@ export class BotStore {
       state.media = state.media.slice(0, 200);
     });
     return record;
+  }
+
+  async removeMedia({ chatId, mediaId }) {
+    let removed = null;
+    await this.#mutate((state) => {
+      const index = state.media.findIndex((item) => (
+        item.chatId === String(chatId) && item.id === String(mediaId)
+      ));
+      if (index >= 0) [removed] = state.media.splice(index, 1);
+    });
+    return removed;
+  }
+
+  async stagePendingAction({ type, chatId, userId, payload, expiresInMs = 10 * 60 * 1_000 }) {
+    const action = {
+      id: randomUUID(),
+      type,
+      chatId: String(chatId),
+      userId: String(userId),
+      payload,
+      createdAt: this.now().toISOString(),
+      expiresAt: new Date(this.now().getTime() + expiresInMs).toISOString()
+    };
+    await this.#mutate((state) => {
+      state.pendingActions = state.pendingActions.filter((item) => !(
+        item.type === action.type
+        && item.chatId === action.chatId
+        && item.userId === action.userId
+      ));
+      state.pendingActions.unshift(action);
+    });
+    return action;
+  }
+
+  pendingAction({ type, chatId, userId }) {
+    this.#prune();
+    return this.#state.pendingActions.find((item) => (
+      item.type === type
+      && item.chatId === String(chatId)
+      && item.userId === String(userId)
+    )) || null;
+  }
+
+  async takePendingAction({ type, chatId, userId }) {
+    let action = null;
+    await this.#mutate((state) => {
+      this.#prune(state);
+      const index = state.pendingActions.findIndex((item) => (
+        item.type === type
+        && item.chatId === String(chatId)
+        && item.userId === String(userId)
+      ));
+      if (index >= 0) [action] = state.pendingActions.splice(index, 1);
+    });
+    return action;
+  }
+
+  async completePendingAction(actionId) {
+    await this.#mutate((state) => {
+      state.pendingActions = state.pendingActions.filter((item) => item.id !== actionId);
+    });
   }
 
   async claimUsage(type, userId, limits, { spendCapUsd = 0 } = {}) {
@@ -153,6 +237,9 @@ export class BotStore {
     const cutoff = this.now().getTime() - (8 * 24 * 60 * 60 * 1_000);
     state.usage = state.usage.filter((item) => new Date(item.at).getTime() >= cutoff);
     state.media = state.media.slice(0, 200);
+    state.pendingActions = state.pendingActions
+      .filter((item) => new Date(item.expiresAt).getTime() > this.now().getTime())
+      .slice(0, 50);
     for (const chatId of Object.keys(state.messages)) {
       state.messages[chatId] = state.messages[chatId].slice(-20);
     }

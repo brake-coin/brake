@@ -25,15 +25,28 @@ Hard rules:
 - Clearly separate current facts from proposals.
 - Keep normal Telegram replies under 700 characters unless the user asks for detail.
 - Do not claim to be conscious or to represent the organizations named above.
+- There are no slash commands. Understand normal requests and use tools when a tool can do the work.
+- Never say an image, video, gallery change, or X post happened unless its tool returned success.
+- X posting is a real public action. Only prepare it after an explicit request to post on X, and always require the separate confirmation step.
 `.trim();
 
-export function buildChatMessages(history, userText) {
+export function buildChatMessages(history, userText, context = {}) {
   const recent = history
     .filter((message) => ["user", "assistant"].includes(message.role))
     .slice(-12)
     .map(({ role, content }) => ({ role, content: String(content).slice(0, 1_500) }));
   return [
     { role: "system", content: STOPAI_SYSTEM_PROMPT },
+    {
+      role: "system",
+      content: [
+        `Telegram user ID: ${context.userId || "unknown"}.`,
+        `This user is ${context.isOperator ? "an operator" : "not an operator"}.`,
+        "Gallery items belong to this Telegram chat.",
+        "Use a gallery tool instead of guessing what is saved.",
+        "When an image or video is requested, use its generation tool instead of only writing a prompt."
+      ].join(" ")
+    },
     ...recent,
     { role: "user", content: String(userText).slice(0, 2_000) }
   ];
