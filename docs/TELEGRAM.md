@@ -49,7 +49,7 @@ The bot has no slash-command menu. Speak normally. For example:
 - `Show me the latest three gallery items.`
 - `Bring back the image about a timeout.`
 - `Remove gallery item a1b2c3d4.` (operator only)
-- `Prepare the latest image for a post on X with this text: ...` (operator only)
+- `Post the latest image on X with this text: ...`
 
 Reply to an image while asking for a new image or video to use it as a reference. Sending an image
 or video to the bot in a private chat saves only Telegram's reusable file ID and basic
@@ -58,18 +58,20 @@ bring BYOK-made media into Telegram without charging the server again.
 
 A caption can also be the request. For example, upload an image with `remix this as a
 STOPAI poster` or `animate this`. The bot saves the upload, then uses it as the media
-reference. An operator can reply to Telegram media with an X-post request; the bot
-automatically attaches and publishes that media immediately.
+reference. Anyone can reply to Telegram media with an X-post request. The agent receives
+that media's gallery ID and decides whether to attach it when it calls the posting tool.
 
-Several basic answers do not spend shared AI budget and still work when OpenRouter is
-disconnected. Ask `help`, `what is the CA?`, `what AI are you using?`, `what is my
-Telegram ID?`, or `am I an operator?`.
+All normal replies go through the shared agent so it can decide whether to answer or use
+a tool. Ask `help`, `what is the CA?`, `what AI are you using?`, or `what is my
+Telegram ID?` naturally.
 
 Ask `What is my Telegram ID?` and put that numeric ID in `TELEGRAM_OPERATOR_IDS`.
-Telegram administrators in the configured group are also treated as operators. Only
-operators are given the gallery removal and manual X posting tools. An explicit
-request such as `post the latest image on X` publishes immediately without a second
-confirmation. The bot never exposes the posting tool to other Telegram users.
+Telegram administrators in the configured group are also treated as operators for
+gallery deletion only. Every user receives the X posting tool. The agent decides from
+the conversation whether to call it; there is no regex preflight or forced tool choice.
+Successful posts have a five-minute global cooldown and a fifteen-minute per-user
+cooldown, plus limits of 6 posts per hour, 24 per day, 2 per user per hour, and 6 per
+user per day.
 
 ## Connect X
 

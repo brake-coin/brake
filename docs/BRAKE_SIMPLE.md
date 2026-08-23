@@ -53,7 +53,7 @@ fees. Token holders have no ownership right or claim over those fees.
 - The website makes BYOK images through OpenRouter OAuth PKCE.
 - The Telegram bot uses a shared admin-linked OpenRouter key for chat and budgeted
   images and videos.
-- The bot can manage its Telegram gallery, publish explicit operator X requests, and
+- The agent can manage its Telegram gallery, publish clear user X requests within cooldowns, and
   run a bounded autonomous text, image, and video schedule.
 
 ## Visual identity

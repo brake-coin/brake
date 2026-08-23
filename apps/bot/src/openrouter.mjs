@@ -60,7 +60,7 @@ export class OpenRouterClient {
     return { text: result.message.content, costUsd: result.costUsd };
   }
 
-  async chatStep(messages, tools = [], { toolChoice = "auto" } = {}) {
+  async chatStep(messages, tools = []) {
     const body = {
       model: this.config.openRouterChatModel,
       messages,
@@ -70,7 +70,7 @@ export class OpenRouterClient {
     };
     if (tools.length) {
       body.tools = tools;
-      body.tool_choice = toolChoice;
+      body.tool_choice = "auto";
     }
     let costUsd = 0;
     let lastPayload = null;

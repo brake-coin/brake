@@ -89,6 +89,18 @@ export function createBotConfig(env = process.env) {
       minimum: 1,
       maximum: 280
     }),
+    xPostHourlyCap: integer(env.X_POST_HOURLY_CAP, 6, { minimum: 1, maximum: 24 }),
+    xPostDailyCap: integer(env.X_POST_DAILY_CAP, 24, { minimum: 1, maximum: 100 }),
+    xPostUserHourlyCap: integer(env.X_POST_USER_HOURLY_CAP, 2, { minimum: 1, maximum: 12 }),
+    xPostUserDailyCap: integer(env.X_POST_USER_DAILY_CAP, 6, { minimum: 1, maximum: 24 }),
+    xPostGlobalCooldownSeconds: integer(env.X_POST_GLOBAL_COOLDOWN_SECONDS, 300, {
+      minimum: 30,
+      maximum: 24 * 60 * 60
+    }),
+    xPostUserCooldownSeconds: integer(env.X_POST_USER_COOLDOWN_SECONDS, 900, {
+      minimum: 30,
+      maximum: 24 * 60 * 60
+    }),
     xAutonomousPostingEnabled: boolean(env.X_AUTONOMOUS_POSTING_ENABLED, false),
     xAutonomousIntervalMinutes: integer(env.X_AUTONOMOUS_INTERVAL_MINUTES, 480, {
       minimum: 60,
@@ -140,6 +152,14 @@ export function usageLimits(config, type) {
       daily: config.videoDailyCap,
       userHourly: config.videoUserHourlyCap,
       userDaily: config.videoUserDailyCap
+    };
+  }
+  if (type === "x_post") {
+    return {
+      hourly: config.xPostHourlyCap,
+      daily: config.xPostDailyCap,
+      userHourly: config.xPostUserHourlyCap,
+      userDaily: config.xPostUserDailyCap
     };
   }
   return { hourly: 0, daily: 0, userHourly: 0, userDaily: 0 };

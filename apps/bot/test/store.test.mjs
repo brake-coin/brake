@@ -24,6 +24,24 @@ test("store applies global and per-user limits atomically", async (t) => {
   assert.equal((await stat(filePath)).mode & 0o777, 0o600);
 });
 
+test("store enforces global and per-user posting cooldowns", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-x-cooldown-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  let now = new Date("2026-08-22T10:00:00.000Z");
+  const store = new BotStore(path.join(directory, "bot.json"), { now: () => now });
+  const limits = { hourly: 10, daily: 20, userHourly: 5, userDaily: 10 };
+  const cooldowns = { globalCooldownMs: 5 * 60_000, userCooldownMs: 15 * 60_000 };
+
+  assert.equal((await store.claimUsage("x_post", "alice", limits, cooldowns)).allowed, true);
+  now = new Date("2026-08-22T10:04:00.000Z");
+  assert.equal((await store.claimUsage("x_post", "bob", limits, cooldowns)).reason, "global_cooldown");
+  now = new Date("2026-08-22T10:06:00.000Z");
+  assert.equal((await store.claimUsage("x_post", "alice", limits, cooldowns)).reason, "user_cooldown");
+  assert.equal((await store.claimUsage("x_post", "bob", limits, cooldowns)).allowed, true);
+  now = new Date("2026-08-22T10:16:00.000Z");
+  assert.equal((await store.claimUsage("x_post", "alice", limits, cooldowns)).allowed, true);
+});
+
 test("store remembers Telegram media IDs without media bytes", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-bot-media-"));
   t.after(() => rm(directory, { recursive: true, force: true }));

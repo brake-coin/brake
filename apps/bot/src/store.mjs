@@ -134,7 +134,11 @@ export class BotStore {
     return removed;
   }
 
-  async claimUsage(type, userId, limits, { spendCapUsd = 0 } = {}) {
+  async claimUsage(type, userId, limits, {
+    spendCapUsd = 0,
+    globalCooldownMs = 0,
+    userCooldownMs = 0
+  } = {}) {
     let result;
     await this.#mutate((state) => {
       this.#prune(state);
@@ -150,11 +154,30 @@ export class BotStore {
         result = { allowed: false, reason: `${denied[0]}_cap`, status };
         return;
       }
+      const now = this.now();
+      const typeEvents = state.usage.filter((item) => item.type === type);
+      const latestGlobal = typeEvents.reduce((latest, item) => (
+        new Date(item.at).getTime() > new Date(latest?.at || 0).getTime() ? item : latest
+      ), null);
+      if (globalCooldownMs > 0 && latestGlobal
+        && now.getTime() - new Date(latestGlobal.at).getTime() < globalCooldownMs) {
+        result = { allowed: false, reason: "global_cooldown", status };
+        return;
+      }
+      const latestUser = typeEvents
+        .filter((item) => item.userId === String(userId || "unknown"))
+        .reduce((latest, item) => (
+          new Date(item.at).getTime() > new Date(latest?.at || 0).getTime() ? item : latest
+        ), null);
+      if (userCooldownMs > 0 && latestUser
+        && now.getTime() - new Date(latestUser.at).getTime() < userCooldownMs) {
+        result = { allowed: false, reason: "user_cooldown", status };
+        return;
+      }
       if (["image", "video"].includes(type) && spendCapUsd > 0 && status.spendToday >= spendCapUsd) {
         result = { allowed: false, reason: "daily_spend_cap", status };
         return;
       }
-      const now = this.now();
       const event = {
         id: randomUUID(),
         type,
