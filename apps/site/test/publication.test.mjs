@@ -16,5 +16,7 @@ test("homepage publishes the official live mint and verification links", async (
   assert.match(html, new RegExp(MINT));
   assert.match(html, /View on Bags/);
   assert.match(html, /Verify on Solana/);
-  assert.match(project.riskNotice, /grants program remains proposed/i);
+  assert.equal(project.creatorFeeRecipient.handle, "@canadabirdie");
+  assert.equal(project.creatorFeeRecipient.profileUrl, "https://x.com/canadabirdie");
+  assert.match(html, /https:\/\/x\.com\/canadabirdie/);
 });

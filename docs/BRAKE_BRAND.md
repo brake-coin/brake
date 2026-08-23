@@ -1,6 +1,6 @@
 # STOPAI Brand Direction
 
-Status: concept draft
+Status: live brand guide
 
 ## Selected simple direction
 
@@ -25,9 +25,9 @@ human, calm, and accountable. It is neither techno-utopian nor anti-technology.
 ## Message hierarchy
 
 1. Put the brakes on the AI race.
-2. Fund peaceful public pressure.
-3. Every fee visible. Every grant documented.
-4. Attend and donate directly before considering the token.
+2. Support peaceful public discussion.
+3. Publish the official mint and public fee recipient.
+4. Make memorable media without financial hype.
 
 ## Voice
 
@@ -45,12 +45,6 @@ changes it:
 
 > Independent project. Not an official token of Stop the AI Race, Stop AI, PauseAI,
 > RATi OSF, OpenAI, Anthropic, Google, or xAI.
-
-If RATi approves the grants arrangement, replace only the RATi portion with:
-
-> The independent STOPAI project contributes disclosed fees to a grants program
-> administered by RATi Open Software Foundation. RATi does not issue or endorse the
-> token as an investment.
 
 ## Palette
 
@@ -86,5 +80,4 @@ tool. The selected simplified concept uses this final prompt:
 > white, and charcoal on a transparent background. No text, gradients, shadows,
 > financial imagery, corporate branding, or existing activist logos.
 
-The concept should be redrawn as a deterministic vector before final token metadata is
-made immutable.
+Use the deterministic SVG for token metadata and public campaign assets.
