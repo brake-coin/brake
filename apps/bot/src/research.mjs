@@ -160,6 +160,11 @@ export function xPostResearchItem(post, { priority = 0, now = new Date() } = {})
     url: post.url,
     author: post.author?.username || null,
     publishedAt: post.createdAt || null,
+    references: Array.isArray(post.references) ? post.references.slice(0, 8) : [],
+    isReply: Boolean(post.isReply),
+    isRepost: Boolean(post.isRepost),
+    isQuote: Boolean(post.isQuote),
+    possiblySensitive: Boolean(post.possiblySensitive),
     metrics,
     score: Number((3 + Math.log10(engagement + 1) + priority + ageScore(post.createdAt, now)).toFixed(3))
   };

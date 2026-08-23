@@ -65,8 +65,9 @@ reference. Anyone can reply to Telegram media and ask the agent to publish or dr
 The agent decides whether the request is clear and passes its rules. It receives gallery metadata, but it cannot see the final
 pixels or frames during chat, including for generated media. Before publishing any media,
 it asks the user to reply to that media with `I confirm I reviewed this media for consent and
-personal information.` and include the post text in the same request. The server rejects
-the post if those words are missing.
+personal information.`, include the post text, and provide accurate alt text describing the
+final media in the same request. The server rejects the post if either review confirmation
+or alt text is missing.
 
 All normal replies go through the shared agent so it can decide whether to answer or use
 a tool. Ask `help`, `what is the CA?`, `what AI are you using?`, or `what is my
@@ -76,9 +77,15 @@ Ask `What is my Telegram ID?` and put that numeric ID in `TELEGRAM_OPERATOR_IDS`
 Telegram administrators in the configured group are also treated as operators. Every user
 receives the X publishing tool, and the agent decides whether a request is clear, safe,
 relevant, and ready. There is no regex preflight or forced tool choice.
-Successful posts have a five-minute global cooldown and a fifteen-minute per-user
-cooldown, plus limits of 6 posts per hour, 24 per day, 2 per user per hour, and 6 per
-user per day.
+Successful Telegram posts have a one-hour account cooldown and a four-hour per-user
+cooldown, plus limits of 2 manual posts per hour, 8 per day, 1 per user per hour, and 3
+per user per day. These account-wide checks also see autonomous and live-test posts.
+
+All bot-made X posts are top-level posts. The publishing client rejects reply fields and
+unsolicited `@mentions`. A source URL must be passed through the dedicated source field,
+not hidden in the caption. Before posting, the bot reads the source from X and rejects
+replies, reposts, quote-posts, posts marked possibly sensitive, and posts authored by
+`@STOPAICOIN`. Bare and mobile X links are also detected, so they cannot bypass the ledger.
 
 ## X research and meme reposts
 
@@ -92,6 +99,12 @@ post, generate new STOPAI media, and publish short original commentary with the 
 On X self-serve plans, uploaded media cannot be combined with the native quote-post field,
 so the source URL is added to the post text. X renders that link as the visible quoted-post
 card while keeping the original author and post accessible.
+
+Each X source post ID is claimed atomically in a durable ledger before media is downloaded
+or a post is created. A confirmed source can never be claimed again. Concurrent requests
+see the pending claim and stop. If X returns a post ID but verification fails, the source is
+marked uncertain and stays blocked so a retry cannot create a duplicate. Older used-source
+research and confirmed receipts are imported into the ledger when encountered.
 
 X research is capped at 20 requests per hour and 100 per UTC day globally, plus 5 per user
 per hour and 20 per user per day.
@@ -112,8 +125,15 @@ access automatically. `X_CLIENT_ID`, `X_USER_ACCESS_TOKEN`, and
 `X_POSTING_ENABLED=true` remain available as environment fallbacks, but are not needed
 for a connection made through admin.
 
+Before enabling public automation, finish X's account-level requirements outside this
+repository: enable the **Automated** profile label, say clearly in the bio that the account
+is automated and who operates it, link a human-managed account, provide an opt-out/contact
+path, and obtain any approval X requires for AI-generated posting. The API's
+`made_with_ai` field is also set on every bot-created post, but it does not replace those
+profile and approval steps. The account owner remains responsible for the automated posts.
+
 Image upload uses the simple media endpoint; video upload uses the INIT, APPEND,
-FINALIZE, and STATUS flow.
+FINALIZE, and STATUS flow. Both attach alt text before the public post is created.
 
 After X returns a new post ID, the bot reads that ID back and checks that its canonical URL
 belongs to `@STOPAICOIN`. Missing, unreadable, or unexpected receipts are failures even if
@@ -127,9 +147,15 @@ It ranks and saves the results, compares them with its durable goals, memories, 
 sources, then decides whether there is anything worth posting. It may skip weak, stale,
 or repetitive cycles.
 
+Reply, repost, quote-post, sensitive, self-post, stale, and previously used candidates are
+removed before the autonomous model sees them. By default, a source must be no more than
+seven days old. The selected X source is read and checked again immediately before its
+durable source claim and any public action.
+
 Autonomous posts always keep the selected source link. The agent can choose text, image,
-or video, waits at least four hours between its own posts, and stops after three posts per
-UTC day. It waits fifteen minutes after startup and shares the existing chat, media, and
+or video, waits at least four hours after either a Telegram or autonomous X post, and stops
+after three autonomous posts per UTC day. Live admin tests use the same public cooldown.
+It waits fifteen minutes after startup and shares the existing chat, media, and
 $5 daily AI-spend limits. Research and posting history survive deploys on the encrypted
 Fly volume. The admin page shows goal, memory, research, and last-cycle counts alongside
 the live test buttons.
@@ -138,11 +164,6 @@ Telegram users can ask `what are your goals and memories?` to inspect the campai
 Every user may request an agent-approved X post. Group administrators and configured operator
 IDs may also save stable notes or update goals in plain language. Ordinary users cannot alter
 the long-term campaign identity.
-
-Before autonomous posting is enabled, X requires the account to use the Automated profile
-label, disclose the bot in its bio, and link a human-managed account. The campaign agent
-does not publish automated replies or unsolicited mentions, and it does not chase unrelated
-trending hashtags. The account owner remains responsible for the automated posts.
 
 The official posting account is [@STOPAICOIN](https://x.com/STOPAICOIN). It is separate
 from [@canadabirdie](https://x.com/canadabirdie), which is the configured Bags

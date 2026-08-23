@@ -13,7 +13,8 @@ export function xPostReference(value) {
   }
   try {
     const url = new URL(input);
-    if (!["x.com", "www.x.com", "twitter.com", "www.twitter.com"].includes(url.hostname.toLowerCase())) {
+    if (!["x.com", "www.x.com", "mobile.x.com", "twitter.com", "www.twitter.com", "mobile.twitter.com"]
+      .includes(url.hostname.toLowerCase())) {
       return null;
     }
     const genericMatch = /^\/i\/web\/status\/(\d{1,19})(?:\/|$)/.exec(url.pathname);
@@ -40,6 +41,44 @@ export function xWeightedLength(value) {
   return length + [...text.slice(cursor)].length;
 }
 
+export function xMentionsInText(value) {
+  return [...String(value || "").matchAll(/(^|[^A-Za-z0-9_])@([A-Za-z0-9_]{1,15})\b/g)]
+    .map((match) => match[2]);
+}
+
+export function validateTopLevelXPost({ text, replyToId = null } = {}) {
+  if (replyToId) throw new XError("STOPAI does not publish replies.", 400);
+  const mentions = xMentionsInText(text);
+  if (mentions.length) {
+    throw new XError("STOPAI does not publish unsolicited @mentions. Use a source link for attribution.", 400);
+  }
+}
+
+export function validateXQuoteSource(post, { expectedUsername = "" } = {}) {
+  if (!post?.id || !post?.url || !post?.author?.username) {
+    throw new XError("X could not verify the source post and its author.", 400);
+  }
+  const referenceTypes = new Set((post.references || []).map((reference) => reference.type));
+  if (referenceTypes.has("replied_to") || post.isReply) {
+    throw new XError("STOPAI does not quote replies. Choose the original top-level post.", 400);
+  }
+  if (referenceTypes.has("retweeted") || post.isRepost) {
+    throw new XError("STOPAI does not quote reposts. Choose the original post.", 400);
+  }
+  if (referenceTypes.has("quoted") || post.isQuote) {
+    throw new XError("STOPAI does not quote quote-posts. Choose the underlying original post.", 400);
+  }
+  if (post.possiblySensitive) {
+    throw new XError("STOPAI does not quote posts that X marks as possibly sensitive.", 400);
+  }
+  const author = String(post.author.username).replace(/^@/, "");
+  const expected = String(expectedUsername || "").replace(/^@/, "");
+  if (expected && author.toLowerCase() === expected.toLowerCase()) {
+    throw new XError("STOPAI does not quote its own posts.", 400);
+  }
+  return post;
+}
+
 function publicPosts(payload, fallbackUsername = null) {
   const items = Array.isArray(payload?.data) ? payload.data : payload?.data ? [payload.data] : [];
   const users = new Map((payload?.includes?.users || []).map((user) => [String(user.id), user]));
@@ -47,6 +86,10 @@ function publicPosts(payload, fallbackUsername = null) {
   return items.map((post) => {
     const author = users.get(String(post.author_id)) || {};
     const username = author.username || fallbackUsername;
+    const references = (post.referenced_tweets || []).map((reference) => ({
+      id: String(reference.id || ""),
+      type: String(reference.type || "")
+    })).filter((reference) => reference.id && reference.type);
     return {
       id: String(post.id),
       text: String(post.text || "").slice(0, 1_000),
@@ -60,6 +103,11 @@ function publicPosts(payload, fallbackUsername = null) {
         name: author.name || null
       },
       metrics: post.public_metrics || null,
+      possiblySensitive: Boolean(post.possibly_sensitive),
+      references,
+      isReply: references.some((reference) => reference.type === "replied_to"),
+      isRepost: references.some((reference) => reference.type === "retweeted"),
+      isQuote: references.some((reference) => reference.type === "quoted"),
       media: (post.attachments?.media_keys || []).map((key) => media.get(String(key))).filter(Boolean)
         .map((item) => ({
           type: item.type,
@@ -118,6 +166,7 @@ export function validateXPostReceipt(post, { id, expectedUsername = "" } = {}) {
     || !reference
     || reference.id !== postId
     || post.url !== expectedUrl
+    || post.isReply
     || (requiredUsername && authorUsername.toLowerCase() !== requiredUsername.toLowerCase())) {
     const error = new XError("X returned a post receipt for an unexpected URL or account.", 502);
     error.postId = postId;
@@ -140,15 +189,23 @@ export class XClient {
     return Boolean(this.config.xPostingEnabled && credential?.accessToken);
   }
 
-  async post({ text, media = null }) {
+  async post({ text, media = null, replyToId = null, reply = null }) {
     const cleanText = String(text || "").trim();
     if (!cleanText && !media) throw new XError("An X post needs text or media.", 400);
+    const altText = String(media?.altText || "").replace(/\s+/g, " ").trim();
+    if (media && !altText) throw new XError("X media needs accurate alt text before publishing.", 400);
+    if ([...altText].length > 1_000) throw new XError("X media alt text is over 1,000 characters.", 400);
+    validateTopLevelXPost({
+      text: cleanText,
+      replyToId: replyToId || reply?.in_reply_to_tweet_id || reply?.in_reply_to_post_id
+    });
     if (xWeightedLength(cleanText) > this.config.xMaxPostCharacters) {
       throw new XError(`The X post is over ${this.config.xMaxPostCharacters} characters.`, 400);
     }
     if (!await this.connected()) throw new XError("X posting is not connected or enabled.", 503);
 
     const mediaId = media ? await this.#uploadMedia(media) : null;
+    if (mediaId) await this.#setMediaAltText(mediaId, altText);
     const payload = await this.#json("/2/tweets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -175,7 +232,7 @@ export class XClient {
     const reference = xPostReference(value);
     if (!reference) throw new XError("Use a valid X post URL or numeric post ID.", 400);
     const query = new URLSearchParams({
-      "tweet.fields": "author_id,created_at,public_metrics,attachments,referenced_tweets",
+      "tweet.fields": "author_id,created_at,public_metrics,attachments,referenced_tweets,possibly_sensitive",
       expansions: "author_id,attachments.media_keys",
       "user.fields": "username,name,verified",
       "media.fields": "type,url,preview_image_url,alt_text"
@@ -193,7 +250,7 @@ export class XClient {
     const query = new URLSearchParams({
       query: value,
       max_results: "10",
-      "tweet.fields": "author_id,created_at,public_metrics,attachments,referenced_tweets",
+      "tweet.fields": "author_id,created_at,public_metrics,attachments,referenced_tweets,possibly_sensitive",
       expansions: "author_id,attachments.media_keys",
       "user.fields": "username,name,verified",
       "media.fields": "type,url,preview_image_url,alt_text"
@@ -213,7 +270,7 @@ export class XClient {
     const query = new URLSearchParams({
       max_results: String(Math.max(5, requested)),
       exclude: "retweets,replies",
-      "tweet.fields": "author_id,created_at,public_metrics,attachments,referenced_tweets",
+      "tweet.fields": "author_id,created_at,public_metrics,attachments,referenced_tweets,possibly_sensitive",
       expansions: "attachments.media_keys",
       "media.fields": "type,url,preview_image_url,alt_text"
     });
@@ -323,8 +380,19 @@ export class XClient {
 
   #mediaId(payload) {
     const id = String(payload?.data?.id || payload?.media_id_string || payload?.media_id || "");
-    if (!id) throw new XError("X returned no media ID.");
+    if (!/^\d{1,19}$/.test(id)) throw new XError("X returned no valid media ID.");
     return id;
+  }
+
+  async #setMediaAltText(mediaId, altText) {
+    await this.#json("/2/media/metadata", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: mediaId,
+        metadata: { alt_text: { text: altText } }
+      })
+    });
   }
 
   async #form(path, fields, expectJson = true) {

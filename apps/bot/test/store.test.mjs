@@ -45,6 +45,74 @@ test("store enforces global and per-user posting cooldowns", async (t) => {
   assert.equal((await store.claimUsage("x_post", "alice", limits, cooldowns)).allowed, true);
 });
 
+test("manual and autonomous X posts share the public-account cooldown", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-shared-x-cooldown-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  let now = new Date("2026-08-22T10:00:00.000Z");
+  const store = new BotStore(path.join(directory, "bot.json"), { now: () => now });
+  const limits = { hourly: 10, daily: 10, userHourly: 10, userDaily: 10 };
+  assert.equal((await store.claimUsage("x_post", "alice", limits)).allowed, true);
+  now = new Date("2026-08-22T10:10:00.000Z");
+  const autonomous = await store.claimUsage("x_auto", "agent", limits, {
+    globalCooldownMs: 4 * 60 * 60 * 1_000,
+    globalCooldownTypes: ["x_post"]
+  });
+  assert.equal(autonomous.allowed, false);
+  assert.equal(autonomous.reason, "global_cooldown");
+  now = new Date("2026-08-22T14:01:00.000Z");
+  assert.equal((await store.claimUsage("x_auto", "agent", limits, {
+    globalCooldownMs: 4 * 60 * 60 * 1_000,
+    globalCooldownTypes: ["x_post"]
+  })).allowed, true);
+});
+
+test("store atomically prevents duplicate X source posts", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-source-claims-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const store = new BotStore(path.join(directory, "bot.json"), {
+    now: () => new Date("2026-08-22T10:00:00.000Z")
+  });
+  const source = {
+    sourcePostId: "2091410624970711451",
+    sourcePostUrl: "https://x.com/canadabirdie/status/2091410624970711451"
+  };
+  const [first, second] = await Promise.all([
+    store.claimXSourcePost({ ...source, userId: "alice" }),
+    store.claimXSourcePost({ ...source, userId: "bob" })
+  ]);
+  assert.equal([first, second].filter((claim) => claim.allowed).length, 1);
+  assert.equal([first, second].find((claim) => !claim.allowed).reason, "source_post_in_progress");
+  const winner = first.allowed ? first : second;
+  await store.confirmXSourcePost(winner.claimId, {
+    postedId: "300",
+    postedUrl: "https://x.com/STOPAICOIN/status/300"
+  });
+  const duplicate = await store.claimXSourcePost(source);
+  assert.equal(duplicate.allowed, false);
+  assert.equal(duplicate.reason, "source_already_posted");
+  assert.equal(duplicate.record.postedUrl, "https://x.com/STOPAICOIN/status/300");
+  assert.equal(store.agentStatus().quotedSourceCount, 1);
+});
+
+test("uncertain X source outcomes stay blocked but clean failures can retry", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-source-uncertain-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const store = new BotStore(path.join(directory, "bot.json"));
+  const first = await store.claimXSourcePost({ sourcePostId: "800" });
+  await store.releaseXSourcePost(first.claimId);
+  assert.equal((await store.claimXSourcePost({ sourcePostId: "800" })).allowed, true);
+
+  const uncertain = await store.claimXSourcePost({ sourcePostId: "900" });
+  await store.releaseXSourcePost(uncertain.claimId, {
+    uncertainPostId: "901",
+    uncertainPostUrl: "https://x.com/i/web/status/901"
+  });
+  const blocked = await store.claimXSourcePost({ sourcePostId: "900" });
+  assert.equal(blocked.allowed, false);
+  assert.equal(blocked.reason, "source_post_status_uncertain");
+  assert.equal(store.agentStatus().uncertainSourceCount, 1);
+});
+
 test("store remembers Telegram media IDs without media bytes", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-bot-media-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
@@ -114,4 +182,6 @@ test("store persists campaign goals, memory, research use, and cycle history", a
   assert.equal(snapshot.cycles[0].action, "post");
   assert.equal(reloaded.recentXReceipts()[0].status, "confirmed");
   assert.equal(reloaded.recentXReceipts()[0].id, "456");
+  assert.equal(reloaded.agentStatus().quotedSourceCount, 1);
+  assert.equal((await reloaded.claimXSourcePost({ sourcePostId: "123" })).reason, "source_already_posted");
 });

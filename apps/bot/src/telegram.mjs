@@ -10,7 +10,13 @@ import {
 import { imageBufferToDataUrl, OpenRouterError } from "./openrouter.mjs";
 import { telegramHtmlFromMarkdown } from "./telegram-format.mjs";
 import { xPostResearchItem } from "./research.mjs";
-import { xPostReference, xWeightedLength, XError } from "./x.mjs";
+import {
+  validateTopLevelXPost,
+  validateXQuoteSource,
+  xPostReference,
+  xWeightedLength,
+  XError
+} from "./x.mjs";
 
 const BASE_TOOLS = [
   {
@@ -144,12 +150,13 @@ const BASE_TOOLS = [
     type: "function",
     function: {
       name: "post_to_x",
-      description: "Publish a public post immediately on the official @STOPAICOIN X account when a user's request is clear and passes the publishing rules. For a meme based on another post, pass its URL in source_post so the original stays visible and attributed. Available to all Telegram users, with global and per-user cooldowns enforced.",
+      description: "Publish one top-level public post immediately on the official @STOPAICOIN X account when a user's request is clear and passes the publishing rules. Never use it for replies or @mentions. For commentary based on another post, pass its URL in source_post so the original stays visible, attributed, and protected from duplicate use. Available to all Telegram users, with global and per-user cooldowns enforced.",
       parameters: {
         type: "object",
         properties: {
-          text: { type: "string", minLength: 1, maxLength: 280 },
+          text: { type: "string", minLength: 1, maxLength: 280, description: "Original post text with no @mentions and no X status URL. Put one source-post URL in source_post." },
           media_id: { type: "string", description: "Optional gallery ID, caption search, or latest. Use the current gallery item ID from context when the user refers to replied media." },
+          alt_text: { type: "string", minLength: 1, maxLength: 1_000, description: "Required with media. An accurate plain-language description supplied or confirmed by the user after reviewing the final media." },
           source_post: { type: "string", maxLength: 200, description: "Optional original x.com post URL or numeric post ID. It is appended as a visible source link, including when media is attached." }
         },
         required: ["text"],
@@ -261,6 +268,9 @@ export function buildXPostText(text, sourcePost = null) {
   const source = sourcePost ? xPostReference(sourcePost) : null;
   if (sourcePost && !source) throw new XError("The source post must be a valid x.com post URL or numeric post ID.", 400);
   const cleanText = cleanXPostText(text);
+  if (xPostIdsInText(cleanText).size) {
+    throw new XError("Put an X source-post URL in source_post, not inside the post text.", 400);
+  }
   return { text: source ? `${cleanText}\n\n${source.url}` : cleanText, source };
 }
 
@@ -284,9 +294,21 @@ function limitMessage(type, claim) {
 }
 
 function xPostLimitMessage(claim) {
-  if (claim.reason === "global_cooldown") return "Another X post just went out. Try again in a few minutes.";
-  if (claim.reason === "user_cooldown") return "Your X posting cooldown is still active. Try again later.";
+  if (claim.reason === "global_cooldown") return "Another X post went out recently. Try again after the one-hour account cooldown.";
+  if (claim.reason === "user_cooldown") return "Your X posting cooldown is still active. Try again after four hours.";
   return "The X posting limit is reached. Try again after the hourly or daily reset.";
+}
+
+function xSourcePostLimitMessage(claim) {
+  if (claim.reason === "source_already_posted") {
+    return claim.record?.postedUrl
+      ? `STOPAI already used that source post: ${claim.record.postedUrl}`
+      : "STOPAI already used that source post.";
+  }
+  if (claim.reason === "source_post_in_progress") {
+    return "Another STOPAI post is already being prepared from that source.";
+  }
+  return "A previous attempt may already have posted from that source. An operator must check X before it can be used again.";
 }
 
 function safeErrorMessage(error) {
@@ -299,7 +321,7 @@ function safeErrorMessage(error) {
 
 export function xPostIdsInText(text) {
   const ids = new Set();
-  const pattern = /https?:\/\/(?:www\.)?(?:x\.com|twitter\.com)\/(?:i\/web\/status\/|[A-Za-z0-9_]{1,15}\/status\/)(\d{1,19})(?=$|[/?#)\]}\s.,!?;:'"])/gi;
+  const pattern = /(?:https?:\/\/)?(?:(?:www|mobile)\.)?(?:x\.com|twitter\.com)\/(?:i\/web\/status\/|[A-Za-z0-9_]{1,15}\/status\/)(\d{1,19})(?=$|[/?#)\]}\s.,!?;:'"])/gi;
   for (const match of String(text || "").matchAll(pattern)) ids.add(match[1]);
   return ids;
 }
@@ -785,15 +807,13 @@ export class TelegramService {
     if (!this.xClient || !await this.xClient.connected()) {
       return { ok: false, error: "X posting is not connected or enabled." };
     }
-    const { text } = buildXPostText(args.text, args.source_post);
-    if (!text) return { ok: false, error: "The X post needs text." };
-    if (xWeightedLength(text) > this.config.xMaxPostCharacters) {
-      return { ok: false, error: `The X post is over ${this.config.xMaxPostCharacters} characters.` };
-    }
     let media = null;
     if (args.media_id) {
       media = this.store.findMedia(ctx.chat.id, args.media_id);
       if (!media) return { ok: false, error: "No matching gallery item was found." };
+      if (!String(args.alt_text || "").trim()) {
+        return { ok: false, error: "Add accurate alt text describing the reviewed media before posting it to X." };
+      }
       if (needsMediaReviewConfirmation(media, userText)) {
         return {
           ok: false,
@@ -801,23 +821,64 @@ export class TelegramService {
         };
       }
     }
-    const downloadedMedia = media ? await this.#downloadMedia(ctx, media) : null;
-    const claim = await this.store.claimUsage(
-      "x_post",
-      ctx.from?.id,
-      usageLimits(this.config, "x_post"),
-      {
-        globalCooldownMs: this.config.xPostGlobalCooldownSeconds * 1_000,
-        userCooldownMs: this.config.xPostUserCooldownSeconds * 1_000
+    const requestedSource = args.source_post ? xPostReference(args.source_post) : null;
+    if (args.source_post && !requestedSource) {
+      return { ok: false, error: "The source post must be a valid x.com post URL or numeric post ID." };
+    }
+    let sourcePost = null;
+    if (requestedSource) {
+      sourcePost = validateXQuoteSource(await this.xClient.readPost(requestedSource.id), {
+        expectedUsername: this.config.xExpectedUsername
+      });
+      if (sourcePost.id !== requestedSource.id) {
+        return { ok: false, error: "X returned a different source post than the one requested." };
       }
-    );
-    if (!claim.allowed) return { ok: false, error: xPostLimitMessage(claim), reason: claim.reason };
-    await ctx.reply(`Posting ${media ? `the ${media.type} and text` : "the text"} to X…`);
+    }
+    const { text, source } = buildXPostText(args.text, sourcePost?.url);
+    if (!text) return { ok: false, error: "The X post needs text." };
+    validateTopLevelXPost({ text });
+    if (xWeightedLength(text) > this.config.xMaxPostCharacters) {
+      return { ok: false, error: `The X post is over ${this.config.xMaxPostCharacters} characters.` };
+    }
+    let sourceClaim = null;
+    if (source) {
+      sourceClaim = await this.store.claimXSourcePost({
+        sourcePostId: source.id,
+        sourcePostUrl: sourcePost.url,
+        userId: ctx.from?.id,
+        chatId: ctx.chat?.id
+      });
+      if (!sourceClaim.allowed) {
+        return { ok: false, error: xSourcePostLimitMessage(sourceClaim), reason: sourceClaim.reason };
+      }
+    }
+    let claim = null;
     let result;
     try {
+      const downloadedMedia = media
+        ? { ...await this.#downloadMedia(ctx, media), altText: String(args.alt_text).trim() }
+        : null;
+      claim = await this.store.claimUsage(
+        "x_post",
+        ctx.from?.id,
+        usageLimits(this.config, "x_post"),
+        {
+          globalCooldownMs: this.config.xPostGlobalCooldownSeconds * 1_000,
+          userCooldownMs: this.config.xPostUserCooldownSeconds * 1_000,
+          globalCooldownTypes: ["x_auto"]
+        }
+      );
+      if (!claim.allowed) {
+        if (sourceClaim?.claimId) await this.store.releaseXSourcePost(sourceClaim.claimId);
+        return { ok: false, error: xPostLimitMessage(claim), reason: claim.reason };
+      }
+      await ctx.reply(`Posting ${media ? `the ${media.type} and text` : "the text"} to X…`);
       result = await this.xClient.post({ text, media: downloadedMedia });
       if (!result?.verified || !result?.id) {
-        throw new XError("X did not return a verified publishing receipt.", 502);
+        const error = new XError("X did not return a verified publishing receipt.", 502);
+        error.postId = result?.id;
+        error.candidateUrl = result?.url;
+        throw error;
       }
     } catch (error) {
       await this.store.recordXReceipt({
@@ -828,14 +889,32 @@ export class TelegramService {
         userId: ctx.from?.id,
         chatId: ctx.chat?.id,
         text,
+        sourcePostId: source?.id,
+        sourcePostUrl: sourcePost?.url,
         error: error?.message || "X posting failed."
       }).catch((receiptError) => {
         this.logger.error("[telegram] could not save failed X receipt", receiptError);
       });
-      await this.store.releaseUsage(claim.eventId).catch((releaseError) => {
-        this.logger.error("[telegram] could not release failed X post cooldown", releaseError);
-      });
+      if (claim?.eventId) {
+        await this.store.releaseUsage(claim.eventId).catch((releaseError) => {
+          this.logger.error("[telegram] could not release failed X post cooldown", releaseError);
+        });
+      }
+      if (sourceClaim?.claimId) {
+        await this.store.releaseXSourcePost(sourceClaim.claimId, {
+          uncertainPostId: error?.postId,
+          uncertainPostUrl: error?.candidateUrl
+        }).catch((releaseError) => {
+          this.logger.error("[telegram] could not resolve failed X source claim", releaseError);
+        });
+      }
       throw error;
+    }
+    if (sourceClaim?.claimId) {
+      await this.store.confirmXSourcePost(sourceClaim.claimId, {
+        postedId: result.id,
+        postedUrl: result.url
+      }).catch((error) => this.logger.error("[telegram] could not confirm X source claim", error));
     }
     await this.store.recordXReceipt({
       status: "confirmed",
@@ -844,21 +923,22 @@ export class TelegramService {
       source: "telegram",
       userId: ctx.from?.id,
       chatId: ctx.chat?.id,
-      text
-    });
-    const source = args.source_post ? xPostReference(args.source_post) : null;
+      text,
+      sourcePostId: source?.id,
+      sourcePostUrl: sourcePost?.url
+    }).catch((error) => this.logger.error("[telegram] could not save confirmed X receipt", error));
     if (source) await this.store.markResearchUsed(`x:${source.id}`, {
       postedUrl: result.url,
-      sourceUrl: source.url,
+      sourceUrl: sourcePost.url,
       title: text
-    });
+    }).catch((error) => this.logger.error("[telegram] could not mark X source as used", error));
     await this.store.rememberAgent({
       kind: "x-post",
       text: `Posted: ${text}`,
       topic: media?.caption || "manual Telegram post",
       sourceKey: source ? `x:${source.id}` : "",
-      sourceUrl: source?.url || ""
-    });
+      sourceUrl: sourcePost?.url || ""
+    }).catch((error) => this.logger.error("[telegram] could not remember confirmed X post", error));
     return {
       ok: true,
       posted: true,

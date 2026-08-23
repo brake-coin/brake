@@ -30,16 +30,19 @@ test("bot defaults use strict shared media limits", () => {
   assert.equal(config.xAutonomousIntervalMinutes, 120);
   assert.equal(config.xAutonomousStartDelayMinutes, 15);
   assert.equal(config.agentResearchEnabled, true);
+  assert.equal(config.agentMaxSourceAgeHours, 168);
+  assert.equal(config.agentXQueries.every((query) => query.includes("-is:reply")), true);
   assert.deepEqual(config.agentWatchAccounts, ["canadabirdie", "PauseAI"]);
   assert.deepEqual(config.xAutonomousTypes, ["text", "image", "video"]);
   assert.deepEqual(usageLimits(config, "x_post"), {
-    hourly: 6,
-    daily: 24,
-    userHourly: 2,
-    userDaily: 6
+    hourly: 2,
+    daily: 8,
+    userHourly: 1,
+    userDaily: 3
   });
-  assert.equal(config.xPostGlobalCooldownSeconds, 300);
-  assert.equal(config.xPostUserCooldownSeconds, 900);
+  assert.equal(config.xPostGlobalCooldownSeconds, 3_600);
+  assert.equal(config.xPostUserCooldownSeconds, 14_400);
+  assert.equal(config.openRouterChatModel, "~google/gemini-flash-latest");
   assert.deepEqual(usageLimits(config, "x_research"), {
     hourly: 20,
     daily: 100,
@@ -81,6 +84,11 @@ test("every user receives the X tool while campaign changes stay operator-only",
     botTools().find((tool) => tool.function.name === "post_to_x")
       .function.parameters.properties.source_post.type,
     "string"
+  );
+  assert.equal(
+    botTools().find((tool) => tool.function.name === "post_to_x")
+      .function.parameters.properties.alt_text.maxLength,
+    1_000
   );
   assert.equal(
     botTools().find((tool) => tool.function.name === "generate_image")
@@ -134,6 +142,20 @@ test("meme repost text keeps a canonical source link", () => {
     "https://x.com/canadabirdie/status/2091410624970711451"
   ].join("\n"));
   assert.throws(() => buildXPostText("nope", "https://example.com/post/1"), /valid x.com post URL/);
+  assert.throws(
+    () => buildXPostText("Read https://x.com/example/status/123"),
+    /source_post, not inside the post text/
+  );
+});
+
+test("X status links cannot bypass the tracked source field", () => {
+  assert.throws(
+    () => buildXPostText("Comment x.com/person/status/2091410624970711451"),
+    /source_post/i
+  );
+  assert.deepEqual([...xPostIdsInText(
+    "mobile.twitter.com/person/status/2091410624970711451"
+  )], ["2091410624970711451"]);
 });
 
 test("uninspected media needs an explicit human review statement", () => {

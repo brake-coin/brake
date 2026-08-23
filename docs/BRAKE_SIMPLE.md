@@ -57,6 +57,10 @@ fees. Token holders have no ownership right or claim over those fees.
   run a bounded autonomous text, image, and video schedule.
 - The agent can search recent X posts, read public accounts, and turn attributed
   @canadabirdie posts into new STOPAI memes.
+- X publishing is top-level only and uses a durable source ledger to prevent duplicate
+  quote-style posts, including during concurrent requests or uncertain X receipts. It also
+  rejects replies, mentions, nested quotes, self-quotes, and sources marked sensitive by X.
+- New X media posts require alt text for accessibility.
 
 ## Visual identity
 

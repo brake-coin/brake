@@ -62,7 +62,7 @@ test("shared chat passes tools through and returns tool calls", async () => {
   const result = await client.chatStep([{ role: "user", content: "show the gallery" }], tools);
   assert.deepEqual(body.tools, tools);
   assert.equal(body.tool_choice, "auto");
-  assert.equal(body.max_completion_tokens, 800);
+  assert.equal(body.max_completion_tokens, 1_600);
   assert.equal("max_tokens" in body, false);
   assert.deepEqual(body.reasoning, { effort: "minimal", exclude: true });
   assert.equal(result.message.tool_calls[0].function.name, "gallery_list");

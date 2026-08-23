@@ -3,7 +3,10 @@ import test from "node:test";
 
 import {
   resolveMediaMimeType,
+  validateTopLevelXPost,
+  validateXQuoteSource,
   validateXPostReceipt,
+  xMentionsInText,
   xPostReference,
   xWeightedLength,
   XClient
@@ -80,6 +83,57 @@ test("X receipts require the canonical URL for their returned ID and author", ()
   }, { id: "123", expectedUsername: "STOPAICOIN" }), /unexpected URL or account/i);
 });
 
+test("X publishing rejects replies and unsolicited mentions", async () => {
+  assert.deepEqual(xMentionsInText("Thanks @person and @other_user"), ["person", "other_user"]);
+  assert.throws(() => validateTopLevelXPost({ text: "@person hello" }), /unsolicited @mentions/i);
+  assert.throws(() => validateTopLevelXPost({ text: "hello", replyToId: "123" }), /does not publish replies/i);
+  const client = new XClient({
+    config: config(),
+    credentialProvider: async () => ({ accessToken: "private-user-token" }),
+    fetchImpl: async () => assert.fail("A rejected reply must not reach X")
+  });
+  await assert.rejects(() => client.post({ text: "hello", replyToId: "123" }), /does not publish replies/i);
+  await assert.rejects(() => client.post({
+    text: "hello",
+    reply: { in_reply_to_tweet_id: "123" }
+  }), /does not publish replies/i);
+  await assert.rejects(() => client.post({ text: "hello @person" }), /unsolicited @mentions/i);
+});
+
+test("quote sources must be original posts from another account", () => {
+  const original = {
+    id: "123",
+    url: "https://x.com/researcher/status/123",
+    author: { username: "researcher" },
+    references: []
+  };
+  assert.equal(validateXQuoteSource(original, { expectedUsername: "STOPAICOIN" }), original);
+  assert.throws(() => validateXQuoteSource({
+    ...original,
+    isReply: true,
+    references: [{ type: "replied_to", id: "122" }]
+  }), /does not quote replies/i);
+  assert.throws(() => validateXQuoteSource({
+    ...original,
+    isRepost: true,
+    references: [{ type: "retweeted", id: "122" }]
+  }), /does not quote reposts/i);
+  assert.throws(() => validateXQuoteSource({
+    ...original,
+    isQuote: true,
+    references: [{ type: "quoted", id: "122" }]
+  }), /does not quote quote-posts/i);
+  assert.throws(() => validateXQuoteSource({
+    ...original,
+    possiblySensitive: true
+  }), /possibly sensitive/i);
+  assert.throws(() => validateXQuoteSource({
+    ...original,
+    url: "https://x.com/STOPAICOIN/status/123",
+    author: { username: "STOPAICOIN" }
+  }, { expectedUsername: "STOPAICOIN" }), /does not quote its own posts/i);
+});
+
 test("X post references accept IDs and canonical post URLs only", () => {
   assert.deepEqual(xPostReference("2091410624970711451"), {
     id: "2091410624970711451",
@@ -92,6 +146,10 @@ test("X post references accept IDs and canonical post URLs only", () => {
   assert.deepEqual(xPostReference("https://x.com/i/web/status/2091410624970711451"), {
     id: "2091410624970711451",
     url: "https://x.com/i/web/status/2091410624970711451"
+  });
+  assert.deepEqual(xPostReference("https://mobile.twitter.com/canadabirdie/status/2091410624970711451"), {
+    id: "2091410624970711451",
+    url: "https://x.com/canadabirdie/status/2091410624970711451"
   });
   assert.equal(xPostReference("https://example.com/canadabirdie/status/2091410624970711451"), null);
 });
@@ -113,7 +171,9 @@ test("X client reads and normalizes a public post", async () => {
           id: "2091410624970711451",
           text: "AI won’t stop itself.",
           author_id: "42",
-          created_at: "2026-08-23T04:00:00.000Z"
+          created_at: "2026-08-23T04:00:00.000Z",
+          possibly_sensitive: true,
+          referenced_tweets: [{ type: "quoted", id: "100" }]
         },
         includes: { users: [{ id: "42", username: "STOPAICOIN", name: "STOPAI" }] }
       }), { status: 200 });
@@ -123,6 +183,10 @@ test("X client reads and normalizes a public post", async () => {
   assert.match(requestUrl, /\/2\/tweets\/2091410624970711451\?/);
   assert.equal(post.author.username, "STOPAICOIN");
   assert.equal(post.url, "https://x.com/STOPAICOIN/status/2091410624970711451");
+  assert.equal(post.isQuote, true);
+  assert.equal(post.possiblySensitive, true);
+  assert.deepEqual(post.references, [{ type: "quoted", id: "100" }]);
+  assert.match(new URL(requestUrl).searchParams.get("tweet.fields"), /possibly_sensitive/);
 });
 
 test("X client searches recent posts with public authors", async () => {
@@ -178,7 +242,10 @@ test("X client detects a Telegram image with a generic content type", async () =
     fetchImpl: async (url, options) => {
       requests.push({ url, options });
       if (url.endsWith("/2/media/upload")) {
-        return new Response(JSON.stringify({ data: { id: "media-1" } }), { status: 200 });
+        return new Response(JSON.stringify({ data: { id: "6001" } }), { status: 200 });
+      }
+      if (url.endsWith("/2/media/metadata")) {
+        return new Response(JSON.stringify({ data: { id: "6001" } }), { status: 200 });
       }
       if (url.endsWith("/2/tweets")) {
         return new Response(JSON.stringify({ data: { id: "124", text: "with image" } }), { status: 201 });
@@ -197,14 +264,29 @@ test("X client detects a Telegram image with a generic content type", async () =
       buffer: Buffer.concat([
         Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
         Buffer.from("image")
-      ])
+      ]),
+      altText: "A red stop-sign character reaching for a brake lever."
     }
   });
-  const upload = JSON.parse(requests[0].options.body);
-  const post = JSON.parse(requests[1].options.body);
+  const upload = JSON.parse(requests.find((item) => item.url.endsWith("/2/media/upload")).options.body);
+  const metadata = JSON.parse(requests.find((item) => item.url.endsWith("/2/media/metadata")).options.body);
+  const post = JSON.parse(requests.find((item) => item.url.endsWith("/2/tweets")).options.body);
   assert.equal(upload.media_category, "tweet_image");
   assert.equal(upload.media_type, "image/png");
-  assert.deepEqual(post.media.media_ids, ["media-1"]);
+  assert.equal(metadata.metadata.alt_text.text, "A red stop-sign character reaching for a brake lever.");
+  assert.deepEqual(post.media.media_ids, ["6001"]);
+});
+
+test("X client rejects media without alt text", async () => {
+  const client = new XClient({
+    config: config(),
+    credentialProvider: async () => ({ accessToken: "private-user-token" }),
+    fetchImpl: async () => assert.fail("Media without alt text must not reach X")
+  });
+  await assert.rejects(() => client.post({
+    text: "with image",
+    media: { type: "image", mimeType: "image/png", buffer: Buffer.from("image") }
+  }), /needs accurate alt text/i);
 });
 
 test("media detection falls back safely for Telegram image and video records", () => {
@@ -237,20 +319,28 @@ test("X client uses the chunked flow for video", async () => {
           includes: { users: [{ id: "42", username: "STOPAICOIN" }] }
         }), { status: 200 });
       }
+      if (url.endsWith("/2/media/metadata")) {
+        return new Response(JSON.stringify({ data: { id: "7001" } }), { status: 200 });
+      }
       const command = options.body.get("command");
       commands.push(command);
       if (command === "INIT") {
         assert.equal(options.body.get("media_category"), "tweet_video");
-        return new Response(JSON.stringify({ data: { id: "video-1" } }), { status: 200 });
+        return new Response(JSON.stringify({ data: { id: "7001" } }), { status: 200 });
       }
       if (command === "APPEND") return new Response(null, { status: 204 });
-      return new Response(JSON.stringify({ data: { id: "video-1" } }), { status: 200 });
+      return new Response(JSON.stringify({ data: { id: "7001" } }), { status: 200 });
     }
   });
   await client.post({
     text: "with video",
-    media: { type: "video", mimeType: "video/mp4", buffer: Buffer.from("video") }
+    media: {
+      type: "video",
+      mimeType: "video/mp4",
+      buffer: Buffer.from("video"),
+      altText: "A red STOPAI character slowly pulls a large brake lever."
+    }
   });
   assert.deepEqual(commands, ["INIT", "APPEND", "FINALIZE"]);
-  assert.deepEqual(postedMediaIds, ["video-1"]);
+  assert.deepEqual(postedMediaIds, ["7001"]);
 });

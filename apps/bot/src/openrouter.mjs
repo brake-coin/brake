@@ -64,7 +64,7 @@ export class OpenRouterClient {
     const body = {
       model: this.config.openRouterChatModel,
       messages,
-      max_completion_tokens: 800,
+      max_completion_tokens: 1_600,
       reasoning: { effort: "minimal", exclude: true },
       temperature: 0.4
     };

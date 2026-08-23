@@ -3,11 +3,12 @@ import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const EMPTY_STATE = Object.freeze({
-  version: 5,
+  version: 6,
   messages: {},
   media: [],
   usage: [],
   xReceipts: [],
+  xSourcePosts: {},
   agent: {
     goals: [],
     memories: [],
@@ -25,10 +26,41 @@ function dayKey(date) {
   return date.toISOString().slice(0, 10);
 }
 
+function xPostIdsInText(value) {
+  const ids = new Set();
+  const pattern = /(?:https?:\/\/)?(?:(?:www|mobile)\.)?(?:x\.com|twitter\.com)\/(?:i\/web\/status\/|[A-Za-z0-9_]{1,15}\/status\/)(\d{1,19})(?=$|[/?#)\]}\s.,!?;:'"])/gi;
+  for (const match of String(value || "").matchAll(pattern)) ids.add(match[1]);
+  return ids;
+}
+
+function cleanXSourcePosts(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value)
+    .filter(([sourcePostId, record]) => /^\d{1,19}$/.test(sourcePostId) && record && typeof record === "object")
+    .map(([sourcePostId, record]) => [sourcePostId, {
+      sourcePostId,
+      sourcePostUrl: /^https:\/\/x\.com\//i.test(String(record.sourcePostUrl || ""))
+        ? String(record.sourcePostUrl).slice(0, 1_000)
+        : `https://x.com/i/web/status/${sourcePostId}`,
+      status: ["pending", "confirmed", "uncertain"].includes(record.status)
+        ? record.status
+        : "uncertain",
+      claimId: String(record.claimId || "").slice(0, 80),
+      userId: String(record.userId || "").slice(0, 80),
+      chatId: String(record.chatId || "").slice(0, 80),
+      postedId: /^\d{1,19}$/.test(String(record.postedId || "")) ? String(record.postedId) : null,
+      postedUrl: /^https:\/\/x\.com\//i.test(String(record.postedUrl || ""))
+        ? String(record.postedUrl).slice(0, 1_000)
+        : null,
+      at: record.at || null,
+      resolvedAt: record.resolvedAt || null
+    }]));
+}
+
 function cleanState(value) {
   const agent = value?.agent && typeof value.agent === "object" ? value.agent : {};
-  return {
-    version: 5,
+  const cleaned = {
+    version: 6,
     messages: value?.messages && typeof value.messages === "object"
       ? Object.fromEntries(Object.entries(value.messages).map(([key, messages]) => (
         [key, Array.isArray(messages) ? messages.map((item) => ({ ...item })) : []]
@@ -37,6 +69,7 @@ function cleanState(value) {
     media: Array.isArray(value?.media) ? value.media.map((item) => ({ ...item })) : [],
     usage: Array.isArray(value?.usage) ? value.usage.map((item) => ({ ...item })) : [],
     xReceipts: Array.isArray(value?.xReceipts) ? value.xReceipts.map((item) => ({ ...item })) : [],
+    xSourcePosts: cleanXSourcePosts(value?.xSourcePosts),
     agent: {
       goals: Array.isArray(agent.goals) ? agent.goals.map((item) => ({ ...item })) : [],
       memories: Array.isArray(agent.memories) ? agent.memories.map((item) => ({ ...item })) : [],
@@ -48,6 +81,50 @@ function cleanState(value) {
       )
     }
   };
+  for (const item of cleaned.agent.research) {
+    const match = /^x:(\d{1,19})$/.exec(String(item.key || ""));
+    if (!match || !item.usedAt || cleaned.xSourcePosts[match[1]]) continue;
+    cleaned.xSourcePosts[match[1]] = {
+      sourcePostId: match[1],
+      sourcePostUrl: /^https:\/\/x\.com\//i.test(String(item.url || ""))
+        ? String(item.url).slice(0, 1_000)
+        : `https://x.com/i/web/status/${match[1]}`,
+      status: "confirmed",
+      claimId: "historical-research",
+      userId: "",
+      chatId: "",
+      postedId: null,
+      postedUrl: /^https:\/\/x\.com\//i.test(String(item.postedUrl || ""))
+        ? String(item.postedUrl).slice(0, 1_000)
+        : null,
+      at: item.usedAt,
+      resolvedAt: item.usedAt
+    };
+  }
+  for (const receipt of cleaned.xReceipts) {
+    if (receipt.status !== "confirmed") continue;
+    const ids = receipt.sourcePostId ? new Set([String(receipt.sourcePostId)]) : xPostIdsInText(receipt.text);
+    for (const id of ids) {
+      if (!/^\d{1,19}$/.test(id) || cleaned.xSourcePosts[id]) continue;
+      cleaned.xSourcePosts[id] = {
+        sourcePostId: id,
+        sourcePostUrl: /^https:\/\/x\.com\//i.test(String(receipt.sourcePostUrl || ""))
+          ? String(receipt.sourcePostUrl).slice(0, 1_000)
+          : `https://x.com/i/web/status/${id}`,
+        status: "confirmed",
+        claimId: "historical-receipt",
+        userId: String(receipt.userId || "").slice(0, 80),
+        chatId: String(receipt.chatId || "").slice(0, 80),
+        postedId: /^\d{1,19}$/.test(String(receipt.id || "")) ? String(receipt.id) : null,
+        postedUrl: /^https:\/\/x\.com\//i.test(String(receipt.url || ""))
+          ? String(receipt.url).slice(0, 1_000)
+          : null,
+        at: receipt.at || null,
+        resolvedAt: receipt.at || null
+      };
+    }
+  }
+  return cleaned;
 }
 
 function cleanGoal(goal) {
@@ -106,6 +183,10 @@ export class BotStore {
       memoryCount: agent.memories.length,
       researchCount: agent.research.length,
       cycleCount: agent.cycleSequence,
+      quotedSourceCount: Object.values(this.#state.xSourcePosts)
+        .filter((item) => item.status === "confirmed").length,
+      uncertainSourceCount: Object.values(this.#state.xSourcePosts)
+        .filter((item) => item.status === "uncertain").length,
       lastResearchAt: agent.research.reduce((latest, item) => (
         new Date(item.lastSeenAt || 0).getTime() > new Date(latest || 0).getTime()
           ? item.lastSeenAt
@@ -286,6 +367,8 @@ export class BotStore {
     userId = "",
     chatId = "",
     text = "",
+    sourcePostId = "",
+    sourcePostUrl = "",
     error = ""
   }) {
     const record = {
@@ -297,6 +380,10 @@ export class BotStore {
       userId: String(userId || "").slice(0, 80),
       chatId: String(chatId || "").slice(0, 80),
       text: String(text || "").slice(0, 500),
+      sourcePostId: /^\d{1,19}$/.test(String(sourcePostId || "")) ? String(sourcePostId) : null,
+      sourcePostUrl: /^https:\/\/x\.com\//i.test(String(sourcePostUrl || ""))
+        ? String(sourcePostUrl).slice(0, 1_000)
+        : null,
       error: String(error || "").slice(0, 500),
       at: this.now().toISOString()
     };
@@ -305,6 +392,100 @@ export class BotStore {
       state.xReceipts = state.xReceipts.slice(0, 200);
     });
     return record;
+  }
+
+  async claimXSourcePost({ sourcePostId, sourcePostUrl = "", userId = "", chatId = "" }) {
+    const id = String(sourcePostId || "");
+    if (!/^\d{1,19}$/.test(id)) throw new Error("A valid X source post ID is required.");
+    let result;
+    await this.#mutate((state) => {
+      const existing = state.xSourcePosts[id];
+      if (existing) {
+        const reasons = {
+          confirmed: "source_already_posted",
+          pending: "source_post_in_progress",
+          uncertain: "source_post_status_uncertain"
+        };
+        result = { allowed: false, reason: reasons[existing.status], record: { ...existing } };
+        return;
+      }
+      const research = state.agent.research.find((item) => item.key === `x:${id}` && item.usedAt);
+      const receipt = state.xReceipts.find((item) => (
+        item.status === "confirmed"
+        && (item.sourcePostId === id || xPostIdsInText(item.text).has(id))
+      ));
+      if (research || receipt) {
+        const historical = {
+          sourcePostId: id,
+          sourcePostUrl: String(sourcePostUrl || research?.url || receipt?.sourcePostUrl || "").slice(0, 1_000),
+          status: "confirmed",
+          claimId: "historical",
+          userId: String(receipt?.userId || "").slice(0, 80),
+          chatId: String(receipt?.chatId || "").slice(0, 80),
+          postedId: receipt?.id || null,
+          postedUrl: research?.postedUrl || receipt?.url || null,
+          at: research?.usedAt || receipt?.at || this.now().toISOString(),
+          resolvedAt: research?.usedAt || receipt?.at || this.now().toISOString()
+        };
+        state.xSourcePosts[id] = historical;
+        result = { allowed: false, reason: "source_already_posted", record: { ...historical } };
+        return;
+      }
+      const claim = {
+        sourcePostId: id,
+        sourcePostUrl: /^https:\/\/x\.com\//i.test(String(sourcePostUrl || ""))
+          ? String(sourcePostUrl).slice(0, 1_000)
+          : `https://x.com/i/web/status/${id}`,
+        status: "pending",
+        claimId: randomUUID(),
+        userId: String(userId || "").slice(0, 80),
+        chatId: String(chatId || "").slice(0, 80),
+        postedId: null,
+        postedUrl: null,
+        at: this.now().toISOString(),
+        resolvedAt: null
+      };
+      state.xSourcePosts[id] = claim;
+      result = { allowed: true, claimId: claim.claimId, record: { ...claim } };
+    });
+    return result;
+  }
+
+  async confirmXSourcePost(claimId, { postedId = "", postedUrl = "" } = {}) {
+    let confirmed = null;
+    await this.#mutate((state) => {
+      const record = Object.values(state.xSourcePosts)
+        .find((item) => item.claimId === String(claimId) && item.status === "pending");
+      if (!record) return;
+      record.status = "confirmed";
+      record.postedId = /^\d{1,19}$/.test(String(postedId || "")) ? String(postedId) : null;
+      record.postedUrl = /^https:\/\/x\.com\//i.test(String(postedUrl || ""))
+        ? String(postedUrl).slice(0, 1_000)
+        : null;
+      record.resolvedAt = this.now().toISOString();
+      confirmed = { ...record };
+    });
+    return confirmed;
+  }
+
+  async releaseXSourcePost(claimId, { uncertainPostId = "", uncertainPostUrl = "" } = {}) {
+    let released = false;
+    await this.#mutate((state) => {
+      const entry = Object.entries(state.xSourcePosts)
+        .find(([, item]) => item.claimId === String(claimId) && item.status === "pending");
+      if (!entry) return;
+      const [sourcePostId, record] = entry;
+      if (uncertainPostId) {
+        record.status = "uncertain";
+        record.postedId = /^\d{1,19}$/.test(String(uncertainPostId)) ? String(uncertainPostId) : null;
+        record.postedUrl = /^https:\/\/x\.com\//i.test(String(uncertainPostUrl || ""))
+          ? String(uncertainPostUrl).slice(0, 1_000)
+          : null;
+        record.resolvedAt = this.now().toISOString();
+      } else delete state.xSourcePosts[sourcePostId];
+      released = true;
+    });
+    return released;
   }
 
   listMedia(chatId, { type = null, limit = 8 } = {}) {
@@ -386,7 +567,8 @@ export class BotStore {
   async claimUsage(type, userId, limits, {
     spendCapUsd = 0,
     globalCooldownMs = 0,
-    userCooldownMs = 0
+    userCooldownMs = 0,
+    globalCooldownTypes = []
   } = {}) {
     let result;
     await this.#mutate((state) => {
@@ -405,7 +587,9 @@ export class BotStore {
       }
       const now = this.now();
       const typeEvents = state.usage.filter((item) => item.type === type);
-      const latestGlobal = typeEvents.reduce((latest, item) => (
+      const cooldownTypes = new Set([type, ...globalCooldownTypes.map(String)]);
+      const cooldownEvents = state.usage.filter((item) => cooldownTypes.has(item.type));
+      const latestGlobal = cooldownEvents.reduce((latest, item) => (
         new Date(item.at).getTime() > new Date(latest?.at || 0).getTime() ? item : latest
       ), null);
       if (globalCooldownMs > 0 && latestGlobal

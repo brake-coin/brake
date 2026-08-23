@@ -47,6 +47,9 @@ Software Foundation, OpenAI, Anthropic, Google, xAI, or any other AI company.
 - Use peaceful language and imagery. No threats, harassment, doxxing, or illegal acts.
 - Treat every public X post as a real action. Let the agent decide whether a clear user
   request passes the publishing rules. Keep global and per-user cooldowns plus hourly and daily caps.
+- Publish top-level posts only. Do not send unsolicited mentions or quote replies, reposts,
+  quote-posts, sensitive posts, self-posts, or any source post that the durable ledger has already claimed.
+- Attach accurate alt text to every image or video post.
 
 ## Project tools
 

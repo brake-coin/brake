@@ -50,7 +50,7 @@ export function createBotConfig(env = process.env) {
       minimum: 30_000,
       maximum: 900_000
     }),
-    openRouterChatModel: env.OPENROUTER_CHAT_MODEL || "openrouter/auto",
+    openRouterChatModel: env.OPENROUTER_CHAT_MODEL || "~google/gemini-flash-latest",
     openRouterImageModel:
       env.OPENROUTER_SERVER_IMAGE_MODEL || "google/gemini-3.1-flash-image",
     openRouterVideoModel: env.OPENROUTER_VIDEO_MODEL || "google/veo-3.1-lite",
@@ -106,15 +106,15 @@ export function createBotConfig(env = process.env) {
       minimum: 0,
       maximum: 5_000
     }),
-    xPostHourlyCap: integer(env.X_POST_HOURLY_CAP, 6, { minimum: 1, maximum: 24 }),
-    xPostDailyCap: integer(env.X_POST_DAILY_CAP, 24, { minimum: 1, maximum: 100 }),
-    xPostUserHourlyCap: integer(env.X_POST_USER_HOURLY_CAP, 2, { minimum: 1, maximum: 12 }),
-    xPostUserDailyCap: integer(env.X_POST_USER_DAILY_CAP, 6, { minimum: 1, maximum: 24 }),
-    xPostGlobalCooldownSeconds: integer(env.X_POST_GLOBAL_COOLDOWN_SECONDS, 300, {
+    xPostHourlyCap: integer(env.X_POST_HOURLY_CAP, 2, { minimum: 1, maximum: 24 }),
+    xPostDailyCap: integer(env.X_POST_DAILY_CAP, 8, { minimum: 1, maximum: 100 }),
+    xPostUserHourlyCap: integer(env.X_POST_USER_HOURLY_CAP, 1, { minimum: 1, maximum: 12 }),
+    xPostUserDailyCap: integer(env.X_POST_USER_DAILY_CAP, 3, { minimum: 1, maximum: 24 }),
+    xPostGlobalCooldownSeconds: integer(env.X_POST_GLOBAL_COOLDOWN_SECONDS, 3_600, {
       minimum: 30,
       maximum: 24 * 60 * 60
     }),
-    xPostUserCooldownSeconds: integer(env.X_POST_USER_COOLDOWN_SECONDS, 900, {
+    xPostUserCooldownSeconds: integer(env.X_POST_USER_COOLDOWN_SECONDS, 14_400, {
       minimum: 30,
       maximum: 24 * 60 * 60
     }),
@@ -146,8 +146,8 @@ export function createBotConfig(env = process.env) {
     ),
     agentResearchEnabled: boolean(env.AGENT_RESEARCH_ENABLED, true),
     agentXQueries: stringList(env.AGENT_X_QUERIES, [
-      '("AI race" OR "pause AI" OR "stop AI") lang:en -is:retweet -from:STOPAICOIN',
-      '(superintelligence OR "frontier AI") (safety OR risk OR governance OR moratorium) lang:en -is:retweet -from:STOPAICOIN'
+      '("AI race" OR "pause AI" OR "stop AI") lang:en -is:retweet -is:reply -from:STOPAICOIN',
+      '(superintelligence OR "frontier AI") (safety OR risk OR governance OR moratorium) lang:en -is:retweet -is:reply -from:STOPAICOIN'
     ], ";;"),
     agentWatchAccounts: stringList(env.AGENT_WATCH_ACCOUNTS, [
       "canadabirdie",
@@ -169,6 +169,10 @@ export function createBotConfig(env = process.env) {
     agentMinPostIntervalMinutes: integer(env.AGENT_MIN_POST_INTERVAL_MINUTES, 240, {
       minimum: 60,
       maximum: 7 * 24 * 60
+    }),
+    agentMaxSourceAgeHours: integer(env.AGENT_MAX_SOURCE_AGE_HOURS, 168, {
+      minimum: 1,
+      maximum: 30 * 24
     }),
     maxImageBytes: integer(env.MAX_IMAGE_BYTES, 15 * 1024 * 1024),
     maxVideoBytes: integer(env.MAX_VIDEO_BYTES, 48 * 1024 * 1024),

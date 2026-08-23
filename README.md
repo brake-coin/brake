@@ -97,6 +97,10 @@ campaign agent researches watched X accounts, recent X searches, and AI news; co
 items with durable goals and memories; may skip weak cycles; and keeps source links on
 bounded autonomous posts from the official account.
 
+Public automation also needs X's account-level setup: an Automated profile label, clear
+operator disclosure and contact in the bio, a linked human-managed account, and any
+required approval for AI-generated posting.
+
 See [the Telegram guide](docs/TELEGRAM.md) for BotFather setup, natural-language tools, privacy,
 budgets, and deployment.
 
@@ -111,12 +115,18 @@ into a new STOPAI meme and publish it with the original post URL visibly attache
 - The bot replies only in private chats, when mentioned, or when directly replied to.
 - Shared chat and media have global and per-user hourly and daily limits.
 - X research has separate global and per-user hourly and daily limits.
-- The Telegram agent may publish clear, safe user requests to X. It decides whether a request is ready. A five-minute global cooldown,
-  a fifteen-minute per-user cooldown, and hourly/daily caps prevent spam.
+- The Telegram agent may publish clear, safe user requests to X. It decides whether a request is ready. A one-hour account cooldown,
+  a four-hour per-user cooldown, and caps of 2 manual posts per hour and 8 per day prevent bursts.
 - X publishes require a read-after-write receipt from `@STOPAICOIN`. X post links in bot
   replies must come from the conversation or a tool result; the bot does not scan wording.
+- Media posts require alt text. Telegram alt text comes from the person who reviewed the
+  final media; autonomous media uses its approved visual brief.
+- X posts are top-level only, contain no unsolicited @mentions, and cannot quote replies,
+  reposts, quote-posts, sensitive posts, or @STOPAICOIN itself. A durable atomic source ledger prevents the
+  same X post from being used twice, including across restarts and concurrent requests.
 - The persistent campaign agent researches every two hours, remembers used sources and
-  past posts, waits at least four hours between posts, and stops after three per UTC day.
+  past posts, uses sources no older than seven days, waits at least four hours after any
+  normal X post before posting autonomously, and stops after three per UTC day.
 - Secrets belong in `.env`, which is ignored by Git.
 - Public BYOK keys stay in the visitor's browser tab. A separate admin-linked key is
   stored on the private Fly volume only for Telegram chat and limited bot media.

@@ -11,7 +11,7 @@ import {
   NewsResearchClient,
   xPostResearchItem
 } from "./research.mjs";
-import { xWeightedLength } from "./x.mjs";
+import { validateXQuoteSource, xPostReference, xWeightedLength } from "./x.mjs";
 
 const POST_TYPES = new Set(["text", "image", "video"]);
 const AUTONOMOUS_USER = "x-autonomous";
@@ -45,6 +45,7 @@ function postTextWithSource(value, sourceUrl, maximum) {
     .replace(/@[A-Za-z0-9_]{1,15}\b/g, "")
     .replace(/[ \t]+/g, " ")
     .trim();
+  if (!caption) throw new Error("The autonomous post needs original commentary, not only a source link.");
   if (!source) return caption;
   let combined = `${caption}\n\n${source}`;
   while (caption && xWeightedLength(combined) > maximum) {
@@ -95,6 +96,13 @@ function publicCandidate(item) {
   };
 }
 
+function isFreshCandidate(item, now, maximumAgeHours) {
+  const publishedAt = new Date(item?.publishedAt || 0).getTime();
+  if (!Number.isFinite(publishedAt) || publishedAt <= 0) return false;
+  const ageMs = now.getTime() - publishedAt;
+  return ageMs >= -5 * 60_000 && ageMs <= maximumAgeHours * 3_600_000;
+}
+
 export class AutonomousXService {
   constructor({
     config,
@@ -141,6 +149,7 @@ export class AutonomousXService {
       types: this.config.xAutonomousTypes,
       researchEnabled: this.config.agentResearchEnabled,
       minPostIntervalMinutes: this.config.agentMinPostIntervalMinutes,
+      maxSourceAgeHours: this.config.agentMaxSourceAgeHours,
       watchAccounts: this.config.agentWatchAccounts,
       newsFeedCount: this.newsResearch.feedUrls.length,
       memory: this.store.agentStatus?.() || {
@@ -180,6 +189,8 @@ export class AutonomousXService {
 
   async #runOnce({ type, test }) {
     let postingClaim = null;
+    let sourceClaim = null;
+    let createdPost = null;
     try {
       await this.store.load();
       await this.store.ensureAgentGoals(DEFAULT_AGENT_GOALS);
@@ -221,13 +232,46 @@ export class AutonomousXService {
       const selectedType = this.config.xAutonomousTypes.includes(decision.type)
         ? decision.type
         : this.config.xAutonomousTypes[0];
+      let verifiedSource = source;
+      if (source.kind === "x") {
+        const post = validateXQuoteSource(await this.xClient.readPost(source.url), {
+          expectedUsername: this.config.xExpectedUsername
+        });
+        if (!isFreshCandidate({ publishedAt: post.createdAt }, this.now(), this.config.agentMaxSourceAgeHours)) {
+          throw new Error(`The selected X source is older than ${this.config.agentMaxSourceAgeHours} hours.`);
+        }
+        const reference = xPostReference(post.url);
+        if (!reference || `x:${reference.id}` !== source.key) {
+          throw new Error("The selected X source did not match the research candidate.");
+        }
+        verifiedSource = { ...source, url: post.url, author: post.author.username };
+        sourceClaim = await this.store.claimXSourcePost({
+          sourcePostId: reference.id,
+          sourcePostUrl: post.url,
+          userId: AUTONOMOUS_USER
+        });
+        if (!sourceClaim.allowed) {
+          return this.#finish({
+            ok: true,
+            skipped: true,
+            action: "skip",
+            reason: sourceClaim.reason,
+            sourceKey: source.key,
+            type: selectedType
+          });
+        }
+      }
       postingClaim = await this.store.claimUsage(
         "x_auto",
         AUTONOMOUS_USER,
         autonomousLimits(this.config),
-        { globalCooldownMs: this.config.agentMinPostIntervalMinutes * 60_000 }
+        {
+          globalCooldownMs: this.config.agentMinPostIntervalMinutes * 60_000,
+          globalCooldownTypes: ["x_post"]
+        }
       );
       if (!postingClaim.allowed) {
+        if (sourceClaim?.claimId) await this.store.releaseXSourcePost(sourceClaim.claimId);
         return this.#finish({
           ok: true,
           skipped: true,
@@ -238,23 +282,33 @@ export class AutonomousXService {
         });
       }
 
-      const text = postTextWithSource(decision.text, source.url, this.config.xMaxPostCharacters);
+      const text = postTextWithSource(decision.text, verifiedSource.url, this.config.xMaxPostCharacters);
       const media = selectedType === "image"
         ? await this.#makeImage(text, decision.mediaPrompt)
         : selectedType === "video"
           ? await this.#makeVideo(text, decision.mediaPrompt)
           : null;
       const posted = await this.xClient.post({ text, media });
+      createdPost = posted;
       if (!posted?.verified || !posted?.id) {
         throw new Error("X did not return a verified publishing receipt.");
       }
+      if (sourceClaim?.claimId) {
+        await this.store.confirmXSourcePost(sourceClaim.claimId, {
+          postedId: posted.id,
+          postedUrl: posted.url
+        });
+      }
+      postingClaim = null;
       await this.store.recordXReceipt({
         status: "confirmed",
         id: posted.id,
         url: posted.url,
         source: "autonomous-agent",
         userId: AUTONOMOUS_USER,
-        text
+        text,
+        sourcePostId: source.kind === "x" ? source.key.slice(2) : "",
+        sourcePostUrl: source.kind === "x" ? verifiedSource.url : ""
       });
       await this.store.markResearchUsed(source.key, { postedUrl: posted.url });
       await this.store.rememberAgent({
@@ -264,14 +318,13 @@ export class AutonomousXService {
         sourceKey: source.key,
         sourceUrl: source.url
       });
-      postingClaim = null;
       return this.#finish({
         ok: true,
         skipped: false,
         action: "post",
         type: selectedType,
         sourceKey: source.key,
-        sourceUrl: source.url,
+        sourceUrl: verifiedSource.url,
         url: posted.url,
         postedAt: this.now().toISOString()
       });
@@ -279,14 +332,22 @@ export class AutonomousXService {
       if (postingClaim?.eventId) {
         await this.store.recordXReceipt({
           status: "failed",
-          id: error?.postId,
-          url: error?.candidateUrl,
+          id: error?.postId || createdPost?.id,
+          url: error?.candidateUrl || createdPost?.url,
           source: "autonomous-agent",
           userId: AUTONOMOUS_USER,
+          sourcePostId: sourceClaim?.record?.sourcePostId,
+          sourcePostUrl: sourceClaim?.record?.sourcePostUrl,
           error: error?.message || "Autonomous X posting failed."
         }).catch(() => {});
       }
       if (postingClaim?.eventId) await this.store.releaseUsage(postingClaim.eventId).catch(() => {});
+      if (sourceClaim?.claimId) {
+        await this.store.releaseXSourcePost(sourceClaim.claimId, {
+          uncertainPostId: error?.postId || createdPost?.id,
+          uncertainPostUrl: error?.candidateUrl || createdPost?.url
+        }).catch(() => {});
+      }
       await this.#finish({
         ok: false,
         skipped: false,
@@ -299,7 +360,15 @@ export class AutonomousXService {
 
   async #runTest(type) {
     const selectedType = POST_TYPES.has(type) ? type : "text";
-    const claim = await this.store.claimUsage("x_auto", AUTONOMOUS_USER, autonomousLimits(this.config));
+    const claim = await this.store.claimUsage(
+      "x_auto",
+      AUTONOMOUS_USER,
+      autonomousLimits(this.config),
+      {
+        globalCooldownMs: this.config.agentMinPostIntervalMinutes * 60_000,
+        globalCooldownTypes: ["x_post"]
+      }
+    );
     if (!claim.allowed) {
       return this.#finish({ ok: false, skipped: true, action: "skip", reason: claim.reason, type: selectedType });
     }
@@ -357,6 +426,8 @@ export class AutonomousXService {
     for (const username of watched) {
       const result = await this.#xResearchCall(() => this.xClient.userPosts(username, 6));
       for (const post of result?.posts || []) {
+        if (post.isReply || post.isRepost || post.isQuote || post.possiblySensitive
+          || post.author?.username?.toLowerCase() === this.config.xExpectedUsername.toLowerCase()) continue;
         items.push(xPostResearchItem(post, {
           priority: username.toLowerCase() === "canadabirdie" ? 2 : 1,
           now: this.now()
@@ -365,12 +436,19 @@ export class AutonomousXService {
     }
     for (const query of queries) {
       const posts = await this.#xResearchCall(() => this.xClient.searchRecent(query, 8));
-      for (const post of posts || []) items.push(xPostResearchItem(post, { now: this.now() }));
+      for (const post of posts || []) {
+        if (post.isReply || post.isRepost || post.isQuote || post.possiblySensitive
+          || post.author?.username?.toLowerCase() === this.config.xExpectedUsername.toLowerCase()) continue;
+        items.push(xPostResearchItem(post, { now: this.now() }));
+      }
     }
     items.push(...await this.newsResearch.latest({ limit: 20 }));
     await this.store.recordResearch(items);
     return this.store.agentSnapshot({ researchLimit: 50 }).research
-      .filter((item) => !item.usedAt)
+      .filter((item) => !item.usedAt && !item.isReply && !item.isRepost && !item.isQuote
+        && !item.possiblySensitive
+        && item.author?.toLowerCase() !== this.config.xExpectedUsername.toLowerCase()
+        && isFreshCandidate(item, this.now(), this.config.agentMaxSourceAgeHours))
       .slice(0, this.config.agentCandidateLimit)
       .map(publicCandidate);
   }
@@ -457,11 +535,16 @@ export class AutonomousXService {
       costUsd = result.costUsd;
       if (result.buffer) {
         await this.store.recordCost(claim.eventId, costUsd);
-        return { buffer: result.buffer, mimeType: result.mimeType || "image/png", type: "image" };
+        return {
+          buffer: result.buffer,
+          mimeType: result.mimeType || "image/png",
+          type: "image",
+          altText: idea
+        };
       }
       const media = await this.#downloadImage(result.url);
       await this.store.recordCost(claim.eventId, costUsd);
-      return media;
+      return { ...media, altText: idea };
     } catch (error) {
       await this.store.recordCost(claim.eventId, costUsd || Number(error?.costUsd) || 0);
       throw error;
@@ -485,7 +568,12 @@ export class AutonomousXService {
       });
       costUsd = result.costUsd;
       await this.store.recordCost(claim.eventId, costUsd);
-      return { buffer: result.buffer, mimeType: result.mimeType || "video/mp4", type: "video" };
+      return {
+        buffer: result.buffer,
+        mimeType: result.mimeType || "video/mp4",
+        type: "video",
+        altText: idea
+      };
     } catch (error) {
       await this.store.recordCost(claim.eventId, costUsd || Number(error?.costUsd) || 0);
       throw error;
