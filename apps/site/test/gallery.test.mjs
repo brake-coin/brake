@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { MAX_GALLERY_ITEMS, sortGalleryItems } from "../gallery.js";
 
-test("browser gallery keeps newest memes first and has a small fixed limit", () => {
+test("personal browser gallery keeps newest memes first and has a small fixed limit", () => {
   assert.equal(MAX_GALLERY_ITEMS, 12);
   assert.deepEqual(sortGalleryItems([
     { id: "old", createdAt: "2026-08-22T20:00:00.000Z" },

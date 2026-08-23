@@ -30,6 +30,7 @@ import {
   verifyTelegramToken
 } from "./telegram-credentials.mjs";
 import { publicXCredentialStatus, XCredentialStore } from "./x-credentials.mjs";
+import { XGallery } from "./x-gallery.mjs";
 import {
   buildXAuthorizationUrl,
   exchangeXCode,
@@ -123,6 +124,7 @@ const xClient = new XClient({
   config: botConfig,
   credentialProvider: xCredentialProvider
 });
+const xGallery = new XGallery({ xClient, username: expectedXUsername });
 const xAutomation = new AutonomousXService({
   config: botConfig,
   store: botStore,
@@ -201,7 +203,7 @@ function setSecurityHeaders(response) {
   response.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   response.setHeader(
     "Content-Security-Policy",
-    "default-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://openrouter.ai; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self' https://openrouter.ai; frame-ancestors 'none'"
+    "default-src 'self'; img-src 'self' data: blob: https://pbs.twimg.com; connect-src 'self' https://openrouter.ai https://stopai-coin.fly.dev; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self' https://openrouter.ai; frame-ancestors 'none'"
   );
 }
 
@@ -594,6 +596,24 @@ async function handleRequest(request, response) {
       telegram: telegramStatus,
       x: await xAdminStatus()
     });
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/x/gallery") {
+    const headers = {
+      "Access-Control-Allow-Origin": "*",
+      "Cache-Control": "public, max-age=60, stale-while-revalidate=300"
+    };
+    try {
+      if (!await xClient.connected()) {
+        sendJson(response, 503, { error: "The @STOPAICOIN gallery is not connected yet." }, headers);
+        return;
+      }
+      sendJson(response, 200, await xGallery.read(), headers);
+    } catch (error) {
+      console.error("X gallery refresh failed", error);
+      sendJson(response, 502, { error: "The @STOPAICOIN gallery could not refresh." }, headers);
+    }
     return;
   }
 

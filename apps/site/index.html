@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://openrouter.ai; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self' https://openrouter.ai; frame-ancestors 'none'"
+      content="default-src 'self'; img-src 'self' data: blob: https://pbs.twimg.com; connect-src 'self' https://openrouter.ai https://stopai-coin.fly.dev; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self' https://openrouter.ai; frame-ancestors 'none'"
     />
     <meta
       name="description"
@@ -181,17 +181,30 @@
         </div>
       </section>
 
-      <section class="meme-gallery" aria-labelledby="gallery-title">
+      <section class="meme-gallery" id="x-gallery" aria-labelledby="gallery-title">
         <div class="gallery-heading">
           <div>
-            <p class="eyebrow">Made in this browser</p>
-            <h2 id="gallery-title">Your meme gallery.</h2>
-            <p>The latest 12 memes stay on this device. Nothing is uploaded to us.</p>
+            <p class="eyebrow">Live from @STOPAICOIN</p>
+            <h2 id="gallery-title">Memes from the timeline.</h2>
+            <p>Recent images and videos published by the campaign agent on the official X account.</p>
           </div>
-          <button id="clear-gallery" type="button" hidden>Clear gallery</button>
+          <a href="https://x.com/STOPAICOIN" target="_blank" rel="noreferrer">Follow @STOPAICOIN ↗</a>
         </div>
-        <p class="gallery-empty" id="gallery-empty">Your weird hand has not made anything yet.</p>
+        <p class="gallery-empty" id="gallery-status" role="status" aria-live="polite">Loading the latest memes from X…</p>
         <div class="gallery-grid" id="gallery-grid"></div>
+      </section>
+
+      <section class="meme-gallery personal-gallery" id="your-gallery" aria-labelledby="your-gallery-title">
+        <div class="gallery-heading">
+          <div>
+            <p class="eyebrow">Private to this device</p>
+            <h2 id="your-gallery-title">Your memes.</h2>
+            <p>The latest 12 memes you generate stay in this browser unless you delete them.</p>
+          </div>
+          <button id="clear-personal-gallery" type="button" hidden>Clear your gallery</button>
+        </div>
+        <p class="gallery-empty" id="personal-gallery-status">Your weird hand has not made anything yet.</p>
+        <div class="gallery-grid" id="personal-gallery-grid"></div>
       </section>
 
       <section class="agent" aria-labelledby="agent-title">

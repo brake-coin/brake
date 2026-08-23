@@ -16,6 +16,7 @@ import {
 const PKCE_STORAGE_KEY = "stopai:openrouter-pkce";
 const API_KEY_STORAGE_KEY = "stopai:openrouter-key";
 const OAUTH_MAX_AGE_MS = 10 * 60 * 1000;
+const X_GALLERY_ENDPOINT = "https://stopai-coin.fly.dev/api/x/gallery";
 
 const statusLabel = document.querySelector("#project-status");
 const contractNotice = document.querySelector("#contract-notice");
@@ -46,8 +47,10 @@ const connectionState = document.querySelector("#openrouter-state");
 const activityLink = document.querySelector("#openrouter-activity");
 const settingsLink = document.querySelector("#openrouter-settings");
 const galleryGrid = document.querySelector("#gallery-grid");
-const galleryEmpty = document.querySelector("#gallery-empty");
-const clearGalleryButton = document.querySelector("#clear-gallery");
+const galleryStatus = document.querySelector("#gallery-status");
+const personalGalleryGrid = document.querySelector("#personal-gallery-grid");
+const personalGalleryStatus = document.querySelector("#personal-gallery-status");
+const clearPersonalGalleryButton = document.querySelector("#clear-personal-gallery");
 
 let openRouterKey = sessionStorage.getItem(API_KEY_STORAGE_KEY);
 let imageModel = DEFAULT_IMAGE_MODEL;
@@ -206,7 +209,7 @@ function downloadLatestMeme() {
   downloadMeme(latestMeme);
 }
 
-function openGalleryMeme(item) {
+function openPersonalGalleryMeme(item) {
   latestMeme = item.image;
   generatedMeme.src = item.image;
   memeIdea.value = item.idea;
@@ -214,11 +217,11 @@ function openGalleryMeme(item) {
     memeStyle.value = item.style;
   }
   memeOutput.hidden = false;
-  setGeneratorStatus("Gallery meme loaded. Remix it or send it back into the timeline.", "ready");
+  setGeneratorStatus("Your saved meme is open. Remix it or share it.", "ready");
   memeOutput.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
-function galleryButton(label, task) {
+function personalGalleryButton(label, task) {
   const button = document.createElement("button");
   button.type = "button";
   button.textContent = label;
@@ -226,53 +229,121 @@ function galleryButton(label, task) {
   return button;
 }
 
-function renderGallery(items) {
-  galleryGrid.replaceChildren();
-  galleryEmpty.hidden = items.length > 0;
-  clearGalleryButton.hidden = items.length === 0;
+function renderPersonalGallery(items) {
+  personalGalleryGrid.replaceChildren();
+  personalGalleryStatus.hidden = items.length > 0;
+  personalGalleryStatus.textContent = "Your weird hand has not made anything yet.";
+  clearPersonalGalleryButton.hidden = items.length === 0;
   for (const item of items) {
     const card = document.createElement("article");
     card.className = "gallery-card";
-
     const image = document.createElement("img");
     image.src = item.image;
-    image.alt = item.idea || "Generated STOPAI meme";
+    image.alt = item.idea || "Your generated STOPAI meme";
     image.loading = "lazy";
-
     const copy = document.createElement("div");
     copy.className = "gallery-card-copy";
-    const idea = document.createElement("p");
-    idea.textContent = item.idea || "Untitled STOPAI meme";
+    const caption = document.createElement("p");
+    caption.textContent = item.idea || "Untitled STOPAI meme";
     const time = document.createElement("time");
     time.dateTime = item.createdAt;
-    time.textContent = new Intl.DateTimeFormat(undefined, {
-      dateStyle: "medium",
-      timeStyle: "short"
-    }).format(new Date(item.createdAt));
+    time.textContent = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" })
+      .format(new Date(item.createdAt));
     const actions = document.createElement("div");
     actions.className = "gallery-card-actions";
     actions.append(
-      galleryButton("Open", () => openGalleryMeme(item)),
-      galleryButton("Download", () => downloadMeme(item.image, item.id)),
-      galleryButton("Delete", async () => {
+      personalGalleryButton("Open", () => openPersonalGalleryMeme(item)),
+      personalGalleryButton("Download", () => downloadMeme(item.image, item.id)),
+      personalGalleryButton("Delete", async () => {
         await deleteGalleryMeme(item.id);
-        await refreshGallery();
+        await loadPersonalGallery();
       })
     );
-    copy.append(idea, time, actions);
+    copy.append(caption, time, actions);
     card.append(image, copy);
+    personalGalleryGrid.append(card);
+  }
+}
+
+async function loadPersonalGallery() {
+  try {
+    renderPersonalGallery(await listGalleryMemes());
+  } catch (error) {
+    console.warn("Personal meme gallery is unavailable", error);
+    personalGalleryStatus.hidden = false;
+    personalGalleryStatus.textContent = "This browser is not allowing private gallery storage.";
+    clearPersonalGalleryButton.hidden = true;
+  }
+}
+
+function renderXGallery(posts) {
+  galleryGrid.replaceChildren();
+  galleryStatus.hidden = posts.length > 0;
+  if (!posts.length) {
+    galleryStatus.textContent = "No media posts yet. Follow @STOPAICOIN to catch the next one.";
+    return;
+  }
+  for (const post of posts) {
+    const media = post.media[0];
+    const card = document.createElement("article");
+    card.className = "gallery-card";
+
+    const mediaLink = document.createElement("a");
+    mediaLink.className = "gallery-media";
+    mediaLink.href = post.url;
+    mediaLink.target = "_blank";
+    mediaLink.rel = "noreferrer";
+    const image = document.createElement("img");
+    image.src = media.previewUrl;
+    image.alt = media.altText || post.text || "STOPAI media posted on X";
+    image.loading = "lazy";
+    mediaLink.append(image);
+    if (media.type === "video") {
+      const badge = document.createElement("span");
+      badge.className = "gallery-video-badge";
+      badge.textContent = "▶ Video on X";
+      mediaLink.append(badge);
+    }
+
+    const copy = document.createElement("div");
+    copy.className = "gallery-card-copy";
+    const caption = document.createElement("p");
+    caption.textContent = post.text || "$STOPAI ✋🏻😡";
+    const time = document.createElement("time");
+    if (post.createdAt) {
+      time.dateTime = post.createdAt;
+      time.textContent = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" })
+        .format(new Date(post.createdAt));
+    }
+    const actions = document.createElement("div");
+    actions.className = "gallery-card-actions";
+    const viewLink = document.createElement("a");
+    viewLink.href = post.url;
+    viewLink.target = "_blank";
+    viewLink.rel = "noreferrer";
+    viewLink.textContent = "View on X ↗";
+    actions.append(viewLink);
+    copy.append(caption, time, actions);
+    card.append(mediaLink, copy);
     galleryGrid.append(card);
   }
 }
 
-async function refreshGallery() {
+async function loadXGallery() {
   try {
-    renderGallery(await listGalleryMemes());
+    const response = await fetch(X_GALLERY_ENDPOINT, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(15_000)
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !Array.isArray(payload.posts)) {
+      throw new Error(payload.error || "The X gallery is unavailable.");
+    }
+    renderXGallery(payload.posts);
   } catch (error) {
-    console.warn("Browser meme gallery is unavailable", error);
-    galleryEmpty.hidden = false;
-    galleryEmpty.textContent = "This browser is not allowing local gallery storage.";
-    clearGalleryButton.hidden = true;
+    console.warn("X meme gallery is unavailable", error);
+    galleryStatus.hidden = false;
+    galleryStatus.textContent = "The live gallery could not load. See the latest memes on @STOPAICOIN.";
   }
 }
 
@@ -330,8 +401,8 @@ memeForm.addEventListener("submit", async (event) => {
       image: latestMeme,
       idea: memeIdea.value,
       style: memeStyle.value
-    }).then(refreshGallery).catch((error) => {
-      console.warn("Could not save generated meme to browser gallery", error);
+    }).then(loadPersonalGallery).catch((error) => {
+      console.warn("Could not save the generated meme to the personal gallery", error);
     });
     setGeneratorStatus("Meme ready. Inspect the chaos before setting it loose.", "ready");
     memeOutput.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -352,10 +423,10 @@ remixButton.addEventListener("click", () => {
   memeForm.scrollIntoView({ behavior: "smooth", block: "center" });
 });
 
-clearGalleryButton.addEventListener("click", async () => {
+clearPersonalGalleryButton.addEventListener("click", async () => {
   if (!window.confirm("Clear every meme saved by this browser?")) return;
   await clearGalleryMemes();
-  await refreshGallery();
+  await loadPersonalGallery();
 });
 
 copyContractButton.addEventListener("click", async () => {
@@ -397,6 +468,5 @@ try {
 }
 
 const oauthError = await finishOAuthCallback();
-await renderConnection();
-await refreshGallery();
+await Promise.all([renderConnection(), loadXGallery(), loadPersonalGallery()]);
 if (oauthError) setGeneratorStatus(oauthError, "error");

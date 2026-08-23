@@ -73,7 +73,6 @@ export async function saveGalleryMeme({ image, idea, style, createdAt = new Date
   transaction.objectStore(STORE_NAME).put(item);
   await transactionDone(transaction);
 
-  const items = await listGalleryMemes();
   const allTransaction = database.transaction(STORE_NAME, "readonly");
   const allDone = transactionDone(allTransaction);
   const allItems = sortGalleryItems(await requestResult(allTransaction.objectStore(STORE_NAME).getAll()));
@@ -84,7 +83,7 @@ export async function saveGalleryMeme({ image, idea, style, createdAt = new Date
     for (const oldItem of overflow) transaction.objectStore(STORE_NAME).delete(oldItem.id);
     await transactionDone(transaction);
   }
-  return { item, items };
+  return item;
 }
 
 export async function deleteGalleryMeme(id) {

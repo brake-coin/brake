@@ -491,7 +491,9 @@ h1 {
 }
 
 .gallery-heading button,
-.gallery-card button {
+.gallery-heading > a,
+.gallery-card button,
+.gallery-card-actions a {
   padding: 9px 12px;
   border: 2px solid var(--ink);
   background: var(--white);
@@ -500,10 +502,13 @@ h1 {
   font: inherit;
   font-size: 0.78rem;
   font-weight: 850;
+  text-decoration: none;
 }
 
 .gallery-heading button:hover,
-.gallery-card button:hover {
+.gallery-heading > a:hover,
+.gallery-card button:hover,
+.gallery-card-actions a:hover {
   background: var(--ink);
   color: var(--white);
 }
@@ -530,12 +535,34 @@ h1 {
   box-shadow: 5px 5px 0 var(--ink);
 }
 
+.gallery-media {
+  position: relative;
+  display: block;
+}
+
 .gallery-card img {
   display: block;
   width: 100%;
   aspect-ratio: 1;
   border-bottom: 2px solid var(--ink);
   object-fit: cover;
+}
+
+.personal-gallery .gallery-card img {
+  background: var(--paper);
+  object-fit: contain;
+}
+
+.gallery-video-badge {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  padding: 7px 9px;
+  border: 2px solid var(--ink);
+  background: var(--red);
+  color: var(--white);
+  font-size: 0.72rem;
+  font-weight: 900;
 }
 
 .gallery-card-copy {
