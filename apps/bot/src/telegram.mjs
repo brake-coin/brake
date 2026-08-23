@@ -285,24 +285,35 @@ function safeErrorMessage(error) {
   return "STOPAI hit a snag. Try again in a moment.";
 }
 
-function claimsXPostSuccess(text) {
-  return /\b(?:posted|published|tweeted|shared)(?:\s+it|\s+this|\s+that)?\s+(?:to|on)\s+X\b/i
-    .test(String(text || ""));
+export function xPostIdsInText(text) {
+  const ids = new Set();
+  const pattern = /https?:\/\/(?:www\.)?(?:x\.com|twitter\.com)\/(?:i\/web\/status\/|[A-Za-z0-9_]{1,15}\/status\/)(\d{1,19})(?=$|[/?#)\]}\s.,!?;:'"])/gi;
+  for (const match of String(text || "").matchAll(pattern)) ids.add(match[1]);
+  return ids;
 }
 
-export function enforceVerifiedXReply({
-  finalText,
-  xPostAttempted = false,
-  confirmedXPost = null,
-  xPostFailure = ""
-}) {
-  if (!confirmedXPost && xPostAttempted) {
-    return `X posting failed: ${xPostFailure || "X did not return a verified publishing receipt."}`;
+function addKnownXPostIds(target, value) {
+  if (typeof value === "string") {
+    for (const id of xPostIdsInText(value)) target.add(id);
+    return;
   }
-  if (!confirmedXPost && claimsXPostSuccess(finalText)) {
-    return "I did not receive a verified X publishing receipt, so I cannot confirm that anything was posted.";
+  if (Array.isArray(value)) {
+    for (const item of value) addKnownXPostIds(target, item);
+    return;
   }
-  return finalText;
+  if (value && typeof value === "object") {
+    for (const item of Object.values(value)) addKnownXPostIds(target, item);
+  }
+}
+
+export function enforceExpectedXPostUrls({ finalText, knownXPostIds = [], verifiedPostUrl = "" }) {
+  const allowed = new Set([...knownXPostIds].map(String));
+  const unexpected = [...xPostIdsInText(finalText)].filter((id) => !allowed.has(id));
+  if (!unexpected.length) return finalText;
+  if (verifiedPostUrl) {
+    return `I rejected an unexpected X post link in the draft reply.\n\nVerified post: ${verifiedPostUrl}`;
+  }
+  return "I rejected an X post link that did not come from the conversation or a tool result.";
 }
 
 function withTimeout(promise, milliseconds, message) {
@@ -536,11 +547,14 @@ export class TelegramService {
     });
     let totalCostUsd = 0;
     let finalText = "";
-    let xPostAttempted = false;
+    const knownXPostIds = new Set();
+    for (const message of history) {
+      if (message?.role === "user") addKnownXPostIds(knownXPostIds, message.content);
+    }
+    addKnownXPostIds(knownXPostIds, userText);
     let confirmedXPost = null;
-    let xPostFailure = null;
     try {
-      assistantLoop: for (let round = 0; round < 4; round += 1) {
+      for (let round = 0; round < 4; round += 1) {
         const result = await this.openRouter.chatStep(messages, tools);
         totalCostUsd += result.costUsd;
         messages.push(result.message);
@@ -553,6 +567,7 @@ export class TelegramService {
           const toolResult = await this.#executeTool(ctx, toolCall, {
             isOperator
           });
+          addKnownXPostIds(knownXPostIds, toolResult);
           messages.push({
             role: "tool",
             tool_call_id: toolCall.id,
@@ -560,21 +575,16 @@ export class TelegramService {
             content: JSON.stringify(toolResult)
           });
           if (toolCall.function?.name === "post_to_x") {
-            xPostAttempted = true;
             if (toolResult.posted && toolResult.receipt?.verified) {
               confirmedXPost = toolResult;
-              finalText = `Posted to X: ${toolResult.url}`;
-              break assistantLoop;
             }
-            xPostFailure = toolResult.error || "X did not return a verified publishing receipt.";
           }
         }
       }
-      finalText = enforceVerifiedXReply({
+      finalText = enforceExpectedXPostUrls({
         finalText,
-        xPostAttempted,
-        confirmedXPost,
-        xPostFailure
+        knownXPostIds,
+        verifiedPostUrl: confirmedXPost?.url
       });
       if (!finalText) finalText = "I finished the tool work.";
       await this.store.recordCost(claim.eventId, totalCostUsd);

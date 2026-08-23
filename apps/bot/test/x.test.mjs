@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveMediaMimeType, xPostReference, xWeightedLength, XClient } from "../src/x.mjs";
+import {
+  resolveMediaMimeType,
+  validateXPostReceipt,
+  xPostReference,
+  xWeightedLength,
+  XClient
+} from "../src/x.mjs";
 
 function config(overrides = {}) {
   return {
@@ -50,6 +56,28 @@ test("X client rejects a returned ID that cannot be read back", async () => {
     () => client.post({ text: "ghost" }),
     /could not be verified.*Nothing was confirmed/i
   );
+});
+
+test("X client rejects a verified ID from an unexpected account", async () => {
+  const client = new XClient({
+    config: config({ xExpectedUsername: "STOPAICOIN" }),
+    credentialProvider: async () => ({ accessToken: "private-user-token" }),
+    fetchImpl: async (_url, options) => options?.method === "POST"
+      ? new Response(JSON.stringify({ data: { id: "123", text: "STOPAI" } }), { status: 201 })
+      : new Response(JSON.stringify({
+        data: { id: "123", text: "STOPAI", author_id: "66" },
+        includes: { users: [{ id: "66", username: "unexpected" }] }
+      }), { status: 200 })
+  });
+  await assert.rejects(() => client.post({ text: "STOPAI" }), /unexpected URL or account/i);
+});
+
+test("X receipts require the canonical URL for their returned ID and author", () => {
+  assert.throws(() => validateXPostReceipt({
+    id: "123",
+    url: "https://x.com/STOPAICOIN/status/999",
+    author: { username: "STOPAICOIN" }
+  }, { id: "123", expectedUsername: "STOPAICOIN" }), /unexpected URL or account/i);
 });
 
 test("X post references accept IDs and canonical post URLs only", () => {

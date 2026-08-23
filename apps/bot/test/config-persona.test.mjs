@@ -6,9 +6,10 @@ import { buildChatMessages, buildImagePrompt, STOPAI_SYSTEM_PROMPT } from "../sr
 import {
   botTools,
   buildXPostText,
-  enforceVerifiedXReply,
+  enforceExpectedXPostUrls,
   isAddressed,
-  isTelegramOperator
+  isTelegramOperator,
+  xPostIdsInText
 } from "../src/telegram.mjs";
 
 test("bot defaults use strict shared media limits", () => {
@@ -22,6 +23,7 @@ test("bot defaults use strict shared media limits", () => {
   assert.equal(config.videoDailyCap, 2);
   assert.equal(config.requireTelegram, false);
   assert.equal(config.xPostingEnabled, false);
+  assert.equal(config.xExpectedUsername, "STOPAICOIN");
   assert.equal(config.xAutonomousPostingEnabled, false);
   assert.equal(config.xAutonomousIntervalMinutes, 120);
   assert.equal(config.xAutonomousStartDelayMinutes, 15);
@@ -129,17 +131,22 @@ test("meme repost text keeps a canonical source link", () => {
   assert.throws(() => buildXPostText("nope", "https://example.com/post/1"), /valid x.com post URL/);
 });
 
-test("Telegram never turns a failed X tool result into a fake success", () => {
-  assert.equal(enforceVerifiedXReply({
+test("Telegram checks X post URL provenance without scanning success wording", () => {
+  assert.deepEqual([...xPostIdsInText("See https://x.com/STOPAICOIN/status/123?s=20.")], ["123"]);
+  assert.match(enforceExpectedXPostUrls({
     finalText: "Posted to X: https://x.com/i/web/status/2091418770435329175",
-    xPostAttempted: true,
-    xPostFailure: "X returned a post ID, but the post could not be verified."
-  }), "X posting failed: X returned a post ID, but the post could not be verified.");
-  assert.match(enforceVerifiedXReply({
-    finalText: "Posted to X: https://x.com/i/web/status/2091418770435329175"
-  }), /cannot confirm/);
-  assert.equal(enforceVerifiedXReply({
-    finalText: "Research source: https://x.com/canadabirdie/status/123"
+    knownXPostIds: []
+  }), /rejected an X post link/);
+  assert.equal(enforceExpectedXPostUrls({
+    finalText: "Posted to X: https://x.com/STOPAICOIN/status/123",
+    knownXPostIds: ["123"]
+  }), "Posted to X: https://x.com/STOPAICOIN/status/123");
+  assert.equal(enforceExpectedXPostUrls({
+    finalText: "Posted on X."
+  }), "Posted on X.");
+  assert.equal(enforceExpectedXPostUrls({
+    finalText: "Research source: https://x.com/canadabirdie/status/123",
+    knownXPostIds: ["123"]
   }), "Research source: https://x.com/canadabirdie/status/123");
 });
 
