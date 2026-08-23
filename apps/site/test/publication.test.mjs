@@ -26,5 +26,8 @@ test("homepage publishes the official live mint and verification links", async (
   assert.match(html, /Memes from the timeline/);
   assert.match(html, /Your memes/);
   assert.match(html, /https:\/\/t\.me\/StopAiCoin/);
+  assert.equal((html.match(/id="idea-roll-button"/g) || []).length, 1);
+  assert.match(html, /Style × theme × message/);
+  assert.doesNotMatch(html, /data-prompt=/);
   assert.match(html, /stopai-social-preview\.png/);
 });

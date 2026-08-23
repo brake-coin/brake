@@ -16,6 +16,7 @@ for (const file of [
   "app.js",
   "admin.js",
   "openrouter.js",
+  "meme-ideas.js",
   "gallery.js"
 ]) {
   await cp(path.join(root, "apps/site", file), path.join(output, file));

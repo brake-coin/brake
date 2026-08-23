@@ -1,4 +1,7 @@
+import { normalizeMemeIdea } from "./meme-ideas.js";
+
 export const DEFAULT_IMAGE_MODEL = "google/gemini-3.1-flash-image";
+export const DEFAULT_IDEA_MODEL = "~google/gemini-flash-latest";
 
 const OPENROUTER_AUTH_URL = "https://openrouter.ai/auth";
 const OPENROUTER_EXCHANGE_URL = "https://openrouter.ai/api/v1/auth/keys";
@@ -65,6 +68,74 @@ export async function keyLinks(key, cryptoImpl = globalThis.crypto) {
     activityUrl: `https://openrouter.ai/logs?api_key_hash=${hash}`,
     settingsUrl: `https://openrouter.ai/keys/${hash}`
   };
+}
+
+export async function generateMemeIdea({
+  apiKey,
+  model = DEFAULT_IDEA_MODEL,
+  fetchImpl = fetch,
+  signal
+}) {
+  if (!apiKey) throw new Error("Connect OpenRouter first.");
+  const response = await fetchImpl(OPENROUTER_CHAT_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "X-Title": "STOPAI Meme Idea Machine"
+    },
+    signal,
+    body: JSON.stringify({
+      model,
+      temperature: 1.15,
+      max_tokens: 220,
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "stopai_meme_idea",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              style: { type: "string", description: "A weird visual treatment, under 10 words." },
+              theme: { type: "string", description: "One funny visual scene about slowing the uncontrolled AI race." },
+              message: { type: "string", description: "A short, sharp takeaway, under 10 words." },
+              memeStyle: { type: "string", enum: ["reaction", "poster", "surreal", "news"] }
+            },
+            required: ["style", "theme", "message", "memeStyle"],
+            additionalProperties: false
+          }
+        }
+      },
+      messages: [
+        {
+          role: "system",
+          content: "You invent original, strange but clear STOPAI meme concepts. Be funny, peaceful, lawful, and critical of the uncontrolled AI race. Avoid factual claims, real-person attacks, threats, financial hype, token promotion, and copied meme captions. Make the visual scene concrete and put the odd STOPAI hand somewhere useful. Return only the requested JSON."
+        },
+        {
+          role: "user",
+          content: "Roll one surprising meme from three parts: visual style, visual theme, and core message. Avoid generic robots-taking-over jokes."
+        }
+      ]
+    })
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error?.message || "OpenRouter could not roll a meme idea.");
+  }
+  const content = payload?.choices?.[0]?.message?.content;
+  const rawContent = Array.isArray(content)
+    ? content.map((part) => part?.text || "").join("")
+    : content;
+  let parsed;
+  try {
+    parsed = typeof rawContent === "string"
+      ? JSON.parse(rawContent.replace(/^```(?:json)?\s*|\s*```$/gi, ""))
+      : rawContent;
+  } catch {
+    throw new Error("The idea model returned an unreadable roll.");
+  }
+  return { ...normalizeMemeIdea(parsed), model };
 }
 
 export function validateMemeRequest({ idea, style }) {

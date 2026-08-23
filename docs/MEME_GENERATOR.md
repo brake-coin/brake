@@ -4,6 +4,12 @@ The meme generator turns a short idea into a square campaign image while keeping
 intentionally strange STOPAI hand as its visual anchor. It never asks anyone to send
 STOPAI tokens.
 
+The idea slot machine always has one roll button. Without OpenRouter it mixes a built-in
+corpus of visual styles, AI-race themes, and short messages. With OpenRouter connected,
+the same button asks the visitor-funded chat model for a new structured roll. If that
+request fails, it immediately falls back to the local corpus. Each roll fills the editable
+idea field and selects a matching image format before image generation.
+
 ## BYOK flow
 
 Every visitor brings their own OpenRouter account:

@@ -135,15 +135,28 @@
               required
             ></textarea>
 
-            <div class="prompt-starters" aria-label="Meme idea starters">
-              <button type="button" data-prompt="AI labs racing toward the cliff while the STOPAI hand reaches for the emergency brake">Find the brake</button>
-              <button type="button" data-prompt="The AI race hearing ‘maybe slow down’ and immediately adding another data center">Maybe slow down</button>
-              <button type="button" data-prompt="Breaking news: the weird STOPAI hand has entered the alignment debate">Breaking news</button>
-            </div>
+            <section class="idea-machine" aria-labelledby="idea-machine-title">
+              <div class="idea-machine-heading">
+                <div>
+                  <span class="idea-kicker">Idea slot machine</span>
+                  <strong id="idea-machine-title">Style × theme × message</strong>
+                </div>
+                <button id="idea-roll-button" type="button">
+                  <span class="roll-ready">Roll a weird idea</span>
+                  <span class="roll-working" hidden>Rolling…</span>
+                </button>
+              </div>
+              <div class="idea-reels" aria-live="polite">
+                <p><span>Style</span><strong id="idea-style">Waiting for a roll</strong></p>
+                <p><span>Theme</span><strong id="idea-theme">Waiting for a roll</strong></p>
+                <p><span>Message</span><strong id="idea-message">Waiting for a roll</strong></p>
+              </div>
+              <p class="idea-roll-status" id="idea-roll-status">Loading the idea reels…</p>
+            </section>
 
             <div class="studio-controls">
               <label for="meme-style">
-                Style
+                Image format
                 <select id="meme-style" name="style">
                   <option value="reaction">Reaction meme</option>
                   <option value="poster">Protest poster</option>

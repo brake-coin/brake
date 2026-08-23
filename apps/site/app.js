@@ -1,11 +1,14 @@
 import {
   buildOpenRouterAuthorizationUrl,
   createPkceTransaction,
+  DEFAULT_IDEA_MODEL,
   DEFAULT_IMAGE_MODEL,
   exchangeOpenRouterCode,
+  generateMemeIdea,
   generateMeme,
   keyLinks
 } from "./openrouter.js";
+import { LOCAL_IDEA_COMBINATIONS, rollLocalMemeIdea } from "./meme-ideas.js";
 import {
   clearGalleryMemes,
   deleteGalleryMeme,
@@ -31,6 +34,13 @@ const lastUpdated = document.querySelector("#last-updated");
 const memeForm = document.querySelector("#meme-form");
 const memeIdea = document.querySelector("#meme-idea");
 const memeStyle = document.querySelector("#meme-style");
+const ideaRollButton = document.querySelector("#idea-roll-button");
+const ideaRollReady = ideaRollButton.querySelector(".roll-ready");
+const ideaRollWorking = ideaRollButton.querySelector(".roll-working");
+const ideaRollStatus = document.querySelector("#idea-roll-status");
+const ideaStyle = document.querySelector("#idea-style");
+const ideaTheme = document.querySelector("#idea-theme");
+const ideaMessage = document.querySelector("#idea-message");
 const generateButton = document.querySelector("#generate-button");
 const readyLabel = generateButton.querySelector(".button-ready");
 const workingLabel = generateButton.querySelector(".button-working");
@@ -54,8 +64,10 @@ const clearPersonalGalleryButton = document.querySelector("#clear-personal-galle
 
 let openRouterKey = sessionStorage.getItem(API_KEY_STORAGE_KEY);
 let imageModel = DEFAULT_IMAGE_MODEL;
+let ideaModel = DEFAULT_IDEA_MODEL;
 let latestMeme = null;
 let generating = false;
+let rollingIdea = false;
 let referenceImagePromise;
 
 function setGeneratorStatus(message, state = "") {
@@ -66,13 +78,25 @@ function setGeneratorStatus(message, state = "") {
 
 function setGenerating(nextGenerating) {
   generating = nextGenerating;
-  generateButton.disabled = generating || !openRouterKey;
+  renderControlStates();
+}
+
+function setIdeaRolling(nextRolling) {
+  rollingIdea = nextRolling;
+  renderControlStates();
+}
+
+function renderControlStates() {
+  generateButton.disabled = generating || rollingIdea || !openRouterKey;
   readyLabel.hidden = generating;
   workingLabel.hidden = !generating;
-  memeIdea.disabled = generating;
-  memeStyle.disabled = generating;
-  connectButton.disabled = generating;
-  disconnectButton.disabled = generating;
+  ideaRollButton.disabled = generating || rollingIdea;
+  ideaRollReady.hidden = rollingIdea;
+  ideaRollWorking.hidden = !rollingIdea;
+  memeIdea.disabled = generating || rollingIdea;
+  memeStyle.disabled = generating || rollingIdea;
+  connectButton.disabled = generating || rollingIdea;
+  disconnectButton.disabled = generating || rollingIdea;
 }
 
 async function renderConnection() {
@@ -91,8 +115,10 @@ async function renderConnection() {
     activityLink.href = links.activityUrl;
     settingsLink.href = links.settingsUrl;
     setGeneratorStatus("Ready. Your key stays in this tab; OpenRouter bills your account.", "ready");
+    ideaRollStatus.textContent = "Connected rolls use the idea LLM. Each roll may use a small amount of your OpenRouter credit.";
   } else {
     setGeneratorStatus("Connect OpenRouter to put the weird hand to work.");
+    ideaRollStatus.textContent = `Offline rolls mix ${LOCAL_IDEA_COMBINATIONS.toLocaleString()} built-in style, theme, and message combinations.`;
   }
   setGenerating(false);
 }
@@ -368,12 +394,44 @@ async function shareLatestMeme() {
   }
 }
 
-for (const starter of document.querySelectorAll("[data-prompt]")) {
-  starter.addEventListener("click", () => {
-    memeIdea.value = starter.dataset.prompt;
-    memeIdea.focus();
-  });
+function showIdeaRoll(roll) {
+  ideaStyle.textContent = roll.style;
+  ideaTheme.textContent = roll.theme;
+  ideaMessage.textContent = roll.message;
+  memeIdea.value = roll.idea;
+  if ([...memeStyle.options].some((option) => option.value === roll.memeStyle)) {
+    memeStyle.value = roll.memeStyle;
+  }
 }
+
+ideaRollButton.addEventListener("click", async () => {
+  setIdeaRolling(true);
+  const useLlm = Boolean(openRouterKey);
+  ideaRollStatus.textContent = useLlm
+    ? "The idea LLM is spinning all three reels…"
+    : "Mixing the built-in idea reels…";
+  try {
+    const roll = useLlm
+      ? await generateMemeIdea({
+        apiKey: openRouterKey,
+        model: ideaModel,
+        signal: AbortSignal.timeout(30_000)
+      })
+      : rollLocalMemeIdea();
+    showIdeaRoll(roll);
+    ideaRollStatus.textContent = useLlm
+      ? "Fresh AI roll. Edit it, roll again, or make the meme."
+      : "Offline roll. Edit it, roll again, or connect OpenRouter to make the meme.";
+    memeIdea.focus();
+  } catch (error) {
+    const roll = rollLocalMemeIdea();
+    showIdeaRoll(roll);
+    ideaRollStatus.textContent = `The idea LLM missed the reel, so this roll came from the built-in corpus. ${error.message}`;
+    memeIdea.focus();
+  } finally {
+    setIdeaRolling(false);
+  }
+});
 
 memeForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -461,6 +519,7 @@ try {
     contractNotice.textContent = "No token contract has been published. Ignore lookalikes.";
   }
   imageModel = project.memeGenerator?.model || DEFAULT_IMAGE_MODEL;
+  ideaModel = project.memeGenerator?.ideaModel || DEFAULT_IDEA_MODEL;
   modelLabel.textContent = project.memeGenerator?.modelLabel || "OpenRouter";
 } catch (error) {
   console.error(error);

@@ -22,6 +22,8 @@ const server = createServer(async (request, response) => {
     ["/", "/apps/site/index.html"],
     ["/app.js", "/apps/site/app.js"],
     ["/openrouter.js", "/apps/site/openrouter.js"],
+    ["/meme-ideas.js", "/apps/site/meme-ideas.js"],
+    ["/gallery.js", "/apps/site/gallery.js"],
     ["/styles.css", "/apps/site/styles.css"]
   ]);
   const pathname = siteFiles.get(requestUrl.pathname) || requestUrl.pathname;

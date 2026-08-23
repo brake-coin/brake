@@ -6,6 +6,7 @@ import {
   buildOpenRouterAuthorizationUrl,
   createPkceTransaction,
   exchangeOpenRouterCode,
+  generateMemeIdea,
   generateMeme,
   keyLinks,
   validateMemeRequest
@@ -78,6 +79,36 @@ test("validates ideas and keeps the STOPAI hand in the meme prompt", () => {
   assert.match(prompt, /do not replace the hand/i);
   assert.match(prompt, /\$STOPAI ✋🏻😡/u);
   assert.match(prompt, /labs racing downhill/);
+});
+
+test("uses the visitor key and a chat model for connected idea rolls", async () => {
+  let captured;
+  const result = await generateMemeIdea({
+    apiKey: "visitor-key",
+    model: "idea-model",
+    fetchImpl: async (url, options) => {
+      captured = { url, options, body: JSON.parse(options.body) };
+      return new Response(JSON.stringify({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              style: "ominous cooking show",
+              theme: "the STOPAI hand removes acceleration from the recipe",
+              message: "Taste before you scale",
+              memeStyle: "surreal"
+            })
+          }
+        }]
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+  });
+  assert.equal(captured.url, "https://openrouter.ai/api/v1/chat/completions");
+  assert.equal(captured.options.headers.Authorization, "Bearer visitor-key");
+  assert.equal(captured.body.model, "idea-model");
+  assert.equal(captured.body.response_format.type, "json_schema");
+  assert.equal(result.style, "ominous cooking show");
+  assert.equal(result.memeStyle, "surreal");
+  assert.match(result.idea, /Taste before you scale/);
 });
 
 test("sends the visitor key directly to OpenRouter for image generation", async () => {
