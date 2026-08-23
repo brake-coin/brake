@@ -113,8 +113,12 @@ into a new STOPAI meme and publish it with the original post URL visibly attache
 
 - The public configuration pins one verified mainnet contract and creator-fee recipient.
 - The historical token plan remains locked to devnet and cannot deploy anything.
-- The bot uses AI only in the community group when mentioned or directly replied to. DMs
-  receive a random gallery meme and the group link without reaching the agent.
+- The bot uses AI only in the community chat when mentioned or directly replied to. The
+  public entry link is `https://t.me/StopAiCoin`. DMs receive a random gallery meme and
+  that community link without reaching the agent.
+- Telegram update IDs are claimed in the durable store before handling, so Telegram
+  redelivery cannot create a second reply after a restart. Operational events use keyed,
+  short hashes for user and chat IDs and never include message text.
 - Shared chat and media have global and per-user hourly and daily limits.
 - X research has separate global and per-user hourly and daily limits.
 - Telegram users may propose X posts, but the agent is the editor and no request forces a
@@ -131,6 +135,8 @@ into a new STOPAI meme and publish it with the original post URL visibly attache
   same X post from being used twice, including across restarts and concurrent requests. The one narrow
   mention exception is a guarded fee-route disclosure that names @canadabirdie and includes the 100%
   creator-fee share, no-affiliation, and no-holder-claim facts together.
+- The fee route is never treated as proof that fees fund, support, or donate to any work.
+  A server guard blocks invented fee-use claims even if the model writes one.
 - The persistent campaign agent checks its timer before spending research/model budget,
   researches every two hours when eligible, remembers used sources and
   past posts, uses sources no older than seven days, waits at least four hours after any

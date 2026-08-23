@@ -28,5 +28,6 @@ test("Telegram bot source has no slash command handlers or command menu", async 
   assert.match(source, /releaseUsage\(claim\.eventId\)/);
   assert.match(source, /ctx\.chat\?\.type === "private"/);
   assert.match(source, /#handlePrivateMessage/);
-  assert.match(source, /Join the STOPAI group/);
+  assert.match(source, /Open the STOPAI community/);
+  assert.match(source, /claimTelegramUpdate/);
 });

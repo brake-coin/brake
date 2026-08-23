@@ -11,8 +11,10 @@ import {
   STOPAI_SYSTEM_PROMPT
 } from "../src/persona.mjs";
 import {
+  addResearchSources,
   botTools,
   buildXPostText,
+  enforceFeeRouteReply,
   enforceExpectedXPostUrls,
   isAddressed,
   isTelegramOperator,
@@ -33,6 +35,8 @@ test("bot defaults use strict shared media limits", () => {
   assert.equal(config.requireTelegram, false);
   assert.equal(config.telegramGroupHandle, "StopAiCoin");
   assert.equal(config.telegramGroupUrl, "https://t.me/StopAiCoin");
+  assert.equal(config.telegramCommunityUrl, "https://t.me/StopAiCoin");
+  assert.equal(config.telegramGalleryChatId, "@StopAiCoin");
   assert.equal(config.xPostingEnabled, false);
   assert.equal(config.xExpectedUsername, "STOPAICOIN");
   assert.equal(config.xAutonomousPostingEnabled, false);
@@ -53,6 +57,7 @@ test("bot defaults use strict shared media limits", () => {
   assert.equal(config.xPostGlobalCooldownSeconds, 3_600);
   assert.equal(config.xPostUserCooldownSeconds, 14_400);
   assert.equal(config.openRouterChatModel, "~google/gemini-flash-latest");
+  assert.equal(config.openRouterChatFallbackModel, "openrouter/auto");
   assert.deepEqual(usageLimits(config, "x_research"), {
     hourly: 20,
     daily: 100,
@@ -64,6 +69,8 @@ test("bot defaults use strict shared media limits", () => {
     ["video", "text"]
   );
   assert.deepEqual([...createBotConfig({ TELEGRAM_OPERATOR_IDS: "12, nope,34" }).telegramOperatorIds], ["12", "34"]);
+  assert.equal(createBotConfig({ TELEGRAM_COMMUNITY_URL: "http://unsafe.example" }).telegramCommunityUrl,
+    "https://t.me/StopAiCoin");
 });
 
 test("every user receives the X tool while campaign changes stay operator-only", () => {
@@ -233,6 +240,22 @@ test("Telegram checks X post URL provenance without scanning success wording", (
   }), "Research source: https://x.com/canadabirdie/status/123");
 });
 
+test("research replies keep exact links and fee-use claims fail closed", () => {
+  const sourced = addResearchSources("Two current examples:", [
+    "https://x.com/example/status/123",
+    "https://x.com/other/status/456"
+  ]);
+  assert.match(sourced, /Sources:/);
+  assert.match(sourced, /https:\/\/x\.com\/example\/status\/123/);
+  assert.equal(addResearchSources(sourced, ["https://x.com/example/status/123"]), sourced);
+
+  const corrected = enforceFeeRouteReply(
+    "Bags creator fees provide direct support for public-interest advocacy."
+  );
+  assert.match(corrected, /100% of STOPAI creator fees routed to @canadabirdie/i);
+  assert.match(corrected, /no verified public statement about how the recipient uses them/i);
+});
+
 test("persona publishes only the official mint and keeps the weird hand", () => {
   assert.match(STOPAI_SYSTEM_PROMPT, /2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS/);
   assert.match(STOPAI_SYSTEM_PROMPT, /official project X account is @STOPAICOIN/i);
@@ -250,6 +273,8 @@ test("persona publishes only the official mint and keeps the weird hand", () => 
   assert.match(STOPAI_SYSTEM_PROMPT, /Accuracy always outranks the joke/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /Never cosplay as a trader/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /does not make STOPAI affiliated with/i);
+  assert.match(STOPAI_SYSTEM_PROMPT, /No such use is currently verified/i);
+  assert.match(STOPAI_SYSTEM_PROMPT, /Every current X post you mention as an example must have its exact source link/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /private personal information/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /do not rely on model memory/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /1,000,000,000 STOPAI with 9 decimals/i);

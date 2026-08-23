@@ -46,8 +46,34 @@ export function xMentionsInText(value) {
     .map((match) => match[2]);
 }
 
+export function hasUnsupportedFeeUseClaim(value) {
+  const text = String(value || "").toLowerCase();
+  if (!/(?:bags|creator)[ -]?fees?|\bfees?\b/.test(text)) return false;
+  const parts = text.split(/[.!?\n]+/).map((part) => part.trim()).filter(Boolean);
+  let recentFeeContext = 0;
+  for (const part of parts) {
+    const mentionsFees = /(?:bags|creator)[ -]?fees?|\bfees?\b/.test(part);
+    recentFeeContext = mentionsFees ? 2 : Math.max(0, recentFeeContext - 1);
+    if (!recentFeeContext) continue;
+    const withoutNegatedUses = part.replace(
+      /\b(?:do(?:es)? not|doesn't|cannot|can't|no verified)\b[^,;]{0,100}\b(?:support\w*|fund\w*|financ\w*|donat\w*|charit\w*|pay for|benefit\w*)\b/g,
+      ""
+    );
+    if (/\b(?:support\w*|fund\w*|financ\w*|donat\w*|charit\w*|pay for|benefit\w*|direct support|zero middleman)\b/.test(withoutNegatedUses)) {
+      return true;
+    }
+    if (/\bturns?\b[^,;]{0,100}\b(?:support\w*|fund\w*|donat\w*)\b/.test(withoutNegatedUses)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function validateTopLevelXPost({ text, replyToId = null } = {}) {
   if (replyToId) throw new XError("STOPAI does not publish replies.", 400);
+  if (hasUnsupportedFeeUseClaim(text)) {
+    throw new XError("STOPAI can state where Bags creator fees route, but not invent how the recipient uses them.", 400);
+  }
   const mentions = xMentionsInText(text);
   const exactFeeDisclosure = mentions.length === 1
     && mentions[0].toLowerCase() === "canadabirdie"
