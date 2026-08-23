@@ -97,6 +97,14 @@ export function createBotConfig(env = process.env) {
       minimum: 1,
       maximum: 280
     }),
+    xPostVerifyAttempts: integer(env.X_POST_VERIFY_ATTEMPTS, 3, {
+      minimum: 1,
+      maximum: 5
+    }),
+    xPostVerifyDelayMs: integer(env.X_POST_VERIFY_DELAY_MS, 750, {
+      minimum: 0,
+      maximum: 5_000
+    }),
     xPostHourlyCap: integer(env.X_POST_HOURLY_CAP, 6, { minimum: 1, maximum: 24 }),
     xPostDailyCap: integer(env.X_POST_DAILY_CAP, 24, { minimum: 1, maximum: 100 }),
     xPostUserHourlyCap: integer(env.X_POST_USER_HOURLY_CAP, 2, { minimum: 1, maximum: 12 }),

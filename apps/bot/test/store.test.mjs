@@ -96,6 +96,15 @@ test("store persists campaign goals, memory, research use, and cycle history", a
   }]);
   await store.markResearchUsed("x:123", { postedUrl: "https://x.com/STOPAICOIN/status/456" });
   await store.recordAgentCycle({ ok: true, action: "post", sourceKey: "x:123", url: "https://x.com/STOPAICOIN/status/456" });
+  await store.recordXReceipt({
+    status: "confirmed",
+    id: "456",
+    url: "https://x.com/STOPAICOIN/status/456",
+    source: "telegram",
+    userId: "7",
+    chatId: "42",
+    text: "A verified post"
+  });
 
   const reloaded = await new BotStore(filePath).load();
   const snapshot = reloaded.agentSnapshot();
@@ -103,4 +112,6 @@ test("store persists campaign goals, memory, research use, and cycle history", a
   assert.equal(snapshot.memories[0].text, "Use source links");
   assert.equal(snapshot.research[0].usedAt, "2026-08-22T20:00:00.000Z");
   assert.equal(snapshot.cycles[0].action, "post");
+  assert.equal(reloaded.recentXReceipts()[0].status, "confirmed");
+  assert.equal(reloaded.recentXReceipts()[0].id, "456");
 });

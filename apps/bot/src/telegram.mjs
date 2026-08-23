@@ -285,6 +285,26 @@ function safeErrorMessage(error) {
   return "STOPAI hit a snag. Try again in a moment.";
 }
 
+function claimsXPostSuccess(text) {
+  return /\b(?:posted|published|tweeted|shared)(?:\s+it|\s+this|\s+that)?\s+(?:to|on)\s+X\b/i
+    .test(String(text || ""));
+}
+
+export function enforceVerifiedXReply({
+  finalText,
+  xPostAttempted = false,
+  confirmedXPost = null,
+  xPostFailure = ""
+}) {
+  if (!confirmedXPost && xPostAttempted) {
+    return `X posting failed: ${xPostFailure || "X did not return a verified publishing receipt."}`;
+  }
+  if (!confirmedXPost && claimsXPostSuccess(finalText)) {
+    return "I did not receive a verified X publishing receipt, so I cannot confirm that anything was posted.";
+  }
+  return finalText;
+}
+
 function withTimeout(promise, milliseconds, message) {
   let timer;
   return Promise.race([
@@ -516,6 +536,9 @@ export class TelegramService {
     });
     let totalCostUsd = 0;
     let finalText = "";
+    let xPostAttempted = false;
+    let confirmedXPost = null;
+    let xPostFailure = null;
     try {
       assistantLoop: for (let round = 0; round < 4; round += 1) {
         const result = await this.openRouter.chatStep(messages, tools);
@@ -536,12 +559,23 @@ export class TelegramService {
             name: toolCall.function?.name,
             content: JSON.stringify(toolResult)
           });
-          if (toolCall.function?.name === "post_to_x" && toolResult.posted) {
-            finalText = `Posted to X: ${toolResult.url}`;
-            break assistantLoop;
+          if (toolCall.function?.name === "post_to_x") {
+            xPostAttempted = true;
+            if (toolResult.posted && toolResult.receipt?.verified) {
+              confirmedXPost = toolResult;
+              finalText = `Posted to X: ${toolResult.url}`;
+              break assistantLoop;
+            }
+            xPostFailure = toolResult.error || "X did not return a verified publishing receipt.";
           }
         }
       }
+      finalText = enforceVerifiedXReply({
+        finalText,
+        xPostAttempted,
+        confirmedXPost,
+        xPostFailure
+      });
       if (!finalText) finalText = "I finished the tool work.";
       await this.store.recordCost(claim.eventId, totalCostUsd);
       await this.store.recordMessage({ chatId: ctx.chat.id, role: "assistant", content: finalText });
@@ -753,12 +787,36 @@ export class TelegramService {
     let result;
     try {
       result = await this.xClient.post({ text, media: downloadedMedia });
+      if (!result?.verified || !result?.id) {
+        throw new XError("X did not return a verified publishing receipt.", 502);
+      }
     } catch (error) {
+      await this.store.recordXReceipt({
+        status: "failed",
+        id: error?.postId,
+        url: error?.candidateUrl,
+        source: "telegram",
+        userId: ctx.from?.id,
+        chatId: ctx.chat?.id,
+        text,
+        error: error?.message || "X posting failed."
+      }).catch((receiptError) => {
+        this.logger.error("[telegram] could not save failed X receipt", receiptError);
+      });
       await this.store.releaseUsage(claim.eventId).catch((releaseError) => {
         this.logger.error("[telegram] could not release failed X post cooldown", releaseError);
       });
       throw error;
     }
+    await this.store.recordXReceipt({
+      status: "confirmed",
+      id: result.id,
+      url: result.url,
+      source: "telegram",
+      userId: ctx.from?.id,
+      chatId: ctx.chat?.id,
+      text
+    });
     const source = args.source_post ? xPostReference(args.source_post) : null;
     if (source) await this.store.markResearchUsed(`x:${source.id}`, {
       postedUrl: result.url,
@@ -776,6 +834,12 @@ export class TelegramService {
       ok: true,
       posted: true,
       url: result.url,
+      receipt: {
+        id: result.id,
+        verified: true,
+        verifiedAt: result.verifiedAt,
+        author: result.author
+      },
       post: { text, media: media ? shortMedia(media) : null }
     };
   }

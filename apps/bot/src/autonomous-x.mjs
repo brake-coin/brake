@@ -245,6 +245,17 @@ export class AutonomousXService {
           ? await this.#makeVideo(text, decision.mediaPrompt)
           : null;
       const posted = await this.xClient.post({ text, media });
+      if (!posted?.verified || !posted?.id) {
+        throw new Error("X did not return a verified publishing receipt.");
+      }
+      await this.store.recordXReceipt({
+        status: "confirmed",
+        id: posted.id,
+        url: posted.url,
+        source: "autonomous-agent",
+        userId: AUTONOMOUS_USER,
+        text
+      });
       await this.store.markResearchUsed(source.key, { postedUrl: posted.url });
       await this.store.rememberAgent({
         kind: "autonomous-x-post",
@@ -265,6 +276,16 @@ export class AutonomousXService {
         postedAt: this.now().toISOString()
       });
     } catch (error) {
+      if (postingClaim?.eventId) {
+        await this.store.recordXReceipt({
+          status: "failed",
+          id: error?.postId,
+          url: error?.candidateUrl,
+          source: "autonomous-agent",
+          userId: AUTONOMOUS_USER,
+          error: error?.message || "Autonomous X posting failed."
+        }).catch(() => {});
+      }
       if (postingClaim?.eventId) await this.store.releaseUsage(postingClaim.eventId).catch(() => {});
       await this.#finish({
         ok: false,
@@ -290,6 +311,17 @@ export class AutonomousXService {
           ? await this.#makeVideo(text, "Live STOPAI systems test")
           : null;
       const posted = await this.xClient.post({ text, media });
+      if (!posted?.verified || !posted?.id) {
+        throw new Error("X did not return a verified publishing receipt.");
+      }
+      await this.store.recordXReceipt({
+        status: "confirmed",
+        id: posted.id,
+        url: posted.url,
+        source: "admin-live-test",
+        userId: AUTONOMOUS_USER,
+        text
+      });
       return this.#finish({
         ok: true,
         skipped: false,
@@ -300,6 +332,14 @@ export class AutonomousXService {
         postedAt: this.now().toISOString()
       });
     } catch (error) {
+      await this.store.recordXReceipt({
+        status: "failed",
+        id: error?.postId,
+        url: error?.candidateUrl,
+        source: "admin-live-test",
+        userId: AUTONOMOUS_USER,
+        error: error?.message || "X live test failed."
+      }).catch(() => {});
       await this.store.releaseUsage(claim.eventId).catch(() => {});
       throw error;
     }

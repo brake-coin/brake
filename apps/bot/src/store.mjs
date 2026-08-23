@@ -3,10 +3,11 @@ import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const EMPTY_STATE = Object.freeze({
-  version: 4,
+  version: 5,
   messages: {},
   media: [],
   usage: [],
+  xReceipts: [],
   agent: {
     goals: [],
     memories: [],
@@ -27,7 +28,7 @@ function dayKey(date) {
 function cleanState(value) {
   const agent = value?.agent && typeof value.agent === "object" ? value.agent : {};
   return {
-    version: 4,
+    version: 5,
     messages: value?.messages && typeof value.messages === "object"
       ? Object.fromEntries(Object.entries(value.messages).map(([key, messages]) => (
         [key, Array.isArray(messages) ? messages.map((item) => ({ ...item })) : []]
@@ -35,6 +36,7 @@ function cleanState(value) {
       : {},
     media: Array.isArray(value?.media) ? value.media.map((item) => ({ ...item })) : [],
     usage: Array.isArray(value?.usage) ? value.usage.map((item) => ({ ...item })) : [],
+    xReceipts: Array.isArray(value?.xReceipts) ? value.xReceipts.map((item) => ({ ...item })) : [],
     agent: {
       goals: Array.isArray(agent.goals) ? agent.goals.map((item) => ({ ...item })) : [],
       memories: Array.isArray(agent.memories) ? agent.memories.map((item) => ({ ...item })) : [],
@@ -272,6 +274,39 @@ export class BotStore {
     )) || null;
   }
 
+  recentXReceipts(limit = 10) {
+    return this.#state.xReceipts.slice(0, Math.max(1, Math.min(50, Number(limit) || 10)));
+  }
+
+  async recordXReceipt({
+    status,
+    id = "",
+    url = "",
+    source = "unknown",
+    userId = "",
+    chatId = "",
+    text = "",
+    error = ""
+  }) {
+    const record = {
+      receiptId: randomUUID(),
+      status: status === "confirmed" ? "confirmed" : "failed",
+      id: /^\d{1,19}$/.test(String(id || "")) ? String(id) : null,
+      url: /^https:\/\/x\.com\//i.test(String(url || "")) ? String(url).slice(0, 1_000) : null,
+      source: String(source || "unknown").slice(0, 60),
+      userId: String(userId || "").slice(0, 80),
+      chatId: String(chatId || "").slice(0, 80),
+      text: String(text || "").slice(0, 500),
+      error: String(error || "").slice(0, 500),
+      at: this.now().toISOString()
+    };
+    await this.#mutate((state) => {
+      state.xReceipts.unshift(record);
+      state.xReceipts = state.xReceipts.slice(0, 200);
+    });
+    return record;
+  }
+
   listMedia(chatId, { type = null, limit = 8 } = {}) {
     return this.#state.media
       .filter((item) => item.chatId === String(chatId) && (!type || item.type === type))
@@ -438,6 +473,7 @@ export class BotStore {
     const cutoff = this.now().getTime() - (8 * 24 * 60 * 60 * 1_000);
     state.usage = state.usage.filter((item) => new Date(item.at).getTime() >= cutoff);
     state.media = state.media.slice(0, 200);
+    state.xReceipts = state.xReceipts.slice(0, 200);
     state.agent.memories = state.agent.memories.slice(0, 250);
     state.agent.research = state.agent.research.slice(0, 500);
     state.agent.cycles = state.agent.cycles.slice(0, 100);

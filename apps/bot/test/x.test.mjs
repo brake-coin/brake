@@ -8,25 +8,48 @@ function config(overrides = {}) {
     xPostingEnabled: true,
     xTimeoutMs: 5_000,
     xMaxPostCharacters: 280,
+    xPostVerifyAttempts: 1,
+    xPostVerifyDelayMs: 0,
     ...overrides
   };
 }
 
-test("X client creates an authorized text post with a user token", async () => {
-  let request;
+test("X client creates and verifies an authorized text post with a user token", async () => {
+  let createRequest;
   const client = new XClient({
     config: config(),
     credentialProvider: async () => ({ accessToken: "private-user-token" }),
     fetchImpl: async (url, options) => {
-      request = { url, options };
-      return new Response(JSON.stringify({ data: { id: "123", text: "STOPAI" } }), { status: 201 });
+      if (options?.method === "POST") {
+        createRequest = { url, options };
+        return new Response(JSON.stringify({ data: { id: "123", text: "STOPAI" } }), { status: 201 });
+      }
+      return new Response(JSON.stringify({
+        data: { id: "123", text: "STOPAI", author_id: "42" },
+        includes: { users: [{ id: "42", username: "STOPAICOIN", name: "STOPAI" }] }
+      }), { status: 200 });
     }
   });
   const result = await client.post({ text: "STOPAI" });
-  assert.equal(request.url, "https://api.x.com/2/tweets");
-  assert.equal(request.options.headers.Authorization, "Bearer private-user-token");
-  assert.equal(JSON.parse(request.options.body).made_with_ai, true);
-  assert.equal(result.url, "https://x.com/i/web/status/123");
+  assert.equal(createRequest.url, "https://api.x.com/2/tweets");
+  assert.equal(createRequest.options.headers.Authorization, "Bearer private-user-token");
+  assert.equal(JSON.parse(createRequest.options.body).made_with_ai, true);
+  assert.equal(result.url, "https://x.com/STOPAICOIN/status/123");
+  assert.equal(result.verified, true);
+});
+
+test("X client rejects a returned ID that cannot be read back", async () => {
+  const client = new XClient({
+    config: config(),
+    credentialProvider: async () => ({ accessToken: "private-user-token" }),
+    fetchImpl: async (_url, options) => options?.method === "POST"
+      ? new Response(JSON.stringify({ data: { id: "999", text: "ghost" } }), { status: 201 })
+      : new Response(JSON.stringify({ errors: [{ title: "Not Found Error" }] }), { status: 200 })
+  });
+  await assert.rejects(
+    () => client.post({ text: "ghost" }),
+    /could not be verified.*Nothing was confirmed/i
+  );
 });
 
 test("X post references accept IDs and canonical post URLs only", () => {
@@ -129,7 +152,13 @@ test("X client detects a Telegram image with a generic content type", async () =
       if (url.endsWith("/2/media/upload")) {
         return new Response(JSON.stringify({ data: { id: "media-1" } }), { status: 200 });
       }
-      return new Response(JSON.stringify({ data: { id: "post-1", text: "with image" } }), { status: 201 });
+      if (url.endsWith("/2/tweets")) {
+        return new Response(JSON.stringify({ data: { id: "124", text: "with image" } }), { status: 201 });
+      }
+      return new Response(JSON.stringify({
+        data: { id: "124", text: "with image", author_id: "42" },
+        includes: { users: [{ id: "42", username: "STOPAICOIN" }] }
+      }), { status: 200 });
     }
   });
   await client.post({
@@ -172,7 +201,13 @@ test("X client uses the chunked flow for video", async () => {
     fetchImpl: async (url, options) => {
       if (url.endsWith("/2/tweets")) {
         postedMediaIds = JSON.parse(options.body).media.media_ids;
-        return new Response(JSON.stringify({ data: { id: "post-video" } }), { status: 201 });
+        return new Response(JSON.stringify({ data: { id: "125" } }), { status: 201 });
+      }
+      if (url.includes("/2/tweets/125?")) {
+        return new Response(JSON.stringify({
+          data: { id: "125", text: "with video", author_id: "42" },
+          includes: { users: [{ id: "42", username: "STOPAICOIN" }] }
+        }), { status: 200 });
       }
       const command = options.body.get("command");
       commands.push(command);

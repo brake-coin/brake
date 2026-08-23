@@ -111,6 +111,11 @@ for a connection made through admin.
 Image upload uses the simple media endpoint; video upload uses the INIT, APPEND,
 FINALIZE, and STATUS flow.
 
+After X returns a new post ID, the bot reads that ID back from X before it tells Telegram
+that publication succeeded. Missing or unreadable posts are reported as failures, even if
+the create request returned an ID. Confirmed and failed attempts are kept as bounded audit
+receipts on the private Fly volume.
+
 The production service also runs a persistent campaign agent. Every two hours it checks
 one rotating watched X account, one rotating X search, and a current AI-news RSS search.
 It ranks and saves the results, compares them with its durable goals, memories, and used
