@@ -9,32 +9,47 @@ const readJson = async (relativePath) =>
 const project = await readJson("config/project.json");
 const tokenPlan = await readJson("token/brake-token-plan.devnet.json");
 const metadata = await readJson("token/brake-metadata.draft.json");
+const mainnetToken = await readJson("token/stopai-mainnet.json");
 
 const failures = [];
 const requireValue = (condition, message) => {
   if (!condition) failures.push(message);
 };
 
-requireValue(project.status === "prelaunch", "Project status must remain prelaunch.");
-requireValue(project.cluster === "devnet", "Public configuration must remain on devnet.");
-requireValue(project.contractAddress === null, "Contract address must remain empty.");
+requireValue(project.status === "live", "Public project status must be live.");
+requireValue(project.cluster === "mainnet-beta", "Public configuration must use mainnet-beta.");
+requireValue(project.contractAddress === mainnetToken.mint, "Published contract must match the verified mainnet mint.");
 requireValue(project.grantsWallet === null, "Grants wallet must remain empty.");
 requireValue(project.livePostingEnabled === false, "Live posting must remain disabled.");
 requireValue(project.name === "STOPAI", "Public project name must remain STOPAI.");
 requireValue(project.symbol === "STOPAI", "Public token symbol must remain STOPAI.");
+requireValue(mainnetToken.cluster === "mainnet-beta", "Verified token manifest must use mainnet-beta.");
+requireValue(mainnetToken.name === project.name, "Verified token name must match the project.");
+requireValue(mainnetToken.symbol === project.symbol, "Verified token symbol must match the project.");
+requireValue(mainnetToken.supplyTokens === "1000000000", "Verified token supply must remain fixed at one billion.");
+requireValue(mainnetToken.decimals === 9, "Verified mainnet token must use 9 decimals.");
+requireValue(mainnetToken.mintAuthority === null, "Mainnet mint authority must remain revoked.");
+requireValue(mainnetToken.freezeAuthority === null, "Mainnet freeze authority must remain revoked.");
+requireValue(project.token.supplyTokens === mainnetToken.supplyTokens, "Public supply must match the mainnet token.");
+requireValue(project.token.decimals === mainnetToken.decimals, "Public decimals must match the mainnet token.");
+requireValue(project.token.mintAuthorityRevoked === true, "Public mint-authority status must remain revoked.");
+requireValue(project.token.freezeAuthorityRevoked === true, "Public freeze-authority status must remain revoked.");
+requireValue(project.links.bags === mainnetToken.bagsUrl, "Public Bags link must match the mainnet token.");
+requireValue(project.links.solanaExplorer === mainnetToken.solanaExplorerUrl, "Public explorer link must match the mainnet token.");
 requireValue(
   project.memeGenerator.enabled === true &&
     project.memeGenerator.mode === "openrouter-oauth-pkce-byok",
   "Meme generation must use visitor-owned OpenRouter OAuth PKCE."
 );
 requireValue(
+  project.feePolicy.status === "proposed" &&
   project.feePolicy.projectControlledCreatorFeesToGrantsPercent === 100,
-  "Creator-fee grant policy must remain 100%."
+  "Creator-fee grant policy must remain clearly proposed at 100%."
 );
 requireValue(tokenPlan.cluster === "devnet", "Token plan must remain on devnet.");
 requireValue(
   tokenPlan.liveDeploymentEnabled === false,
-  "Token plan must not enable live deployment."
+  "Historical devnet plan must remain non-deploying."
 );
 requireValue(tokenPlan.publicLaunchAllocationPercent === 100, "Public allocation must be 100%.");
 requireValue(tokenPlan.insiderAllocationPercent === 0, "Insider allocation must be 0%.");
@@ -43,6 +58,20 @@ requireValue(project.name === tokenPlan.name, "Project name must match the token
 requireValue(project.symbol === tokenPlan.symbol, "Project symbol must match the token plan.");
 requireValue(metadata.name === tokenPlan.name, "Metadata name must match the token plan.");
 requireValue(metadata.symbol === tokenPlan.symbol, "Metadata symbol must match the token plan.");
+
+for (const relativePath of [
+  "README.md",
+  "apps/site/index.html",
+  "apps/bot/src/persona.mjs",
+  "docs/BRAKE_SIMPLE.md",
+  "docs/TELEGRAM.md"
+]) {
+  const content = await readFile(path.join(root, relativePath), "utf8");
+  requireValue(
+    content.includes(mainnetToken.mint),
+    `${relativePath} must publish the verified mainnet mint.`
+  );
+}
 
 await access(path.join(root, tokenPlan.canonicalImage));
 

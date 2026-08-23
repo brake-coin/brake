@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-import { makePrelaunchPost, makeTelegramPrelaunchPost } from "@brake/campaign";
+import { makeLaunchPost, makeTelegramLaunchPost } from "@brake/campaign";
 
 const command = process.argv[2];
 
@@ -14,7 +14,7 @@ if (command !== "--dry-run") {
   const project = JSON.parse(await readFile(projectUrl, "utf8"));
 
   console.log("X PREVIEW\n");
-  console.log(makePrelaunchPost(project));
+  console.log(makeLaunchPost(project));
   console.log("\nTELEGRAM PREVIEW\n");
-  console.log(makeTelegramPrelaunchPost(project));
+  console.log(makeTelegramLaunchPost(project));
 }

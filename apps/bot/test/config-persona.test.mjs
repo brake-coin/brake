@@ -17,8 +17,8 @@ test("bot defaults use strict shared media limits", () => {
   assert.equal(config.requireTelegram, false);
 });
 
-test("persona states pre-launch facts and keeps the weird hand", () => {
-  assert.match(STOPAI_SYSTEM_PROMPT, /no published token contract/i);
+test("persona publishes only the official mint and keeps the weird hand", () => {
+  assert.match(STOPAI_SYSTEM_PROMPT, /2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS/);
   assert.match(STOPAI_SYSTEM_PROMPT, /Never invent a contract address/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /peaceful, lawful/i);
   assert.match(buildImagePrompt("robot timeout"), /thumb attaches at an awkward angle/i);

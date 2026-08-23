@@ -59,6 +59,50 @@ footer {
   font-weight: 750;
 }
 
+.contract-notice {
+  display: grid;
+  width: min(100%, 720px);
+  gap: 9px;
+}
+
+.contract-notice > span {
+  color: var(--red);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.contract-notice code {
+  overflow-wrap: anywhere;
+  font-size: clamp(0.78rem, 2vw, 0.98rem);
+  line-height: 1.45;
+}
+
+.contract-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.contract-actions button,
+.contract-actions a {
+  padding: 7px 10px;
+  border: 1.5px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.contract-actions button:hover,
+.contract-actions a:hover {
+  background: var(--ink);
+  color: var(--white);
+}
+
 .status {
   padding: 7px 12px;
   border-radius: 999px;
@@ -132,6 +176,10 @@ h1 {
 
 .telegram-cta {
   color: var(--ink);
+}
+
+.token-cta {
+  color: var(--red);
 }
 
 .hero-cta span {

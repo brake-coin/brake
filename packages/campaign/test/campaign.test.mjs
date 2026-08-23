@@ -3,26 +3,30 @@ import test from "node:test";
 
 import {
   MAX_X_POST_LENGTH,
-  makePrelaunchPost,
-  makeTelegramPrelaunchPost
+  makeLaunchPost,
+  makeTelegramLaunchPost
 } from "../src/index.mjs";
 
 const project = {
   name: "STOPAI",
+  symbol: "STOPAI",
   tagline: "Stop the AI race.",
-  independenceNotice: "Independent pre-launch project.",
-  riskNotice: "A future token could lose all value."
+  contractAddress: "2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS",
+  links: { bags: "https://bags.fm/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS" },
+  independenceNotice: "Independent token.",
+  riskNotice: "The token could lose all value."
 };
 
-test("X pre-launch post fits the platform limit and warns about lookalikes", () => {
-  const post = makePrelaunchPost(project);
+test("X launch post fits the platform limit and publishes the verified mint", () => {
+  const post = makeLaunchPost(project);
   assert.ok(post.length <= MAX_X_POST_LENGTH);
-  assert.match(post, /not live/i);
-  assert.match(post, /No contract address/i);
+  assert.match(post, new RegExp(project.contractAddress));
+  assert.match(post, /live on Solana/i);
 });
 
-test("Telegram pre-launch post includes independence and risk notices", () => {
-  const post = makeTelegramPrelaunchPost(project);
-  assert.match(post, /Independent pre-launch project/);
+test("Telegram launch post includes the mint, independence, and risk notices", () => {
+  const post = makeTelegramLaunchPost(project);
+  assert.match(post, new RegExp(project.contractAddress));
+  assert.match(post, /Independent token/);
   assert.match(post, /could lose all value/);
 });

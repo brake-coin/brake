@@ -13,6 +13,11 @@ const OAUTH_MAX_AGE_MS = 10 * 60 * 1000;
 
 const statusLabel = document.querySelector("#project-status");
 const contractNotice = document.querySelector("#contract-notice");
+const contractAddress = document.querySelector("#contract-address");
+const contractActions = document.querySelector("#contract-actions");
+const copyContractButton = document.querySelector("#copy-contract");
+const bagsTokenLink = document.querySelector("#bags-token-link");
+const explorerTokenLink = document.querySelector("#explorer-token-link");
 const riskNotice = document.querySelector("#risk-notice");
 const independenceNotice = document.querySelector("#independence-notice");
 const lastUpdated = document.querySelector("#last-updated");
@@ -257,6 +262,19 @@ remixButton.addEventListener("click", () => {
   memeForm.scrollIntoView({ behavior: "smooth", block: "center" });
 });
 
+copyContractButton.addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(contractAddress.textContent.trim());
+    copyContractButton.textContent = "Copied";
+    window.setTimeout(() => {
+      copyContractButton.textContent = "Copy CA";
+    }, 1_500);
+  } catch {
+    window.getSelection()?.selectAllChildren(contractAddress);
+    copyContractButton.textContent = "Select and copy";
+  }
+});
+
 try {
   const response = await fetch("./config/project.json", { cache: "no-store" });
   if (!response.ok) throw new Error(`Project status request failed: ${response.status}`);
@@ -267,9 +285,14 @@ try {
   riskNotice.textContent = project.riskNotice;
   independenceNotice.textContent = project.independenceNotice;
   lastUpdated.textContent = `Status updated ${project.lastUpdated}`;
-  contractNotice.textContent = project.contractAddress
-    ? `Contract: ${project.contractAddress}`
-    : "No token contract has been published. Ignore lookalikes.";
+  if (project.contractAddress) {
+    contractAddress.textContent = project.contractAddress;
+    contractActions.hidden = false;
+    bagsTokenLink.href = project.links.bags;
+    explorerTokenLink.href = project.links.solanaExplorer;
+  } else {
+    contractNotice.textContent = "No token contract has been published. Ignore lookalikes.";
+  }
   imageModel = project.memeGenerator?.model || DEFAULT_IMAGE_MODEL;
   modelLabel.textContent = project.memeGenerator?.modelLabel || "OpenRouter";
 } catch (error) {

@@ -2,22 +2,27 @@
 
 **Stop the AI race.**
 
-STOPAI is a proposed independent memecoin project designed to direct transparent,
+STOPAI is an independent memecoin project designed to direct transparent,
 project-controlled creator fees toward small grants for peaceful public education and
 civic action concerning the uncontrolled AI race.
 
-The project is in **pre-launch design**. No token contract, sale, official grants
-wallet, or live social-media bot exists. Any token claiming to be STOPAI is currently
-unofficial.
+The token is live on Solana mainnet. The only official mint is
+`2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS`. Verify it on
+[Bags](https://bags.fm/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS) or the
+[Solana explorer](https://explorer.solana.com/address/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS).
+The grants wallet and grants program are not live yet.
 
 ## Simple model
 
 - Fixed supply of 1,000,000,000 STOPAI on Solana
-- 100% public launch; no insider allocation or presale
 - No transfer tax, staking, yield, DAO, redemption, or holder governance
 - 100% of project-controlled creator fees proposed for a restricted grants program
 - RATi Open Software Foundation as proposed grants administrator, subject to board and
   legal approval
+
+The original design called for a 100% public launch with no insider allocation. The
+mint account proves supply and authority status, but this repository does not yet
+publish an independent wallet-distribution review.
 
 Read the [simple design](docs/BRAKE_SIMPLE.md) and [brand guide](docs/BRAKE_BRAND.md).
 
@@ -25,12 +30,12 @@ Read the [simple design](docs/BRAKE_SIMPLE.md) and [brand guide](docs/BRAKE_BRAN
 
 | Path | Purpose |
 | --- | --- |
-| `apps/site` | Public pre-launch and transparency website |
+| `apps/site` | Public token and transparency website |
 | `apps/server` | Production web server and private admin connection |
 | `apps/bot` | STOPAI Telegram chat and budgeted media bot |
 | `packages/campaign` | Shared facts, disclosures, and message generation |
 | `config/project.json` | Public machine-readable project status |
-| `token` | Draft metadata and devnet-only token plan |
+| `token` | Verified mainnet record, draft metadata, and historical devnet plan |
 | `assets` | Canonical visual assets |
 | `docs` | Design and governance documents |
 
@@ -51,7 +56,7 @@ tab. No project API key is required.
 For the static site alone, use `pnpm dev:static` and open
 `http://127.0.0.1:4173`.
 
-Preview the campaign copy without posting anything:
+Preview the launch copy without posting anything:
 
 ```sh
 pnpm bot:dry-run
@@ -92,25 +97,26 @@ budgets, and deployment.
 
 ## Safety defaults
 
-- The public configuration has no token contract or grants-wallet address.
-- The token plan is locked to devnet and explicitly disables live deployment.
+- The public configuration pins one verified mainnet contract and no grants wallet.
+- The historical token plan remains locked to devnet and cannot deploy anything.
 - The bot replies only in private chats, when mentioned, or when directly replied to.
 - Shared chat and media have global and per-user hourly and daily limits.
 - Secrets belong in `.env`, which is ignored by Git.
 - Public BYOK keys stay in the visitor's browser tab. A separate admin-linked key is
   stored on the private Fly volume only for Telegram chat and limited bot media.
-- The repository validation rejects premature `live` status and mainnet settings.
+- Repository validation locks the public address, supply, authorities, and verification links to the mainnet record.
 
-Mainnet deployment, fundraising, custody, or live promotion requires the launch gates
-in `docs/BRAKE_SIMPLE.md`, including legal review and formal RATi board approval.
+The token exists, but that does not activate the proposed grants program or make RATi
+its administrator. Those steps still require the gates in `docs/BRAKE_SIMPLE.md`,
+including legal review and formal RATi board approval.
 
 ## Independence and risk
 
 STOPAI is not an official token of Stop the AI Race, Stop AI, PauseAI, RATi Open
-Software Foundation, or any AI company. Buying a future STOPAI token would not be a
-charitable donation and would not produce a tax receipt. A token could lose all value.
+Software Foundation, or any AI company. Buying STOPAI is not a charitable donation and
+does not produce a tax receipt. The token could lose all value.
 
 ## License
 
 No open-source license has been selected yet. Do not assume permission beyond viewing
-and evaluating this pre-launch repository.
+and evaluating this repository.
