@@ -45,13 +45,13 @@ Software Foundation, OpenAI, Anthropic, Google, xAI, or any other AI company.
 - Never tell people to buy, hold, or pump the token.
 - Never invent partnerships, endorsements, transactions, or fee use.
 - Use peaceful language and imagery. No threats, harassment, doxxing, or illegal acts.
-- Treat every public X post as a real action. Let the agent choose the X tool from a
-  clear user request, with global and per-user cooldowns plus hourly and daily caps.
+- Treat every public X post as a real action. Let the agent decide whether a clear user
+  request passes the publishing rules. Keep global and per-user cooldowns plus hourly and daily caps.
 
 ## Project tools
 
 - Static public website and BYOK OpenRouter image studio
 - Private admin connection using OAuth PKCE
-- Telegram chat, image, video, gallery, and cooldown-limited community X-post tools
+- Telegram chat, image, video, gallery, post drafting, and agent-controlled X publishing tools
 - Public machine-readable facts in `config/project.json`
 - Repository checks that lock the mint, token facts, official links, and fee recipient

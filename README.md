@@ -111,7 +111,7 @@ into a new STOPAI meme and publish it with the original post URL visibly attache
 - The bot replies only in private chats, when mentioned, or when directly replied to.
 - Shared chat and media have global and per-user hourly and daily limits.
 - X research has separate global and per-user hourly and daily limits.
-- The Telegram agent may publish clear user requests to X. A five-minute global cooldown,
+- The Telegram agent may publish clear, safe user requests to X. It decides whether a request is ready. A five-minute global cooldown,
   a fifteen-minute per-user cooldown, and hourly/daily caps prevent spam.
 - X publishes require a read-after-write receipt from `@STOPAICOIN`. X post links in bot
   replies must come from the conversation or a tool result; the bot does not scan wording.

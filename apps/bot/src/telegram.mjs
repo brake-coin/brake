@@ -144,7 +144,7 @@ const BASE_TOOLS = [
     type: "function",
     function: {
       name: "post_to_x",
-      description: "Publish a public post immediately on the official @STOPAICOIN X account. For a meme based on another post, pass its URL in source_post so the original stays visible and attributed. Available to all Telegram users, with enforced global and per-user cooldowns.",
+      description: "Publish a public post immediately on the official @STOPAICOIN X account when a user's request is clear and passes the publishing rules. For a meme based on another post, pass its URL in source_post so the original stays visible and attributed. Available to all Telegram users, with global and per-user cooldowns enforced.",
       parameters: {
         type: "object",
         properties: {
@@ -262,6 +262,18 @@ export function buildXPostText(text, sourcePost = null) {
   if (sourcePost && !source) throw new XError("The source post must be a valid x.com post URL or numeric post ID.", 400);
   const cleanText = cleanXPostText(text);
   return { text: source ? `${cleanText}\n\n${source.url}` : cleanText, source };
+}
+
+export function hasMediaReviewConfirmation(text) {
+  const normalized = String(text || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  return normalized.includes("i confirm i reviewed this media for consent and personal information");
+}
+
+export function needsMediaReviewConfirmation(media, text) {
+  return Boolean(media) && !hasMediaReviewConfirmation(text);
 }
 
 function limitMessage(type, claim) {
@@ -504,11 +516,11 @@ export class TelegramService {
     const currentMedia = await this.#mediaRecordFromMessage(ctx, message.reply_to_message);
     await this.#runAssistant(ctx, userText, {
       isOperator,
-      currentMediaId: currentMedia?.id || null
+      currentMedia
     });
   }
 
-  async #runAssistant(ctx, userText, { isOperator, currentMediaId = null }) {
+  async #runAssistant(ctx, userText, { isOperator, currentMedia = null }) {
     if (!await this.openRouter.connected()) {
       await ctx.reply([
         "The shared OpenRouter account is not connected yet, so chat and generation are paused.",
@@ -534,7 +546,7 @@ export class TelegramService {
     const messages = buildChatMessages(history, userText, {
       userId: ctx.from?.id,
       isOperator,
-      currentMediaId,
+      currentMedia,
       chatModel: this.config.openRouterChatModel,
       imageModel: this.config.openRouterImageModel,
       videoModel: this.config.openRouterVideoModel,
@@ -565,7 +577,8 @@ export class TelegramService {
         }
         for (const toolCall of toolCalls) {
           const toolResult = await this.#executeTool(ctx, toolCall, {
-            isOperator
+            isOperator,
+            userText
           });
           addKnownXPostIds(knownXPostIds, toolResult);
           messages.push({
@@ -598,7 +611,7 @@ export class TelegramService {
     }
   }
 
-  async #executeTool(ctx, toolCall, { isOperator }) {
+  async #executeTool(ctx, toolCall, { isOperator, userText }) {
     const name = toolCall?.function?.name;
     try {
       const args = parseArguments(toolCall);
@@ -676,7 +689,7 @@ export class TelegramService {
         });
       }
       if (name === "post_to_x") {
-        return this.#postToX(ctx, args);
+        return this.#postToX(ctx, args, { userText });
       }
       return { ok: false, error: "Unknown tool." };
     } catch (error) {
@@ -768,7 +781,7 @@ export class TelegramService {
     return { ok: true, sent: true, saved: true, item: shortMedia(media) };
   }
 
-  async #postToX(ctx, args) {
+  async #postToX(ctx, args, { userText = "" } = {}) {
     if (!this.xClient || !await this.xClient.connected()) {
       return { ok: false, error: "X posting is not connected or enabled." };
     }
@@ -781,6 +794,12 @@ export class TelegramService {
     if (args.media_id) {
       media = this.store.findMedia(ctx.chat.id, args.media_id);
       if (!media) return { ok: false, error: "No matching gallery item was found." };
+      if (needsMediaReviewConfirmation(media, userText)) {
+        return {
+          ok: false,
+          error: "Reply to that media with: I confirm I reviewed this media for consent and personal information. Include the post text in the same request."
+        };
+      }
     }
     const downloadedMedia = media ? await this.#downloadMedia(ctx, media) : null;
     const claim = await this.store.claimUsage(
@@ -902,7 +921,7 @@ export class TelegramService {
     if (caption && this.config.telegramRepliesEnabled) {
       await this.#runAssistant(ctx, caption, {
         isOperator: await this.#isOperator(ctx),
-        currentMediaId: record.id
+        currentMedia: record
       });
     }
   }

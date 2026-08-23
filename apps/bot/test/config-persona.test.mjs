@@ -7,8 +7,10 @@ import {
   botTools,
   buildXPostText,
   enforceExpectedXPostUrls,
+  hasMediaReviewConfirmation,
   isAddressed,
   isTelegramOperator,
+  needsMediaReviewConfirmation,
   xPostIdsInText
 } from "../src/telegram.mjs";
 
@@ -51,7 +53,7 @@ test("bot defaults use strict shared media limits", () => {
   assert.deepEqual([...createBotConfig({ TELEGRAM_OPERATOR_IDS: "12, nope,34" }).telegramOperatorIds], ["12", "34"]);
 });
 
-test("every user receives the X tool while gallery deletion stays operator-only", () => {
+test("every user receives the X tool while campaign changes stay operator-only", () => {
   const publicNames = botTools().map((tool) => tool.function.name);
   const operatorNames = botTools({ isOperator: true }).map((tool) => tool.function.name);
   assert.deepEqual(publicNames, [
@@ -66,6 +68,7 @@ test("every user receives the X tool while gallery deletion stays operator-only"
     "post_to_x"
   ]);
   assert.equal(publicNames.includes("gallery_remove"), false);
+  assert.equal(publicNames.includes("post_to_x"), true);
   assert.equal(operatorNames.includes("gallery_remove"), true);
   assert.equal(operatorNames.includes("agent_remember"), true);
   assert.equal(operatorNames.includes("agent_set_goal"), true);
@@ -102,7 +105,7 @@ test("the agent receives live context and decides which tools to use", () => {
   const messages = buildChatMessages([], "post this on X", {
     userId: "42",
     isOperator: false,
-    currentMediaId: "media-123",
+    currentMedia: { id: "media-123", type: "image", source: "telegram-upload" },
     chatModel: "chat-model",
     imageModel: "image-model",
     videoModel: "video-model",
@@ -110,7 +113,9 @@ test("the agent receives live context and decides which tools to use", () => {
   });
   const context = messages.map((message) => message.content).join("\n");
   assert.match(context, /Every Telegram user may use post_to_x/);
-  assert.match(context, /Current or replied-to gallery item ID: media-123/);
+  assert.match(context, /agent decides whether a request is clear/i);
+  assert.match(context, /"id":"media-123","type":"image","source":"telegram-upload"/);
+  assert.match(context, /does not let you see the final media contents/);
   assert.match(context, /Chat model: chat-model/);
   assert.match(context, /Educate peacefully/);
   assert.match(STOPAI_SYSTEM_PROMPT, /x_user_posts/);
@@ -129,6 +134,16 @@ test("meme repost text keeps a canonical source link", () => {
     "https://x.com/canadabirdie/status/2091410624970711451"
   ].join("\n"));
   assert.throws(() => buildXPostText("nope", "https://example.com/post/1"), /valid x.com post URL/);
+});
+
+test("uninspected media needs an explicit human review statement", () => {
+  const confirmation = "Post it. I confirm I reviewed this media for consent and personal information. Text: Stop the race.";
+  assert.equal(hasMediaReviewConfirmation(confirmation), true);
+  assert.equal(hasMediaReviewConfirmation("I reviewed it, please post"), false);
+  assert.equal(hasMediaReviewConfirmation("The model says the media is safe"), false);
+  assert.equal(needsMediaReviewConfirmation({ source: "telegram-upload" }, confirmation), false);
+  assert.equal(needsMediaReviewConfirmation({ source: "shared-openrouter" }, "Post it"), true);
+  assert.equal(needsMediaReviewConfirmation(null, "Post the text"), false);
 });
 
 test("Telegram checks X post URL provenance without scanning success wording", () => {
@@ -156,6 +171,10 @@ test("persona publishes only the official mint and keeps the weird hand", () => 
   assert.match(STOPAI_SYSTEM_PROMPT, /creator-fee recipient is the X account @canadabirdie/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /Never invent a contract address/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /peaceful, lawful/i);
+  assert.match(STOPAI_SYSTEM_PROMPT, /public education comes first/i);
+  assert.match(STOPAI_SYSTEM_PROMPT, /private personal information/i);
+  assert.match(STOPAI_SYSTEM_PROMPT, /do not rely on model memory/i);
+  assert.match(STOPAI_SYSTEM_PROMPT, /1,000,000,000 STOPAI with 9 decimals/i);
   assert.match(buildImagePrompt("robot timeout"), /thumb attaches at an awkward angle/i);
   const messages = buildChatMessages([], "what is the contract?");
   assert.equal(messages.at(-1).content, "what is the contract?");
