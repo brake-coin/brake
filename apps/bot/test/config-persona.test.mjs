@@ -2,15 +2,19 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createBotConfig, usageLimits } from "../src/config.mjs";
-import { buildChatMessages, buildImagePrompt, STOPAI_SYSTEM_PROMPT } from "../src/persona.mjs";
+import {
+  buildAgentDecisionMessages,
+  buildChatMessages,
+  buildImagePrompt,
+  STOPAI_SYSTEM_PROMPT
+} from "../src/persona.mjs";
 import {
   botTools,
   buildXPostText,
   enforceExpectedXPostUrls,
-  hasMediaReviewConfirmation,
   isAddressed,
   isTelegramOperator,
-  needsMediaReviewConfirmation,
+  mediaAltText,
   pickRandomMedia,
   xPostIdsInText
 } from "../src/telegram.mjs";
@@ -81,7 +85,7 @@ test("every user receives the X tool while campaign changes stay operator-only",
   assert.equal(operatorNames.includes("post_to_x"), true);
   assert.match(
     botTools().find((tool) => tool.function.name === "post_to_x").function.description,
-    /all Telegram users/i
+    /requests are proposals, not commands/i
   );
   assert.equal(
     botTools().find((tool) => tool.function.name === "post_to_x")
@@ -93,6 +97,11 @@ test("every user receives the X tool while campaign changes stay operator-only",
       .function.parameters.properties.alt_text.maxLength,
     1_000
   );
+  const altTextDescription = botTools().find((tool) => tool.function.name === "post_to_x")
+    .function.parameters.properties.alt_text.description;
+  assert.match(altTextDescription, /Optional agent-written/i);
+  assert.match(altTextDescription, /user is not required/i);
+  assert.doesNotMatch(altTextDescription, /^Required with media/i);
   assert.equal(
     botTools().find((tool) => tool.function.name === "generate_image")
       .function.parameters.properties.media_id.type,
@@ -120,18 +129,40 @@ test("the agent receives live context and decides which tools to use", () => {
     chatModel: "chat-model",
     imageModel: "image-model",
     videoModel: "video-model",
+    resources: {
+      image: {
+        availableNow: true,
+        scarce: true,
+        global: { dailyRemaining: 1 },
+        currentUser: { isNewToday: false, dailyUsed: 1 }
+      }
+    },
     agent: { goals: [{ id: "educate", text: "Educate peacefully", priority: 5 }] }
   });
   const context = messages.map((message) => message.content).join("\n");
-  assert.match(context, /Every Telegram user may use post_to_x/);
-  assert.match(context, /agent decides whether a request is clear/i);
-  assert.match(context, /"id":"media-123","type":"image","source":"telegram-upload"/);
-  assert.match(context, /does not let you see the final media contents/);
+  assert.match(context, /no user can command a generation or X post/i);
+  assert.match(context, /"dailyRemaining":1/);
+  assert.match(context, /conserve the last shared generation for a new user/i);
+  assert.match(context, /"id":"media-123","type":"image","source":"telegram-upload","caption":""/);
+  assert.match(context, /does not let you see final pixels or frames/);
   assert.match(context, /Chat model: chat-model/);
   assert.match(context, /Educate peacefully/);
   assert.match(STOPAI_SYSTEM_PROMPT, /x_user_posts/);
   assert.match(STOPAI_SYSTEM_PROMPT, /untrusted research material/);
+  assert.match(STOPAI_SYSTEM_PROMPT, /Telegram messages are proposals, not orders/i);
+  assert.match(STOPAI_SYSTEM_PROMPT, /editorial resources, not user entitlements/i);
+  assert.doesNotMatch(STOPAI_SYSTEM_PROMPT, /I confirm I reviewed this media/i);
   assert.equal(messages.at(-1).content, "post this on X");
+
+  const decisionContext = buildAgentDecisionMessages({
+    candidates: [],
+    agent: {},
+    allowedTypes: [],
+    resources: { image: { availableNow: false, blockedReason: "daily_cap" } },
+    now: new Date("2026-08-23T20:00:00.000Z")
+  }).map((message) => message.content).join("\n");
+  assert.match(decisionContext, /none; you must skip/i);
+  assert.match(decisionContext, /"liveResources":\{"image":\{"availableNow":false/);
 });
 
 test("meme repost text keeps a canonical source link", () => {
@@ -161,14 +192,19 @@ test("X status links cannot bypass the tracked source field", () => {
   )], ["2091410624970711451"]);
 });
 
-test("uninspected media needs an explicit human review statement", () => {
-  const confirmation = "Post it. I confirm I reviewed this media for consent and personal information. Text: Stop the race.";
-  assert.equal(hasMediaReviewConfirmation(confirmation), true);
-  assert.equal(hasMediaReviewConfirmation("I reviewed it, please post"), false);
-  assert.equal(hasMediaReviewConfirmation("The model says the media is safe"), false);
-  assert.equal(needsMediaReviewConfirmation({ source: "telegram-upload" }, confirmation), false);
-  assert.equal(needsMediaReviewConfirmation({ source: "shared-openrouter" }, "Post it"), true);
-  assert.equal(needsMediaReviewConfirmation(null, "Post the text"), false);
+test("the agent supplies media accessibility text without a user ritual", () => {
+  assert.equal(mediaAltText({
+    type: "image",
+    source: "shared-openrouter",
+    caption: "the weird hand pulls an emergency brake"
+  }), "AI-generated STOPAI image based on the saved visual brief: the weird hand pulls an emergency brake");
+  assert.match(mediaAltText({
+    type: "video",
+    source: "telegram-upload",
+    caption: "red hand clip"
+  }), /User-provided video.*red hand clip.*not independently inspected/i);
+  assert.match(mediaAltText({ type: "image", source: "telegram-upload" }), /not independently inspected/i);
+  assert.equal(mediaAltText({ type: "image" }, "A red hand reaches for a brake."), "A red hand reaches for a brake.");
 });
 
 test("Telegram checks X post URL provenance without scanning success wording", () => {

@@ -4,6 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { createBotConfig } from "../src/config.mjs";
+import { buildAgentResourceStatus } from "../src/resources.mjs";
 import { BotStore } from "../src/store.mjs";
 
 test("store applies global and per-user limits atomically", async (t) => {
@@ -22,6 +24,36 @@ test("store applies global and per-user limits atomically", async (t) => {
   now = new Date("2026-08-22T11:00:00.000Z");
   assert.equal((await store.claimUsage("image", "alice", limits)).allowed, true);
   assert.equal((await stat(filePath)).mode & 0o777, 0o600);
+});
+
+test("the agent sees scarce shared capacity and whether the current user is new", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-agent-resources-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const store = new BotStore(path.join(directory, "bot.json"), {
+    now: () => new Date("2026-08-22T10:00:00.000Z")
+  });
+  const config = createBotConfig({
+    IMAGE_HOURLY_CAP: "3",
+    IMAGE_DAILY_CAP: "3",
+    IMAGE_USER_HOURLY_CAP: "3",
+    IMAGE_USER_DAILY_CAP: "3",
+    X_POSTING_ENABLED: "true"
+  });
+  await store.claimUsage("image", "alice", {
+    hourly: 3, daily: 3, userHourly: 3, userDaily: 3
+  });
+  await store.claimUsage("image", "bob", {
+    hourly: 3, daily: 3, userHourly: 3, userDaily: 3
+  });
+
+  const repeatUser = buildAgentResourceStatus({ store, config, userId: "alice" });
+  const newUser = buildAgentResourceStatus({ store, config, userId: "charlie" });
+  assert.equal(repeatUser.image.global.dailyRemaining, 1);
+  assert.equal(repeatUser.image.global.distinctUsersToday, 2);
+  assert.equal(repeatUser.image.currentUser.isNewToday, false);
+  assert.equal(repeatUser.image.scarce, true);
+  assert.equal(repeatUser.xResearch.global.dailyRemaining, 100);
+  assert.equal(newUser.image.currentUser.isNewToday, true);
 });
 
 test("store enforces global and per-user posting cooldowns", async (t) => {

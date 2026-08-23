@@ -11,6 +11,7 @@ import {
   NewsResearchClient,
   xPostResearchItem
 } from "./research.mjs";
+import { buildAgentResourceStatus } from "./resources.mjs";
 import { validateXQuoteSource, xPostReference, xWeightedLength } from "./x.mjs";
 
 const POST_TYPES = new Set(["text", "image", "video"]);
@@ -202,6 +203,41 @@ export class AutonomousXService {
       }
       if (test) return await this.#runTest(type);
 
+      const postingAvailability = this.store.usageAvailability(
+        "x_auto",
+        AUTONOMOUS_USER,
+        autonomousLimits(this.config),
+        {
+          globalCooldownMs: this.config.agentMinPostIntervalMinutes * 60_000,
+          globalCooldownTypes: ["x_post"]
+        }
+      );
+      if (!postingAvailability.allowed) {
+        return this.#finish({
+          ok: true,
+          skipped: true,
+          action: "skip",
+          reason: postingAvailability.reason
+        });
+      }
+
+      const resources = buildAgentResourceStatus({
+        store: this.store,
+        config: this.config,
+        userId: AUTONOMOUS_USER
+      });
+      const allowedTypes = this.config.xAutonomousTypes.filter((mediaType) => (
+        mediaType === "text" || resources[mediaType]?.availableNow
+      ));
+      if (!allowedTypes.length) {
+        return this.#finish({
+          ok: true,
+          skipped: true,
+          action: "skip",
+          reason: "No configured post type has shared capacity right now."
+        });
+      }
+
       const candidates = this.config.agentResearchEnabled ? await this.#research() : [];
       if (!candidates.length) {
         return this.#finish({
@@ -211,7 +247,7 @@ export class AutonomousXService {
           reason: "No fresh, unused research candidate was available."
         });
       }
-      const decision = await this.#decide(candidates);
+      const decision = await this.#decide(candidates, { resources, allowedTypes });
       if (decision.action !== "post") {
         return this.#finish({
           ok: true,
@@ -229,9 +265,9 @@ export class AutonomousXService {
           reason: "The proposed post did not select a valid research source."
         });
       }
-      const selectedType = this.config.xAutonomousTypes.includes(decision.type)
+      const selectedType = allowedTypes.includes(decision.type)
         ? decision.type
-        : this.config.xAutonomousTypes[0];
+        : allowedTypes[0];
       let verifiedSource = source;
       if (source.kind === "x") {
         const post = validateXQuoteSource(await this.xClient.readPost(source.url), {
@@ -472,7 +508,7 @@ export class AutonomousXService {
     }
   }
 
-  async #decide(candidates) {
+  async #decide(candidates, { resources, allowedTypes }) {
     const claim = await this.store.claimUsage(
       "chat",
       AUTONOMOUS_USER,
@@ -484,7 +520,8 @@ export class AutonomousXService {
       const result = await this.openRouter.chat(buildAgentDecisionMessages({
         candidates,
         agent: this.store.agentSnapshot(),
-        allowedTypes: this.config.xAutonomousTypes,
+        allowedTypes,
+        resources,
         now: this.now()
       }));
       costUsd = result.costUsd;

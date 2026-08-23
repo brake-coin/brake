@@ -53,14 +53,15 @@ fees. Token holders have no ownership right or claim over those fees.
 - The website makes BYOK images through OpenRouter OAuth PKCE.
 - The Telegram bot uses a shared admin-linked OpenRouter key for chat and budgeted
   images and videos.
-- The agent can manage its Telegram gallery, decide whether to publish clear user X requests within cooldowns, and
-  run a bounded autonomous text, image, and video schedule.
+- The agent can manage its Telegram gallery and independently accept, reshape, defer, or
+  decline Telegram proposals. It sees live shared capacity, may conserve scarce generations
+  for new participants, and runs a bounded autonomous text, image, and video schedule.
 - The agent can search recent X posts, read public accounts, and turn attributed
   @canadabirdie posts into new STOPAI memes.
 - X publishing is top-level only and uses a durable source ledger to prevent duplicate
   quote-style posts, including during concurrent requests or uncertain X receipts. It also
   rejects replies, mentions, nested quotes, self-quotes, and sources marked sensitive by X.
-- New X media posts require alt text for accessibility.
+- New X media posts receive agent-written or honest provenance-based fallback alt text for accessibility.
 
 ## Visual identity
 

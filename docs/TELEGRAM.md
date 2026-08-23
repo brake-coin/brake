@@ -67,17 +67,24 @@ group link without media.
 
 A caption can also be the request. For example, upload an image with `remix this as a
 STOPAI poster` or `animate this`. The bot saves the upload, then uses it as the media
-reference. Anyone can reply to Telegram media and ask the agent to publish or draft an X post.
-The agent decides whether the request is clear and passes its rules. It receives gallery metadata, but it cannot see the final
-pixels or frames during chat, including for generated media. Before publishing any media,
-it asks the user to reply to that media with `I confirm I reviewed this media for consent and
-personal information.`, include the post text, and provide accurate alt text describing the
-final media in the same request. The server rejects the post if either review confirmation
-or alt text is missing.
+reference. Anyone can reply to Telegram media and propose an X post or ask for a draft.
+The request is not an order. The agent decides whether to publish now, draft, ask a useful
+question, decline, or conserve the account timer and shared media capacity. It can reject
+repetitive, low-effort, off-topic, or spammy proposals even when they are otherwise safe.
 
-All normal replies go through the shared agent so it can decide whether to answer or use
-a tool. Ask `help`, `what is the CA?`, `what AI are you using?`, or `what is my
-Telegram ID?` naturally.
+The agent receives media provenance, its saved prompt or caption, and the conversation,
+but it cannot inspect final pixels or frames during Telegram chat. It writes accessibility
+text itself from that context. If context for an uploaded item is too weak, it may decline
+or ask a natural question; there is no required confirmation sentence or user-supplied
+alt-text form. The server adds an honest provenance-based fallback if the agent omits alt
+text, while the X client still attaches alt text before publishing.
+
+All normal replies go through the shared agent so it can decide whether to answer, use a
+tool, or refuse a weak use of scarce capacity. Each turn includes live global and current-
+user counts for image, video, X research, and X posting, plus cooldown and spend status. This lets the
+agent save the last image for a new participant instead of mechanically serving a repeat
+request. Atomic server limits still make the final decision under concurrency. Ask `help`,
+`what is the CA?`, `what AI are you using?`, or `what is my Telegram ID?` naturally.
 
 The chat persona is deliberately a little degen: short, crypto-native, mischievous, and
 occasionally lowercase, with the weird hand as a recurring brake-operator character. It
@@ -88,8 +95,9 @@ STOPAI brought the brake. “Pivot to stop AI crypto” always means the idea, n
 
 Ask `What is my Telegram ID?` and put that numeric ID in `TELEGRAM_OPERATOR_IDS`.
 Telegram administrators in the configured group are also treated as operators. Every user
-receives the X publishing tool, and the agent decides whether a request is clear, safe,
-relevant, and ready. There is no regex preflight or forced tool choice.
+can propose an X post, and the agent decides whether it is original, useful, safe, relevant,
+well timed, and worth publishing. There is no regex preflight, forced tool choice, or right
+to spend a shared generation because a user asked.
 Successful Telegram posts have a one-hour account cooldown and a four-hour per-user
 cooldown, plus limits of 2 manual posts per hour, 8 per day, 1 per user per hour, and 3
 per user per day. These account-wide checks also see autonomous and live-test posts.
@@ -158,7 +166,8 @@ The production service also runs a persistent campaign agent. Every two hours it
 one rotating watched X account, one rotating X search, and a current AI-news RSS search.
 It ranks and saves the results, compares them with its durable goals, memories, and used
 sources, then decides whether there is anything worth posting. It may skip weak, stale,
-or repetitive cycles.
+or repetitive cycles. It checks its posting timer before spending research or model budget,
+and receives live media capacity before choosing text, image, video, or skip.
 
 Reply, repost, quote-post, sensitive, self-post, stale, and previously used candidates are
 removed before the autonomous model sees them. By default, a source must be no more than
@@ -198,7 +207,7 @@ turns that feature off.
 
 The bot is instructed to support peaceful and lawful public action. It must not invent
 a contract, wallet, fee use, partnership, price, return, or endorsement. Public posts must
-not contain private information, unreviewed identifiable people, unsupported accusations,
+not contain private information, identifiable private people without consent, unsupported accusations,
 impersonation, hateful or sexual abuse, threats, deceptive media, copied writing, or spam. It gives only
 the official mint `2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS` and official Bags
 link. It identifies [@canadabirdie](https://x.com/canadabirdie) as the configured Bags

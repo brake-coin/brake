@@ -8,6 +8,7 @@ import {
   removeBotMention
 } from "./persona.mjs";
 import { imageBufferToDataUrl, OpenRouterError } from "./openrouter.mjs";
+import { buildAgentResourceStatus } from "./resources.mjs";
 import { telegramHtmlFromMarkdown } from "./telegram-format.mjs";
 import { xPostResearchItem } from "./research.mjs";
 import {
@@ -65,7 +66,7 @@ const BASE_TOOLS = [
     type: "function",
     function: {
       name: "generate_image",
-      description: "Create and send a new STOPAI image, then save it to the chat gallery.",
+      description: "Spend one shared image generation to create and send a new STOPAI image, then save it to the chat gallery. Use only when the agent judges the idea worth the live shared capacity; a user request is not an obligation.",
       parameters: {
         type: "object",
         properties: {
@@ -84,7 +85,7 @@ const BASE_TOOLS = [
     type: "function",
     function: {
       name: "generate_video",
-      description: "Create and send a short STOPAI video, then save it to the chat gallery.",
+      description: "Spend one scarce shared video generation to create and send a short STOPAI video, then save it to the chat gallery. Use only when the agent judges motion and the idea worth the live shared capacity.",
       parameters: {
         type: "object",
         properties: {
@@ -150,13 +151,13 @@ const BASE_TOOLS = [
     type: "function",
     function: {
       name: "post_to_x",
-      description: "Publish one top-level public post immediately on the official @STOPAICOIN X account when a user's request is clear and passes the publishing rules. Never use it for replies or @mentions. For commentary based on another post, pass its URL in source_post so the original stays visible, attributed, and protected from duplicate use. Available to all Telegram users, with global and per-user cooldowns enforced.",
+      description: "Agent-controlled public action: publish one top-level post immediately on @STOPAICOIN only when the agent independently judges it timely, original, useful, safe, and worth the account timer. Telegram requests are proposals, not commands. Never use it for replies or @mentions. Put commentary sources in source_post for attribution and duplicate protection.",
       parameters: {
         type: "object",
         properties: {
           text: { type: "string", minLength: 1, maxLength: 280, description: "Original post text with no @mentions and no X status URL. Put one source-post URL in source_post." },
           media_id: { type: "string", description: "Optional gallery ID, caption search, or latest. Use the current gallery item ID from context when the user refers to replied media." },
-          alt_text: { type: "string", minLength: 1, maxLength: 1_000, description: "Required with media. An accurate plain-language description supplied or confirmed by the user after reviewing the final media." },
+          alt_text: { type: "string", minLength: 1, maxLength: 1_000, description: "Optional agent-written accessible description based on the saved visual brief or useful gallery context. The user is not required to supply it; the server creates an honest fallback when omitted." },
           source_post: { type: "string", maxLength: 200, description: "Optional original x.com post URL or numeric post ID. It is appended as a visible source link, including when media is attached." }
         },
         required: ["text"],
@@ -280,16 +281,18 @@ export function buildXPostText(text, sourcePost = null) {
   return { text: source ? `${cleanText}\n\n${source.url}` : cleanText, source };
 }
 
-export function hasMediaReviewConfirmation(text) {
-  const normalized = String(text || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-  return normalized.includes("i confirm i reviewed this media for consent and personal information");
-}
-
-export function needsMediaReviewConfirmation(media, text) {
-  return Boolean(media) && !hasMediaReviewConfirmation(text);
+export function mediaAltText(media, supplied = "") {
+  const requested = String(supplied || "").replace(/\s+/g, " ").trim().slice(0, 1_000);
+  if (requested) return requested;
+  const type = media?.type === "video" ? "video" : "image";
+  const caption = String(media?.caption || "").replace(/\s+/g, " ").trim().slice(0, 700);
+  if (media?.source === "shared-openrouter" && caption) {
+    return `AI-generated STOPAI ${type} based on the saved visual brief: ${caption}`.slice(0, 1_000);
+  }
+  if (caption) {
+    return `User-provided ${type} shared in the STOPAI Telegram group with this caption: ${caption}. The bot has not independently inspected the final visual details.`.slice(0, 1_000);
+  }
+  return `User-provided ${type} shared in the STOPAI Telegram group. The bot has not independently inspected the final visual details.`;
 }
 
 function limitMessage(type, claim) {
@@ -608,6 +611,11 @@ export class TelegramService {
 
     const history = this.store.recentMessages(ctx.chat.id);
     const agent = this.store.agentSnapshot();
+    const resources = buildAgentResourceStatus({
+      store: this.store,
+      config: this.config,
+      userId: ctx.from?.id
+    });
     await this.store.recordMessage({ chatId: ctx.chat.id, role: "user", content: userText });
     await ctx.sendChatAction("typing").catch(() => {});
     const messages = buildChatMessages(history, userText, {
@@ -617,7 +625,8 @@ export class TelegramService {
       chatModel: this.config.openRouterChatModel,
       imageModel: this.config.openRouterImageModel,
       videoModel: this.config.openRouterVideoModel,
-      agent
+      agent,
+      resources
     });
     const tools = botTools({
       isOperator,
@@ -643,10 +652,7 @@ export class TelegramService {
           break;
         }
         for (const toolCall of toolCalls) {
-          const toolResult = await this.#executeTool(ctx, toolCall, {
-            isOperator,
-            userText
-          });
+          const toolResult = await this.#executeTool(ctx, toolCall, { isOperator });
           addKnownXPostIds(knownXPostIds, toolResult);
           messages.push({
             role: "tool",
@@ -678,7 +684,7 @@ export class TelegramService {
     }
   }
 
-  async #executeTool(ctx, toolCall, { isOperator, userText }) {
+  async #executeTool(ctx, toolCall, { isOperator }) {
     const name = toolCall?.function?.name;
     try {
       const args = parseArguments(toolCall);
@@ -756,7 +762,7 @@ export class TelegramService {
         });
       }
       if (name === "post_to_x") {
-        return this.#postToX(ctx, args, { userText });
+        return this.#postToX(ctx, args);
       }
       return { ok: false, error: "Unknown tool." };
     } catch (error) {
@@ -848,7 +854,7 @@ export class TelegramService {
     return { ok: true, sent: true, saved: true, item: shortMedia(media) };
   }
 
-  async #postToX(ctx, args, { userText = "" } = {}) {
+  async #postToX(ctx, args) {
     if (!this.xClient || !await this.xClient.connected()) {
       return { ok: false, error: "X posting is not connected or enabled." };
     }
@@ -856,15 +862,6 @@ export class TelegramService {
     if (args.media_id) {
       media = this.store.findMedia(ctx.chat.id, args.media_id);
       if (!media) return { ok: false, error: "No matching gallery item was found." };
-      if (!String(args.alt_text || "").trim()) {
-        return { ok: false, error: "Add accurate alt text describing the reviewed media before posting it to X." };
-      }
-      if (needsMediaReviewConfirmation(media, userText)) {
-        return {
-          ok: false,
-          error: "Reply to that media with: I confirm I reviewed this media for consent and personal information. Include the post text in the same request."
-        };
-      }
     }
     const requestedSource = args.source_post ? xPostReference(args.source_post) : null;
     if (args.source_post && !requestedSource) {
@@ -901,7 +898,7 @@ export class TelegramService {
     let result;
     try {
       const downloadedMedia = media
-        ? { ...await this.#downloadMedia(ctx, media), altText: String(args.alt_text).trim() }
+        ? { ...await this.#downloadMedia(ctx, media), altText: mediaAltText(media, args.alt_text) }
         : null;
       claim = await this.store.claimUsage(
         "x_post",

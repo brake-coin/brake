@@ -510,20 +510,89 @@ export class BotStore {
     )) || null;
   }
 
-  usageStatus(type, userId, limits) {
+  usageStatus(type, userId, limits, { globalCooldownTypes = [] } = {}) {
     const now = this.now();
     const currentHour = hourKey(now);
     const currentDay = dayKey(now);
     const events = this.#state.usage.filter((item) => item.type === type);
+    const globalTypes = new Set([type, ...globalCooldownTypes.map(String)]);
+    const globalEvents = this.#state.usage.filter((item) => globalTypes.has(item.type));
     const user = String(userId || "unknown");
     const hourly = events.filter((item) => item.hour === currentHour).length;
     const daily = events.filter((item) => item.day === currentDay).length;
     const userHourly = events.filter((item) => item.hour === currentHour && item.userId === user).length;
     const userDaily = events.filter((item) => item.day === currentDay && item.userId === user).length;
+    const latestGlobal = globalEvents.reduce((latest, item) => (
+      new Date(item.at).getTime() > new Date(latest?.at || 0).getTime() ? item : latest
+    ), null);
+    const latestUser = events
+      .filter((item) => item.userId === user)
+      .reduce((latest, item) => (
+        new Date(item.at).getTime() > new Date(latest?.at || 0).getTime() ? item : latest
+      ), null);
     const spendToday = this.#state.usage
       .filter((item) => item.day === currentDay)
       .reduce((sum, item) => sum + (Number(item.costUsd) || 0), 0);
-    return { hourly, daily, userHourly, userDaily, spendToday, limits };
+    const dailyUsers = new Set(events
+      .filter((item) => item.day === currentDay)
+      .map((item) => item.userId)).size;
+    return {
+      hourly,
+      daily,
+      userHourly,
+      userDaily,
+      dailyUsers,
+      spendToday,
+      latestGlobalAt: latestGlobal?.at || null,
+      latestUserAt: latestUser?.at || null,
+      now: now.toISOString(),
+      limits
+    };
+  }
+
+  usageAvailability(type, userId, limits, {
+    spendCapUsd = 0,
+    globalCooldownMs = 0,
+    userCooldownMs = 0,
+    globalCooldownTypes = []
+  } = {}) {
+    const status = this.usageStatus(type, userId, limits, { globalCooldownTypes });
+    const capChecks = [
+      ["hourly", limits.hourly],
+      ["daily", limits.daily],
+      ["userHourly", limits.userHourly],
+      ["userDaily", limits.userDaily]
+    ];
+    const denied = capChecks.find(([name, cap]) => cap <= 0 || status[name] >= cap);
+    if (denied) return { allowed: false, reason: `${denied[0]}_cap`, status };
+
+    const nowMs = new Date(status.now).getTime();
+    const globalElapsed = status.latestGlobalAt
+      ? nowMs - new Date(status.latestGlobalAt).getTime()
+      : Number.POSITIVE_INFINITY;
+    const userElapsed = status.latestUserAt
+      ? nowMs - new Date(status.latestUserAt).getTime()
+      : Number.POSITIVE_INFINITY;
+    if (globalCooldownMs > 0 && globalElapsed < globalCooldownMs) {
+      return {
+        allowed: false,
+        reason: "global_cooldown",
+        cooldownRemainingMs: globalCooldownMs - globalElapsed,
+        status
+      };
+    }
+    if (userCooldownMs > 0 && userElapsed < userCooldownMs) {
+      return {
+        allowed: false,
+        reason: "user_cooldown",
+        cooldownRemainingMs: userCooldownMs - userElapsed,
+        status
+      };
+    }
+    if (["image", "video"].includes(type) && spendCapUsd > 0 && status.spendToday >= spendCapUsd) {
+      return { allowed: false, reason: "daily_spend_cap", status };
+    }
+    return { allowed: true, reason: null, status };
   }
 
   async recordMessage({ chatId, role, content }) {
@@ -573,44 +642,17 @@ export class BotStore {
     let result;
     await this.#mutate((state) => {
       this.#prune(state);
-      const status = this.usageStatus(type, userId, limits);
-      const capChecks = [
-        ["hourly", limits.hourly],
-        ["daily", limits.daily],
-        ["userHourly", limits.userHourly],
-        ["userDaily", limits.userDaily]
-      ];
-      const denied = capChecks.find(([name, cap]) => cap <= 0 || status[name] >= cap);
-      if (denied) {
-        result = { allowed: false, reason: `${denied[0]}_cap`, status };
+      const availability = this.usageAvailability(type, userId, limits, {
+        spendCapUsd,
+        globalCooldownMs,
+        userCooldownMs,
+        globalCooldownTypes
+      });
+      if (!availability.allowed) {
+        result = availability;
         return;
       }
       const now = this.now();
-      const typeEvents = state.usage.filter((item) => item.type === type);
-      const cooldownTypes = new Set([type, ...globalCooldownTypes.map(String)]);
-      const cooldownEvents = state.usage.filter((item) => cooldownTypes.has(item.type));
-      const latestGlobal = cooldownEvents.reduce((latest, item) => (
-        new Date(item.at).getTime() > new Date(latest?.at || 0).getTime() ? item : latest
-      ), null);
-      if (globalCooldownMs > 0 && latestGlobal
-        && now.getTime() - new Date(latestGlobal.at).getTime() < globalCooldownMs) {
-        result = { allowed: false, reason: "global_cooldown", status };
-        return;
-      }
-      const latestUser = typeEvents
-        .filter((item) => item.userId === String(userId || "unknown"))
-        .reduce((latest, item) => (
-          new Date(item.at).getTime() > new Date(latest?.at || 0).getTime() ? item : latest
-        ), null);
-      if (userCooldownMs > 0 && latestUser
-        && now.getTime() - new Date(latestUser.at).getTime() < userCooldownMs) {
-        result = { allowed: false, reason: "user_cooldown", status };
-        return;
-      }
-      if (["image", "video"].includes(type) && spendCapUsd > 0 && status.spendToday >= spendCapUsd) {
-        result = { allowed: false, reason: "daily_spend_cap", status };
-        return;
-      }
       const event = {
         id: randomUUID(),
         type,
@@ -621,7 +663,7 @@ export class BotStore {
         costUsd: 0
       };
       state.usage.push(event);
-      result = { allowed: true, eventId: event.id, status };
+      result = { ...availability, eventId: event.id };
     });
     return result;
   }

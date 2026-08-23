@@ -112,19 +112,24 @@ into a new STOPAI meme and publish it with the original post URL visibly attache
 
 - The public configuration pins one verified mainnet contract and creator-fee recipient.
 - The historical token plan remains locked to devnet and cannot deploy anything.
-- The bot replies only in private chats, when mentioned, or when directly replied to.
+- The bot uses AI only in the community group when mentioned or directly replied to. DMs
+  receive a random gallery meme and the group link without reaching the agent.
 - Shared chat and media have global and per-user hourly and daily limits.
 - X research has separate global and per-user hourly and daily limits.
-- The Telegram agent may publish clear, safe user requests to X. It decides whether a request is ready. A one-hour account cooldown,
+- Telegram users may propose X posts, but the agent is the editor and no request forces a
+  generation or publication. It may decline spam, repetition, weak ideas, bad timing, or a
+  poor use of scarce shared capacity. A one-hour account cooldown,
   a four-hour per-user cooldown, and caps of 2 manual posts per hour and 8 per day prevent bursts.
 - X publishes require a read-after-write receipt from `@STOPAICOIN`. X post links in bot
   replies must come from the conversation or a tool result; the bot does not scan wording.
-- Media posts require alt text. Telegram alt text comes from the person who reviewed the
-  final media; autonomous media uses its approved visual brief.
+- Media posts still receive alt text. The Telegram agent writes it from the saved visual
+  brief, provenance, caption, and conversation; the server supplies an honest fallback.
+  No fixed user confirmation phrase or user-written alt-text form is required.
 - X posts are top-level only, contain no unsolicited @mentions, and cannot quote replies,
   reposts, quote-posts, sensitive posts, or @STOPAICOIN itself. A durable atomic source ledger prevents the
   same X post from being used twice, including across restarts and concurrent requests.
-- The persistent campaign agent researches every two hours, remembers used sources and
+- The persistent campaign agent checks its timer before spending research/model budget,
+  researches every two hours when eligible, remembers used sources and
   past posts, uses sources no older than seven days, waits at least four hours after any
   normal X post before posting autonomously, and stops after three per UTC day.
 - Secrets belong in `.env`, which is ignored by Git.

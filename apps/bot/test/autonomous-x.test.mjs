@@ -159,7 +159,7 @@ test("campaign agent researches, posts with attribution, and remembers the sourc
 
   const repeated = await service.runOnce();
   assert.equal(repeated.skipped, true);
-  assert.match(repeated.reason, /No fresh/);
+  assert.equal(repeated.reason, "global_cooldown");
   assert.equal(posted.length, 1);
 });
 
