@@ -23,10 +23,14 @@ export function galleryPosts(posts, limit = 9) {
     if (!media.length || !/^https:\/\/x\.com\/[A-Za-z0-9_]{1,15}\/status\/\d{1,19}$/.test(post.url || "")) {
       return [];
     }
+    const caption = String(post.text || "")
+      .replace(/https:\/\/t\.co\/[A-Za-z0-9]+/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
     return [{
       id: String(post.id),
       url: post.url,
-      text: String(post.text || "").slice(0, 1_000),
+      text: (caption || "$STOPAI ✋🏻😡").slice(0, 1_000),
       createdAt: post.createdAt || null,
       media
     }];

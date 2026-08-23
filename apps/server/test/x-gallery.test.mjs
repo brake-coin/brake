@@ -8,7 +8,7 @@ test("X gallery keeps media posts and rejects unexpected media hosts", () => {
     {
       id: "123",
       url: "https://x.com/STOPAICOIN/status/123",
-      text: "AI won’t stop itself.",
+      text: "AI won’t stop itself. https://t.co/media123",
       createdAt: "2026-08-23T20:00:00.000Z",
       media: [{ type: "photo", url: "https://pbs.twimg.com/media/example.jpg" }]
     },
@@ -27,6 +27,7 @@ test("X gallery keeps media posts and rejects unexpected media hosts", () => {
   ]);
   assert.equal(posts.length, 1);
   assert.equal(posts[0].id, "123");
+  assert.equal(posts[0].text, "AI won’t stop itself.");
   assert.equal(posts[0].media[0].previewUrl, "https://pbs.twimg.com/media/example.jpg");
 });
 
