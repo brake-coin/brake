@@ -28,7 +28,12 @@ test("autonomous X service posts text, image, and video within its caps", async 
     connected: async () => true,
     post: async (post) => {
       posted.push(post);
-      return { url: `https://x.com/i/web/status/${posted.length}` };
+      return {
+        id: String(posted.length),
+        url: `https://x.com/STOPAICOIN/status/${posted.length}`,
+        verified: true,
+        verifiedAt: "2026-08-22T21:00:00.000Z"
+      };
     }
   };
   const service = new AutonomousXService({
@@ -121,7 +126,12 @@ test("campaign agent researches, posts with attribution, and remembers the sourc
       searchRecent: async () => [],
       post: async (post) => {
         posted.push(post);
-        return { url: "https://x.com/STOPAICOIN/status/300" };
+        return {
+          id: "300",
+          url: "https://x.com/STOPAICOIN/status/300",
+          verified: true,
+          verifiedAt: "2026-08-22T21:00:00.000Z"
+        };
       }
     },
     newsResearch: { feedUrls: [], latest: async () => [] },

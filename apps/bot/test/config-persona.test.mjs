@@ -6,6 +6,7 @@ import { buildChatMessages, buildImagePrompt, STOPAI_SYSTEM_PROMPT } from "../sr
 import {
   botTools,
   buildXPostText,
+  enforceVerifiedXReply,
   isAddressed,
   isTelegramOperator
 } from "../src/telegram.mjs";
@@ -126,6 +127,20 @@ test("meme repost text keeps a canonical source link", () => {
     "https://x.com/canadabirdie/status/2091410624970711451"
   ].join("\n"));
   assert.throws(() => buildXPostText("nope", "https://example.com/post/1"), /valid x.com post URL/);
+});
+
+test("Telegram never turns a failed X tool result into a fake success", () => {
+  assert.equal(enforceVerifiedXReply({
+    finalText: "Posted to X: https://x.com/i/web/status/2091418770435329175",
+    xPostAttempted: true,
+    xPostFailure: "X returned a post ID, but the post could not be verified."
+  }), "X posting failed: X returned a post ID, but the post could not be verified.");
+  assert.match(enforceVerifiedXReply({
+    finalText: "Posted to X: https://x.com/i/web/status/2091418770435329175"
+  }), /cannot confirm/);
+  assert.equal(enforceVerifiedXReply({
+    finalText: "Research source: https://x.com/canadabirdie/status/123"
+  }), "Research source: https://x.com/canadabirdie/status/123");
 });
 
 test("persona publishes only the official mint and keeps the weird hand", () => {

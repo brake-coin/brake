@@ -113,6 +113,8 @@ into a new STOPAI meme and publish it with the original post URL visibly attache
 - X research has separate global and per-user hourly and daily limits.
 - The Telegram agent may publish clear user requests to X. A five-minute global cooldown,
   a fifteen-minute per-user cooldown, and hourly/daily caps prevent spam.
+- X success messages require a read-after-write receipt from X; a returned but unreadable
+  post ID is stored as a failed attempt and is never presented as published.
 - The persistent campaign agent researches every two hours, remembers used sources and
   past posts, waits at least four hours between posts, and stops after three per UTC day.
 - Secrets belong in `.env`, which is ignored by Git.

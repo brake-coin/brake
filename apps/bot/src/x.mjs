@@ -137,7 +137,15 @@ export class XClient {
     });
     const id = String(payload?.data?.id || "");
     if (!id) throw new XError("X accepted the request but returned no post ID.");
-    return { id, url: `https://x.com/i/web/status/${id}`, text: payload.data.text || cleanText };
+    const verifiedPost = await this.#verifyCreatedPost(id);
+    return {
+      id,
+      url: verifiedPost.url,
+      text: verifiedPost.text || payload.data.text || cleanText,
+      verified: true,
+      verifiedAt: new Date().toISOString(),
+      author: verifiedPost.author
+    };
   }
 
   async readPost(value) {
@@ -197,6 +205,33 @@ export class XClient {
       },
       posts: publicPosts(payload, user.username || handle).slice(0, requested)
     };
+  }
+
+  async #verifyCreatedPost(id) {
+    const attempts = Math.max(1, Math.min(5, Number(this.config.xPostVerifyAttempts) || 3));
+    const configuredDelay = Number(this.config.xPostVerifyDelayMs);
+    const delayMs = Number.isFinite(configuredDelay)
+      ? Math.max(0, Math.min(5_000, configuredDelay))
+      : 750;
+    let lastError = null;
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      try {
+        const post = await this.readPost(id);
+        if (post?.id === String(id)) return post;
+      } catch (error) {
+        lastError = error;
+        if (error instanceof XError && error.status === 503) throw error;
+      }
+      if (attempt + 1 < attempts && delayMs) await sleep(delayMs);
+    }
+    const error = new XError(
+      "X returned a post ID, but the post could not be verified. Nothing was confirmed as published.",
+      502
+    );
+    error.postId = String(id);
+    error.candidateUrl = `https://x.com/i/web/status/${id}`;
+    error.cause = lastError;
+    throw error;
   }
 
   async #uploadMedia({ buffer, mimeType, type }) {
