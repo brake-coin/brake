@@ -89,6 +89,7 @@ export function createBotConfig(env = process.env) {
     mediaDailySpendCapUsd: number(env.MEDIA_DAILY_SPEND_CAP_USD, 5),
     xPostingEnabled: boolean(env.X_POSTING_ENABLED, false),
     xUserAccessToken: env.X_USER_ACCESS_TOKEN || "",
+    xExpectedUsername: String(env.X_EXPECTED_USERNAME || "STOPAICOIN").trim().replace(/^@/, ""),
     xTimeoutMs: integer(env.X_TIMEOUT_MS, 120_000, {
       minimum: 5_000,
       maximum: 300_000

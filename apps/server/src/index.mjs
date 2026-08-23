@@ -75,6 +75,7 @@ if (storedXCredential) botConfig.xPostingEnabled = true;
 const project = JSON.parse(await readFile(path.join(root, "config/project.json"), "utf8"));
 const expectedXUsername = String(new URL(project.links.x).pathname.split("/").filter(Boolean)[0]
   || "STOPAICOIN").toLowerCase();
+botConfig.xExpectedUsername = expectedXUsername;
 const xCallbackUrl = new URL("/admin/x/callback", publicAppUrl).toString();
 const botStore = new BotStore(path.join(dataDirectory, "stopai-bot.json"));
 await botStore.load();

@@ -105,6 +105,29 @@ export class XError extends Error {
   }
 }
 
+export function validateXPostReceipt(post, { id, expectedUsername = "" } = {}) {
+  const postId = String(id || "");
+  const authorUsername = String(post?.author?.username || "").replace(/^@/, "");
+  const requiredUsername = String(expectedUsername || "").replace(/^@/, "");
+  const reference = xPostReference(post?.url);
+  const expectedUrl = authorUsername && postId
+    ? `https://x.com/${authorUsername}/status/${postId}`
+    : "";
+  if (!postId
+    || String(post?.id || "") !== postId
+    || !reference
+    || reference.id !== postId
+    || post.url !== expectedUrl
+    || (requiredUsername && authorUsername.toLowerCase() !== requiredUsername.toLowerCase())) {
+    const error = new XError("X returned a post receipt for an unexpected URL or account.", 502);
+    error.postId = postId;
+    error.candidateUrl = post?.url || "";
+    error.unexpectedReceipt = true;
+    throw error;
+  }
+  return post;
+}
+
 export class XClient {
   constructor({ config, credentialProvider, fetchImpl = fetch }) {
     this.config = config;
@@ -217,8 +240,14 @@ export class XClient {
     for (let attempt = 0; attempt < attempts; attempt += 1) {
       try {
         const post = await this.readPost(id);
-        if (post?.id === String(id)) return post;
+        if (post?.id === String(id)) {
+          return validateXPostReceipt(post, {
+            id,
+            expectedUsername: this.config.xExpectedUsername
+          });
+        }
       } catch (error) {
+        if (error?.unexpectedReceipt) throw error;
         lastError = error;
         if (error instanceof XError && error.status === 503) throw error;
       }
