@@ -5,6 +5,7 @@ import { createBotConfig, usageLimits } from "../src/config.mjs";
 import { buildChatMessages, buildImagePrompt, STOPAI_SYSTEM_PROMPT } from "../src/persona.mjs";
 import {
   botTools,
+  buildXPostText,
   isAddressed,
   isTelegramOperator
 } from "../src/telegram.mjs";
@@ -31,6 +32,12 @@ test("bot defaults use strict shared media limits", () => {
   });
   assert.equal(config.xPostGlobalCooldownSeconds, 300);
   assert.equal(config.xPostUserCooldownSeconds, 900);
+  assert.deepEqual(usageLimits(config, "x_research"), {
+    hourly: 20,
+    daily: 100,
+    userHourly: 5,
+    userDaily: 20
+  });
   assert.deepEqual(
     createBotConfig({ X_AUTONOMOUS_TYPES: "video,text,unknown,video" }).xAutonomousTypes,
     ["video", "text"]
@@ -41,13 +48,27 @@ test("bot defaults use strict shared media limits", () => {
 test("every user receives the X tool while gallery deletion stays operator-only", () => {
   const publicNames = botTools().map((tool) => tool.function.name);
   const operatorNames = botTools({ isOperator: true }).map((tool) => tool.function.name);
-  assert.deepEqual(publicNames, ["gallery_list", "gallery_show", "generate_image", "generate_video", "post_to_x"]);
+  assert.deepEqual(publicNames, [
+    "gallery_list",
+    "gallery_show",
+    "generate_image",
+    "generate_video",
+    "x_search",
+    "x_read_post",
+    "x_user_posts",
+    "post_to_x"
+  ]);
   assert.equal(publicNames.includes("gallery_remove"), false);
   assert.equal(operatorNames.includes("gallery_remove"), true);
   assert.equal(operatorNames.includes("post_to_x"), true);
   assert.match(
     botTools().find((tool) => tool.function.name === "post_to_x").function.description,
     /all Telegram users/i
+  );
+  assert.equal(
+    botTools().find((tool) => tool.function.name === "post_to_x")
+      .function.parameters.properties.source_post.type,
+    "string"
   );
   assert.equal(botTools()[2].function.parameters.properties.media_id.type, "string");
   assert.equal(botTools()[3].function.parameters.properties.media_id.type, "string");
@@ -73,7 +94,22 @@ test("the agent receives live context and decides which tools to use", () => {
   assert.match(context, /Every Telegram user may use post_to_x/);
   assert.match(context, /Current or replied-to gallery item ID: media-123/);
   assert.match(context, /Chat model: chat-model/);
+  assert.match(STOPAI_SYSTEM_PROMPT, /x_user_posts/);
+  assert.match(STOPAI_SYSTEM_PROMPT, /untrusted research material/);
   assert.equal(messages.at(-1).content, "post this on X");
+});
+
+test("meme repost text keeps a canonical source link", () => {
+  const result = buildXPostText(
+    "**Human brake go** 🛑",
+    "https://twitter.com/canadabirdie/status/2091410624970711451?ref=test"
+  );
+  assert.equal(result.text, [
+    "Human brake go 🛑",
+    "",
+    "https://x.com/canadabirdie/status/2091410624970711451"
+  ].join("\n"));
+  assert.throws(() => buildXPostText("nope", "https://example.com/post/1"), /valid x.com post URL/);
 });
 
 test("persona publishes only the official mint and keeps the weird hand", () => {

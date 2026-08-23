@@ -5,6 +5,58 @@ function sleep(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
+export function xPostReference(value) {
+  const input = String(value || "").trim();
+  if (/^\d{1,19}$/.test(input)) {
+    return { id: input, url: `https://x.com/i/web/status/${input}` };
+  }
+  try {
+    const url = new URL(input);
+    if (!["x.com", "www.x.com", "twitter.com", "www.twitter.com"].includes(url.hostname.toLowerCase())) {
+      return null;
+    }
+    const genericMatch = /^\/i\/web\/status\/(\d{1,19})(?:\/|$)/.exec(url.pathname);
+    if (genericMatch) {
+      return { id: genericMatch[1], url: `https://x.com/i/web/status/${genericMatch[1]}` };
+    }
+    const match = /^\/([A-Za-z0-9_]{1,15})\/status\/(\d{1,19})(?:\/|$)/.exec(url.pathname);
+    if (!match) return null;
+    return { id: match[2], url: `https://x.com/${match[1]}/status/${match[2]}` };
+  } catch {
+    return null;
+  }
+}
+
+function publicPosts(payload, fallbackUsername = null) {
+  const items = Array.isArray(payload?.data) ? payload.data : payload?.data ? [payload.data] : [];
+  const users = new Map((payload?.includes?.users || []).map((user) => [String(user.id), user]));
+  const media = new Map((payload?.includes?.media || []).map((item) => [String(item.media_key), item]));
+  return items.map((post) => {
+    const author = users.get(String(post.author_id)) || {};
+    const username = author.username || fallbackUsername;
+    return {
+      id: String(post.id),
+      text: String(post.text || "").slice(0, 1_000),
+      createdAt: post.created_at || null,
+      url: username
+        ? `https://x.com/${username}/status/${post.id}`
+        : `https://x.com/i/web/status/${post.id}`,
+      author: {
+        id: post.author_id ? String(post.author_id) : null,
+        username: username || null,
+        name: author.name || null
+      },
+      metrics: post.public_metrics || null,
+      media: (post.attachments?.media_keys || []).map((key) => media.get(String(key))).filter(Boolean)
+        .map((item) => ({
+          type: item.type,
+          url: item.url || item.preview_image_url || null,
+          altText: item.alt_text || null
+        }))
+    };
+  });
+}
+
 export function resolveMediaMimeType({ buffer, mimeType, type }) {
   const reported = String(mimeType || "").split(";", 1)[0].trim().toLowerCase();
   if (reported.startsWith("image/") || reported.startsWith("video/")) return reported;
@@ -73,6 +125,65 @@ export class XClient {
     const id = String(payload?.data?.id || "");
     if (!id) throw new XError("X accepted the request but returned no post ID.");
     return { id, url: `https://x.com/i/web/status/${id}`, text: payload.data.text || cleanText };
+  }
+
+  async readPost(value) {
+    const reference = xPostReference(value);
+    if (!reference) throw new XError("Use a valid X post URL or numeric post ID.", 400);
+    const query = new URLSearchParams({
+      "tweet.fields": "author_id,created_at,public_metrics,attachments,referenced_tweets",
+      expansions: "author_id,attachments.media_keys",
+      "user.fields": "username,name,verified",
+      "media.fields": "type,url,preview_image_url,alt_text"
+    });
+    const payload = await this.#json(`/2/tweets/${reference.id}?${query}`);
+    const post = publicPosts(payload)[0];
+    if (!post) throw new XError("X returned no matching post.", 404);
+    return post;
+  }
+
+  async searchRecent(searchQuery, limit = 5) {
+    const value = String(searchQuery || "").trim();
+    if (!value || value.length > 512) throw new XError("The X search must be between 1 and 512 characters.", 400);
+    const requested = Math.max(1, Math.min(10, Number(limit) || 5));
+    const query = new URLSearchParams({
+      query: value,
+      max_results: "10",
+      "tweet.fields": "author_id,created_at,public_metrics,attachments,referenced_tweets",
+      expansions: "author_id,attachments.media_keys",
+      "user.fields": "username,name,verified",
+      "media.fields": "type,url,preview_image_url,alt_text"
+    });
+    const payload = await this.#json(`/2/tweets/search/recent?${query}`);
+    return publicPosts(payload).slice(0, requested);
+  }
+
+  async userPosts(username, limit = 5) {
+    const handle = String(username || "").trim().replace(/^@/, "");
+    if (!/^[A-Za-z0-9_]{1,15}$/.test(handle)) throw new XError("Use a valid X username.", 400);
+    const userQuery = new URLSearchParams({ "user.fields": "username,name,description,public_metrics" });
+    const userPayload = await this.#json(`/2/users/by/username/${encodeURIComponent(handle)}?${userQuery}`);
+    const user = userPayload?.data;
+    if (!user?.id) throw new XError(`X could not find @${handle}.`, 404);
+    const requested = Math.max(1, Math.min(10, Number(limit) || 5));
+    const query = new URLSearchParams({
+      max_results: String(Math.max(5, requested)),
+      exclude: "retweets,replies",
+      "tweet.fields": "author_id,created_at,public_metrics,attachments,referenced_tweets",
+      expansions: "attachments.media_keys",
+      "media.fields": "type,url,preview_image_url,alt_text"
+    });
+    const payload = await this.#json(`/2/users/${encodeURIComponent(user.id)}/tweets?${query}`);
+    return {
+      user: {
+        id: String(user.id),
+        username: user.username || handle,
+        name: user.name || null,
+        description: user.description || null,
+        metrics: user.public_metrics || null
+      },
+      posts: publicPosts(payload, user.username || handle).slice(0, requested)
+    };
   }
 
   async #uploadMedia({ buffer, mimeType, type }) {
@@ -169,9 +280,15 @@ export class XClient {
       }
     }
     if (!response.ok) {
-      const detail = String(payload?.detail || payload?.title || payload?.errors?.[0]?.message || "").slice(0, 240);
+      const detail = String(
+        payload?.detail
+        || payload?.title
+        || payload?.errors?.[0]?.detail
+        || payload?.errors?.[0]?.message
+        || ""
+      ).slice(0, 240);
       if ([401, 403].includes(response.status)) throw new XError("The X connection needs attention.", 503);
-      if (response.status === 429) throw new XError("X posting is rate limited. Try again later.", 429);
+      if (response.status === 429) throw new XError("X is rate limited. Try again later.", 429);
       throw new XError(detail || "X could not complete that request.", response.status);
     }
     return payload;

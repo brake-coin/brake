@@ -101,6 +101,10 @@ export function createBotConfig(env = process.env) {
       minimum: 30,
       maximum: 24 * 60 * 60
     }),
+    xResearchHourlyCap: integer(env.X_RESEARCH_HOURLY_CAP, 20, { minimum: 1, maximum: 100 }),
+    xResearchDailyCap: integer(env.X_RESEARCH_DAILY_CAP, 100, { minimum: 1, maximum: 500 }),
+    xResearchUserHourlyCap: integer(env.X_RESEARCH_USER_HOURLY_CAP, 5, { minimum: 1, maximum: 30 }),
+    xResearchUserDailyCap: integer(env.X_RESEARCH_USER_DAILY_CAP, 20, { minimum: 1, maximum: 100 }),
     xAutonomousPostingEnabled: boolean(env.X_AUTONOMOUS_POSTING_ENABLED, false),
     xAutonomousIntervalMinutes: integer(env.X_AUTONOMOUS_INTERVAL_MINUTES, 480, {
       minimum: 60,
@@ -160,6 +164,14 @@ export function usageLimits(config, type) {
       daily: config.xPostDailyCap,
       userHourly: config.xPostUserHourlyCap,
       userDaily: config.xPostUserDailyCap
+    };
+  }
+  if (type === "x_research") {
+    return {
+      hourly: config.xResearchHourlyCap,
+      daily: config.xResearchDailyCap,
+      userHourly: config.xResearchUserHourlyCap,
+      userDaily: config.xResearchUserDailyCap
     };
   }
   return { hourly: 0, daily: 0, userHourly: 0, userDaily: 0 };

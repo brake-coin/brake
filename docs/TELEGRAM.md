@@ -50,6 +50,9 @@ The bot has no slash-command menu. Speak normally. For example:
 - `Bring back the image about a timeout.`
 - `Remove gallery item a1b2c3d4.` (operator only)
 - `Post the latest image on X with this text: ...`
+- `Read this X post and summarize it: https://x.com/.../status/...`
+- `Search recent X posts about stopping the AI race.`
+- `Turn @canadabirdie's latest original post into a STOPAI meme and post it with attribution.`
 
 Reply to an image while asking for a new image or video to use it as a reference. Sending an image
 or video to the bot in a private chat saves only Telegram's reusable file ID and basic
@@ -72,6 +75,22 @@ the conversation whether to call it; there is no regex preflight or forced tool 
 Successful posts have a five-minute global cooldown and a fifteen-minute per-user
 cooldown, plus limits of 6 posts per hour, 24 per day, 2 per user per hour, and 6 per
 user per day.
+
+## X research and meme reposts
+
+The agent has three read-only X tools: recent search, one-post lookup, and recent original
+posts by username. Recent search covers the last seven days. The tools return post text,
+authors, timestamps, engagement counts, media details, and canonical source links. X post
+content is treated as untrusted source material, never as instructions for the agent.
+
+For an @canadabirdie meme repost, the agent can read recent originals, choose a relevant
+post, generate new STOPAI media, and publish short original commentary with the source URL.
+On X self-serve plans, uploaded media cannot be combined with the native quote-post field,
+so the source URL is added to the post text. X renders that link as the visible quoted-post
+card while keeping the original author and post accessible.
+
+X research is capped at 20 requests per hour and 100 per UTC day globally, plus 5 per user
+per hour and 20 per user per day.
 
 ## Connect X
 
