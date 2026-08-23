@@ -180,6 +180,14 @@ export function builtInReply({ text, userId, isOperator = false, config } = {}) 
       "Telegram uses the shared admin connection. Website image generation is BYOK."
     ].join("\n");
   }
+  if (/\b(?:x|twitter)\b[\s\S]{0,30}\b(?:account|handle|profile)\b/i.test(value)
+    || /\b(?:account|handle|profile)\b[\s\S]{0,30}\b(?:x|twitter)\b/i.test(value)) {
+    return [
+      "Official project X account: @STOPAICOIN",
+      "https://x.com/STOPAICOIN",
+      "The separate Bags creator-fee recipient is @canadabirdie."
+    ].join("\n");
+  }
   if (/\b(?:ca|contract|mint|token address)\b/i.test(value)) {
     return [
       "Official STOPAI Solana mint:",
@@ -198,6 +206,7 @@ export function builtInReply({ text, userId, isOperator = false, config } = {}) 
       "• Reply to an image to remix or animate it.",
       "• Ask to list, show, or search this chat’s gallery.",
       ...(isOperator ? ["• Ask me to remove gallery items or prepare an X post. Public posts always need confirmation."] : []),
+      "• Follow the official project account: @STOPAICOIN.",
       `Official CA: ${OFFICIAL_MINT}`
     ].join("\n");
   }

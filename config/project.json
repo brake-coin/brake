@@ -15,7 +15,8 @@
   },
   "links": {
     "bags": "https://bags.fm/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS",
-    "solanaExplorer": "https://explorer.solana.com/address/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS"
+    "solanaExplorer": "https://explorer.solana.com/address/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS",
+    "x": "https://x.com/STOPAICOIN"
   },
   "creatorFeeRecipient": {
     "venue": "Bags",

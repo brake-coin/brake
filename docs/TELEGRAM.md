@@ -70,10 +70,28 @@ Only operators are given the gallery removal and X posting tools. A public X pos
 never immediate: the bot first shows a draft, then the same operator must reply
 `confirm post`. The draft expires after ten minutes. `cancel post` discards it.
 
-X posting also needs `X_POSTING_ENABLED=true` and an OAuth user access token in
-`X_USER_ACCESS_TOKEN`. The X app needs `tweet.read`, `tweet.write`, `users.read`, and
-`media.write` scopes. Image upload uses the simple media endpoint; video upload uses
-the INIT, APPEND, FINALIZE, and STATUS flow.
+## Connect X
+
+Create an OAuth 2.0 app in the X Developer Console and register this exact callback:
+
+`https://stopai-coin.fly.dev/admin/x/callback`
+
+Use a public OAuth client with PKCE. Open `https://stopai-coin.fly.dev/admin`, enter
+the app's Client ID, and choose **Connect @STOPAICOIN**. The server requests only
+`tweet.read`, `tweet.write`, `users.read`, `media.write`, and `offline.access`. It
+refuses any authorized account except `@STOPAICOIN`.
+
+The access and refresh tokens are stored on the encrypted Fly volume. The bot renews
+access automatically. `X_CLIENT_ID`, `X_USER_ACCESS_TOKEN`, and
+`X_POSTING_ENABLED=true` remain available as environment fallbacks, but are not needed
+for a connection made through admin.
+
+Image upload uses the simple media endpoint; video upload uses the INIT, APPEND,
+FINALIZE, and STATUS flow.
+
+The official posting account is [@STOPAICOIN](https://x.com/STOPAICOIN). It is separate
+from [@canadabirdie](https://x.com/canadabirdie), which is the configured Bags
+creator-fee recipient.
 
 ## Default limits
 

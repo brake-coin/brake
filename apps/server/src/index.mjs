@@ -27,6 +27,13 @@ import {
   TelegramTokenError,
   verifyTelegramToken
 } from "./telegram-credentials.mjs";
+import { publicXCredentialStatus, XCredentialStore } from "./x-credentials.mjs";
+import {
+  buildXAuthorizationUrl,
+  exchangeXCode,
+  getXUser,
+  refreshXToken
+} from "./x-oauth.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const publicDirectory = path.join(root, "dist");
@@ -50,6 +57,7 @@ const credentialStore = new CredentialStore(path.join(dataDirectory, "openrouter
 const telegramCredentialStore = new TelegramCredentialStore(
   path.join(dataDirectory, "telegram.json")
 );
+const xCredentialStore = new XCredentialStore(path.join(dataDirectory, "x-oauth.json"));
 const adminSessions = new AdminSessionManager();
 const environmentTelegramToken = process.env.TELEGRAM_BOT_TOKEN || "";
 const storedTelegramCredential = await telegramCredentialStore.read();
@@ -57,6 +65,15 @@ const botConfig = createBotConfig({
   ...process.env,
   TELEGRAM_BOT_TOKEN: storedTelegramCredential?.token || environmentTelegramToken
 });
+const environmentXAccessToken = botConfig.xUserAccessToken;
+const environmentXClientId = String(process.env.X_CLIENT_ID || "").trim();
+const environmentXPostingEnabled = botConfig.xPostingEnabled;
+const storedXCredential = await xCredentialStore.read();
+if (storedXCredential) botConfig.xPostingEnabled = true;
+const project = JSON.parse(await readFile(path.join(root, "config/project.json"), "utf8"));
+const expectedXUsername = String(new URL(project.links.x).pathname.split("/").filter(Boolean)[0]
+  || "STOPAICOIN").toLowerCase();
+const xCallbackUrl = new URL("/admin/x/callback", publicAppUrl).toString();
 const botStore = new BotStore(path.join(dataDirectory, "stopai-bot.json"));
 const canonicalBytes = await readFile(
   path.join(publicDirectory, "assets/brake-emblem-meme-reference.png")
@@ -66,9 +83,40 @@ const openRouter = new OpenRouterClient({
   config: botConfig,
   credentialProvider: () => credentialStore.read()
 });
+let xRefreshPromise = null;
+async function xCredentialProvider() {
+  const credential = await xCredentialStore.read();
+  if (!credential) {
+    return environmentXAccessToken ? { accessToken: environmentXAccessToken } : null;
+  }
+  const expiresAt = new Date(credential.expiresAt || 0).getTime();
+  if (!credential.refreshToken || expiresAt > Date.now() + 60_000) {
+    return { accessToken: credential.accessToken };
+  }
+  if (!xRefreshPromise) {
+    xRefreshPromise = (async () => {
+      const refreshed = await refreshXToken({
+        refreshToken: credential.refreshToken,
+        clientId: credential.clientId,
+        signal: AbortSignal.timeout(30_000)
+      });
+      return xCredentialStore.save({
+        ...credential,
+        ...refreshed,
+        refreshToken: refreshed.refreshToken || credential.refreshToken,
+        linkedAt: credential.linkedAt,
+        refreshedAt: new Date().toISOString()
+      });
+    })().finally(() => {
+      xRefreshPromise = null;
+    });
+  }
+  const refreshed = await xRefreshPromise;
+  return { accessToken: refreshed.accessToken };
+}
 const xClient = new XClient({
   config: botConfig,
-  credentialProvider: async () => ({ accessToken: botConfig.xUserAccessToken })
+  credentialProvider: xCredentialProvider
 });
 const telegram = new TelegramService({
   config: botConfig,
@@ -120,6 +168,15 @@ async function telegramAdminStatus() {
       Boolean(environmentTelegramToken)
     )
   };
+}
+
+async function xAdminStatus() {
+  return publicXCredentialStatus(await xCredentialStore.read(), {
+    environmentToken: Boolean(environmentXAccessToken),
+    postingEnabled: botConfig.xPostingEnabled,
+    callbackUrl: xCallbackUrl,
+    expectedUsername: expectedXUsername
+  });
 }
 
 function setSecurityHeaders(response) {
@@ -247,7 +304,8 @@ async function handleAdminApi(request, response, url) {
     sendJson(response, 200, {
       configured: true,
       ...publicCredentialStatus(await credentialStore.read()),
-      telegram: await telegramAdminStatus()
+      telegram: await telegramAdminStatus(),
+      x: await xAdminStatus()
     });
     return true;
   }
@@ -272,7 +330,11 @@ async function handleAdminApi(request, response, url) {
     const sessionToken = requireAdmin(request, response);
     if (!sessionToken) return true;
     const transaction = createPkceTransaction();
-    adminSessions.createOAuthTransaction({ sessionToken, ...transaction });
+    adminSessions.createOAuthTransaction({
+      sessionToken,
+      ...transaction,
+      provider: "openrouter"
+    });
     const callbackUrl = new URL("/admin/openrouter/callback", publicAppUrl);
     callbackUrl.searchParams.set("state", transaction.state);
     sendJson(response, 200, {
@@ -336,6 +398,49 @@ async function handleAdminApi(request, response, url) {
     sendJson(response, 200, { ok: true, telegram: await telegramAdminStatus() });
     return true;
   }
+
+  if (request.method === "POST" && url.pathname === "/api/admin/x/start") {
+    if (!requestOriginAllowed(request)) {
+      sendJson(response, 403, { error: "Origin not allowed." });
+      return true;
+    }
+    const sessionToken = requireAdmin(request, response);
+    if (!sessionToken) return true;
+    const body = await readJsonBody(request);
+    const stored = await xCredentialStore.read();
+    const clientId = String(body.clientId || stored?.clientId || environmentXClientId).trim();
+    if (clientId.length < 5 || clientId.length > 300 || /\s/.test(clientId)) {
+      throw new UserInputError("Enter the OAuth 2.0 Client ID from the X Developer Console.");
+    }
+    const transaction = createPkceTransaction();
+    adminSessions.createOAuthTransaction({
+      sessionToken,
+      ...transaction,
+      provider: "x",
+      data: { clientId, callbackUrl: xCallbackUrl }
+    });
+    sendJson(response, 200, {
+      authorizationUrl: buildXAuthorizationUrl({
+        clientId,
+        callbackUrl: xCallbackUrl,
+        challenge: transaction.challenge,
+        state: transaction.state
+      })
+    });
+    return true;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/admin/x/disconnect") {
+    if (!requestOriginAllowed(request)) {
+      sendJson(response, 403, { error: "Origin not allowed." });
+      return true;
+    }
+    if (!requireAdmin(request, response)) return true;
+    await xCredentialStore.clear();
+    botConfig.xPostingEnabled = environmentXPostingEnabled;
+    sendJson(response, 200, { ok: true, x: await xAdminStatus() });
+    return true;
+  }
   return false;
 }
 
@@ -359,7 +464,8 @@ async function handleRequest(request, response) {
   if (request.method === "GET" && url.pathname === "/admin/openrouter/callback") {
     const transaction = adminSessions.consumeOAuthTransaction({
       state: url.searchParams.get("state"),
-      sessionToken: getAdminSession(request)
+      sessionToken: getAdminSession(request),
+      provider: "openrouter"
     });
     if (!transaction || !url.searchParams.get("code")) {
       sendRedirect(response, "/admin?oauth=expired");
@@ -380,6 +486,50 @@ async function handleRequest(request, response) {
     return;
   }
 
+  if (request.method === "GET" && url.pathname === "/admin/x/callback") {
+    const transaction = adminSessions.consumeOAuthTransaction({
+      state: url.searchParams.get("state"),
+      sessionToken: getAdminSession(request),
+      provider: "x"
+    });
+    if (!transaction || !url.searchParams.get("code")) {
+      sendRedirect(response, "/admin?oauth=x_expired");
+      return;
+    }
+    try {
+      const credential = await exchangeXCode({
+        code: url.searchParams.get("code"),
+        verifier: transaction.verifier,
+        clientId: transaction.data.clientId,
+        callbackUrl: transaction.data.callbackUrl,
+        signal: AbortSignal.timeout(30_000)
+      });
+      if (!credential.refreshToken) {
+        throw new Error("X did not provide offline refresh access.");
+      }
+      const user = await getXUser({
+        accessToken: credential.accessToken,
+        signal: AbortSignal.timeout(15_000)
+      });
+      if (user.username.toLowerCase() !== expectedXUsername) {
+        console.warn(`[x] refused @${user.username}; expected @${expectedXUsername}`);
+        sendRedirect(response, "/admin?oauth=x_wrong_account");
+        return;
+      }
+      await xCredentialStore.save({
+        ...credential,
+        clientId: transaction.data.clientId,
+        user
+      });
+      botConfig.xPostingEnabled = true;
+      sendRedirect(response, "/admin?oauth=x_connected");
+    } catch (error) {
+      console.error("X OAuth connection failed", error.message);
+      sendRedirect(response, "/admin?oauth=x_failed");
+    }
+    return;
+  }
+
   if (request.method === "GET" && url.pathname === "/api/health") {
     const telegramStatus = telegram.status();
     const ok = !botConfig.requireTelegram || telegramStatus.running;
@@ -387,7 +537,8 @@ async function handleRequest(request, response) {
       ok,
       imageGeneration: "openrouter-oauth-pkce-byok",
       sharedOpenRouterConnected: Boolean(await credentialStore.read()),
-      telegram: telegramStatus
+      telegram: telegramStatus,
+      x: await xAdminStatus()
     });
     return;
   }

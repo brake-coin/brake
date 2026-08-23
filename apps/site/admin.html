@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>STOPAI Admin — shared bot AI</title>
+    <title>STOPAI Admin — bot connections</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body class="admin-page">
@@ -22,7 +22,8 @@
         <h1>Power the<br />STOPAI bot.</h1>
         <p>
           Link one budgeted OpenRouter key through OAuth PKCE. It powers Telegram chat
-          and limited server-made images and videos. The public website stays BYOK.
+          and limited server-made images and videos. Connect X separately for confirmed
+          operator posts. The public website stays BYOK.
         </p>
       </section>
 
@@ -109,10 +110,55 @@
           </form>
           <p class="admin-message" id="telegram-message" role="status" aria-live="polite"></p>
         </div>
+
+        <div class="telegram-admin x-admin">
+          <div class="admin-card-heading">
+            <div>
+              <p class="eyebrow">X posting</p>
+              <h3 id="x-title">Not connected</h3>
+            </div>
+            <span class="connection-dot" id="x-dot" aria-hidden="true"></span>
+          </div>
+          <p id="x-copy">
+            Connect @STOPAICOIN through OAuth PKCE. Telegram operators still approve
+            every public post with a separate confirmation.
+          </p>
+          <div class="connection-details" id="x-details" hidden>
+            <dl>
+              <div><dt>X account</dt><dd id="x-account"></dd></div>
+              <div><dt>Linked</dt><dd id="x-linked-at"></dd></div>
+              <div><dt>Token refresh</dt><dd id="x-token-expiry"></dd></div>
+            </dl>
+          </div>
+          <form id="x-form">
+            <label for="x-client-id">OAuth 2.0 Client ID</label>
+            <input
+              id="x-client-id"
+              name="clientId"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="From the X Developer Console"
+            />
+            <p class="generator-fine-print">
+              Register this exact callback URL in X:
+              <code id="x-callback-url">https://stopai-coin.fly.dev/admin/x/callback</code>
+            </p>
+            <div class="admin-actions">
+              <button class="admin-primary-button" id="connect-x" type="submit">
+                Connect @STOPAICOIN
+              </button>
+              <button class="admin-danger-button" id="disconnect-x" type="button" hidden>
+                Disconnect X
+              </button>
+            </div>
+          </form>
+          <p class="admin-message" id="x-message" role="status" aria-live="polite"></p>
+        </div>
       </section>
 
       <section class="admin-notes">
-        <h2>Two separate paths</h2>
+        <h2>Three separate connections</h2>
         <p>
           Telegram uses this shared key with hourly, daily, per-user, and dollar limits.
           Public website image generation goes straight from each visitor’s browser to
@@ -120,8 +166,9 @@
         </p>
         <p>
           The shared OpenRouter key and Telegram token are stored on the server’s
-          encrypted Fly volume and are never returned to this page. Disconnect here and
-          revoke the matching credential at its provider if needed.
+          encrypted Fly volume and are never returned to this page. X access and refresh
+          tokens use the same private storage. Disconnect here and revoke the matching
+          credential at its provider if needed.
         </p>
       </section>
     </main>

@@ -27,6 +27,19 @@ const telegramCopy = document.querySelector("#telegram-copy");
 const telegramMessage = document.querySelector("#telegram-message");
 const connectTelegram = document.querySelector("#connect-telegram");
 const disconnectTelegram = document.querySelector("#disconnect-telegram");
+const xForm = document.querySelector("#x-form");
+const xClientId = document.querySelector("#x-client-id");
+const xTitle = document.querySelector("#x-title");
+const xDot = document.querySelector("#x-dot");
+const xCopy = document.querySelector("#x-copy");
+const xDetails = document.querySelector("#x-details");
+const xAccount = document.querySelector("#x-account");
+const xLinkedAt = document.querySelector("#x-linked-at");
+const xTokenExpiry = document.querySelector("#x-token-expiry");
+const xCallbackUrl = document.querySelector("#x-callback-url");
+const xMessage = document.querySelector("#x-message");
+const connectX = document.querySelector("#connect-x");
+const disconnectX = document.querySelector("#disconnect-x");
 
 function showOnly(name) {
   for (const [key, panel] of Object.entries(panels)) panel.hidden = key !== name;
@@ -78,6 +91,30 @@ function renderConnection(status) {
     document.querySelector("#openrouter-user").textContent = status.userId || "Not supplied";
     document.querySelector("#key-settings-link").href = status.settingsUrl;
     document.querySelector("#key-activity-link").href = status.activityUrl;
+  }
+
+  const x = status.x || {};
+  const xConnected = Boolean(x.connected && x.postingEnabled);
+  xDot.dataset.connected = xConnected ? "true" : "false";
+  xTitle.textContent = x.user?.username
+    ? `@${x.user.username}`
+    : x.connected ? "Connected" : "Not connected";
+  xDetails.hidden = !x.connected;
+  disconnectX.hidden = x.source !== "admin";
+  connectX.textContent = x.connected ? "Reconnect @STOPAICOIN" : "Connect @STOPAICOIN";
+  xClientId.required = !x.connected;
+  xCallbackUrl.textContent = x.callbackUrl || "https://stopai-coin.fly.dev/admin/x/callback";
+  xCopy.textContent = xConnected
+    ? "Ready for operator-confirmed posts from Telegram. Access renews automatically."
+    : x.connected
+      ? "The credential exists, but posting is disabled by the server setting."
+      : `Connect @${x.expectedUsername || "STOPAICOIN"} through OAuth PKCE.`;
+  if (x.connected) {
+    xAccount.textContent = x.user?.username ? `@${x.user.username}` : "Environment token";
+    xLinkedAt.textContent = x.linkedAt ? new Date(x.linkedAt).toLocaleString() : "Not supplied";
+    xTokenExpiry.textContent = x.expiresAt
+      ? `${new Date(x.expiresAt).toLocaleString()} (automatic)`
+      : "Managed outside admin";
   }
 }
 
@@ -164,9 +201,39 @@ disconnectTelegram.addEventListener("click", async () => {
   }
 });
 
+xForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  xMessage.textContent = "Opening X authorization…";
+  connectX.disabled = true;
+  try {
+    const result = await api("./api/admin/x/start", {
+      method: "POST",
+      body: JSON.stringify({ clientId: xClientId.value.trim() })
+    });
+    window.location.assign(result.authorizationUrl);
+  } catch (error) {
+    xMessage.textContent = error.message;
+    connectX.disabled = false;
+  }
+});
+
+disconnectX.addEventListener("click", async () => {
+  if (!window.confirm("Disconnect STOPAI from X and remove its saved OAuth tokens?")) return;
+  xMessage.textContent = "Disconnecting X…";
+  try {
+    await api("./api/admin/x/disconnect", { method: "POST" });
+    xClientId.value = "";
+    xMessage.textContent = "X disconnected.";
+    await refreshStatus();
+  } catch (error) {
+    xMessage.textContent = error.message;
+  }
+});
+
 document.querySelector("#admin-logout").addEventListener("click", async () => {
   await api("./api/admin/logout", { method: "POST" });
   telegramToken.value = "";
+  xClientId.value = "";
   showOnly("login");
 });
 
@@ -175,7 +242,11 @@ if (oauthResult) {
   const messages = {
     connected: "OpenRouter connected to the shared bot.",
     expired: "That connection attempt expired. Please try again.",
-    failed: "OpenRouter could not be connected. Please try again."
+    failed: "OpenRouter could not be connected. Please try again.",
+    x_connected: "X connected. Telegram operators can now prepare confirmed posts.",
+    x_expired: "That X connection attempt expired. Please try again.",
+    x_failed: "X could not be connected. Check the Client ID, callback URL, and app permissions.",
+    x_wrong_account: "X refused the connection because it was not authorized as @STOPAICOIN."
   };
   adminMessage.textContent = messages[oauthResult] || "";
   window.history.replaceState({}, "", window.location.pathname);
