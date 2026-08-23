@@ -45,6 +45,7 @@ The bot has no slash-command menu. Speak normally. For example:
 
 - `Make an image of the weird STOPAI hand pulling an emergency brake.`
 - `Animate the image I replied to.`
+- `Remix gallery item a1b2c3d4 as a newspaper cartoon.`
 - `Show me the latest three gallery items.`
 - `Bring back the image about a timeout.`
 - `Remove gallery item a1b2c3d4.` (operator only)
@@ -54,6 +55,15 @@ Reply to an image while asking for a new image or video to use it as a reference
 or video to the bot in a private chat saves only Telegram's reusable file ID and basic
 metadata. In a group, the upload must mention or reply to the bot. This lets people
 bring BYOK-made media into Telegram without charging the server again.
+
+A caption can also be the request. For example, upload an image with `remix this as a
+STOPAI poster` or `animate this`. The bot saves the upload, then uses it as the media
+reference. An operator can reply to Telegram media with an X-post request; the bot
+automatically attaches that media to the confirmation draft.
+
+Several basic answers do not spend shared AI budget and still work when OpenRouter is
+disconnected. Ask `help`, `what is the CA?`, `what AI are you using?`, `what is my
+Telegram ID?`, or `am I an operator?`.
 
 Ask `What is my Telegram ID?` and put that numeric ID in `TELEGRAM_OPERATOR_IDS`.
 Only operators are given the gallery removal and X posting tools. A public X post is
