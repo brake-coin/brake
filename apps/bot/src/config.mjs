@@ -66,6 +66,7 @@ export function createBotConfig(env = process.env) {
     telegramImagesEnabled: boolean(env.TELEGRAM_IMAGES_ENABLED, true),
     telegramVideosEnabled: boolean(env.TELEGRAM_VIDEOS_ENABLED, true),
     telegramOperatorIds: idSet(env.TELEGRAM_OPERATOR_IDS),
+    telegramStickerOwnerId: integer(env.TELEGRAM_STICKER_OWNER_ID, 0),
     telegramHandlerTimeoutMs: integer(env.TELEGRAM_HANDLER_TIMEOUT_MS, 720_000, {
       minimum: 30_000,
       maximum: 900_000

@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@brake/campaign": "workspace:*",
+    "sharp": "^0.34.5",
     "telegraf": "^4.16.3"
   },
   "scripts": {

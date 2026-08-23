@@ -83,9 +83,11 @@ configuration, Fly deployment, model selection, limits, and launch precautions.
 
 ## Telegram bot
 
-The Telegram bot uses one shared OpenRouter connection for chat and tightly limited
-server-made images and videos. The public website still uses visitor-owned BYOK keys.
-The bot can also remember and resend images or videos uploaded to its chat, including
+The Telegram bot uses one shared OpenRouter connection for chat and bounded server-made
+images, stickers, and videos. Stickers are cut into transparent Telegram-ready PNGs and
+added to one shared bot pack. They use the same generation budget as images. The public
+website still uses visitor-owned BYOK keys.
+The bot can also remember and resend images, stickers, or videos uploaded to its chat, including
 media made in the BYOK studio.
 
 Owners connect both OpenRouter and the BotFather token through `/admin`. Both secrets

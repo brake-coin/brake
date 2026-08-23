@@ -4,6 +4,7 @@ import { usageLimits } from "./config.mjs";
 import {
   buildChatMessages,
   buildImagePrompt,
+  buildStickerPrompt,
   buildVideoPrompt,
   removeBotMention
 } from "./persona.mjs";
@@ -12,6 +13,12 @@ import { buildAgentResourceStatus } from "./resources.mjs";
 import { telegramHtmlFromMarkdown } from "./telegram-format.mjs";
 import { isRelevantAIResearchText, xPostResearchItem } from "./research.mjs";
 import { logBotEvent, privateTelemetryId } from "./telemetry.mjs";
+import {
+  generateStickerSetName,
+  normalizeStickerEmoji,
+  processForTelegramSticker,
+  selectStickerEmoji
+} from "./stickers.mjs";
 import {
   hasUnsupportedFeeUseClaim,
   validateTopLevelXPost,
@@ -38,11 +45,11 @@ const BASE_TOOLS = [
     type: "function",
     function: {
       name: "gallery_list",
-      description: "List recent images and videos saved in this Telegram chat.",
+      description: "List recent images, videos, and stickers saved in this Telegram chat.",
       parameters: {
         type: "object",
         properties: {
-          media_type: { type: "string", enum: ["image", "video"], description: "Optional filter." },
+          media_type: { type: "string", enum: ["image", "video", "sticker"], description: "Optional filter." },
           limit: { type: "integer", minimum: 1, maximum: 10 }
         },
         additionalProperties: false
@@ -53,7 +60,7 @@ const BASE_TOOLS = [
     type: "function",
     function: {
       name: "gallery_show",
-      description: "Send a saved image or video back into this Telegram chat.",
+      description: "Send a saved image, video, or sticker back into this Telegram chat.",
       parameters: {
         type: "object",
         properties: {
@@ -98,6 +105,52 @@ const BASE_TOOLS = [
           }
         },
         required: ["prompt"],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "generate_sticker",
+      description: "Spend one shared image generation to create a transparent STOPAI Telegram sticker, add it to the bot's shared sticker pack, send it, and save it in the chat gallery. A user request is not an obligation. Use media_id when the sticker should preserve a saved image as a visual reference.",
+      parameters: {
+        type: "object",
+        properties: {
+          prompt: { type: "string", minLength: 1, maxLength: 1000 },
+          emoji: { type: "string", minLength: 1, maxLength: 20, description: "One emoji that matches the sticker's mood." },
+          media_id: {
+            type: "string",
+            description: "Optional gallery image or sticker ID, caption search, or latest to use as a visual reference."
+          }
+        },
+        required: ["prompt"],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "send_sticker",
+      description: "Send an existing sticker from the bot's shared Telegram pack. Use latest, random, an emoji, or a short mood such as angry, laughing, stop, or scared.",
+      parameters: {
+        type: "object",
+        properties: {
+          selection: { type: "string", maxLength: 100, description: "Sticker choice: latest, random, one emoji, or a mood." }
+        },
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "sticker_pack",
+      description: "Read the bot's shared Telegram sticker pack link, title, count, and available emoji.",
+      parameters: {
+        type: "object",
+        properties: {},
         additionalProperties: false
       }
     }
@@ -222,7 +275,7 @@ const OPERATOR_TOOLS = [
 
 export function botTools({ isOperator = false, imagesEnabled = true, videosEnabled = true } = {}) {
   const namesToSkip = new Set([
-    ...(!imagesEnabled ? ["generate_image"] : []),
+    ...(!imagesEnabled ? ["generate_image", "generate_sticker"] : []),
     ...(!videosEnabled ? ["generate_video"] : [])
   ]);
   return [
@@ -236,6 +289,14 @@ function mediaFromMessage(message) {
     return { type: "image", fileId: message.photo.at(-1).file_id };
   }
   if (message?.video?.file_id) return { type: "video", fileId: message.video.file_id };
+  if (message?.sticker?.file_id) {
+    return {
+      type: "sticker",
+      fileId: message.sticker.file_id,
+      stickerEmoji: message.sticker.emoji || "✋🏻",
+      stickerSetName: message.sticker.set_name || null
+    };
+  }
   const mimeType = message?.document?.mime_type || "";
   if (message?.document?.file_id && mimeType.startsWith("image/")) {
     return { type: "image", fileId: message.document.file_id };
@@ -323,11 +384,46 @@ function xSourcePostLimitMessage(claim) {
 }
 
 function safeErrorMessage(error) {
-  if (error instanceof OpenRouterError || error instanceof XError) return error.message;
+  if (error instanceof OpenRouterError || error instanceof XError || error instanceof StickerError) {
+    return error.message;
+  }
   if (error?.name === "TimeoutError" || error?.name === "AbortError") {
     return "The service took too long. Try again.";
   }
   return "STOPAI hit a snag. Try again in a moment.";
+}
+
+class StickerError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "StickerError";
+  }
+}
+
+function telegramErrorDescription(error) {
+  return String(error?.response?.description || error?.description || error?.message || "");
+}
+
+export function isMissingStickerSetError(error) {
+  return /stickerset_invalid|sticker set name is invalid|sticker set not found/i
+    .test(telegramErrorDescription(error));
+}
+
+export function chooseSticker(stickers, selection = "latest", random = Math.random) {
+  if (!Array.isArray(stickers) || !stickers.length) return null;
+  const requested = String(selection || "latest").trim().toLowerCase();
+  if (/\brandom\b/.test(requested)) {
+    return stickers[Math.min(stickers.length - 1, Math.max(0, Math.floor(random() * stickers.length)))];
+  }
+  if (/\b(latest|last|recent|newest)\b/.test(requested)) return stickers.at(-1);
+  const explicitEmoji = [...new Intl.Segmenter("en", { granularity: "grapheme" })
+    .segment(String(selection || ""))]
+    .map((item) => item.segment)
+    .find((item) => /\p{Extended_Pictographic}/u.test(item));
+  const emoji = explicitEmoji || selectStickerEmoji(requested);
+  return stickers.find((sticker) => sticker.emoji === emoji)
+    || stickers.find((sticker) => String(sticker.emoji || "").includes(emoji))
+    || stickers.at(-1);
 }
 
 export function xPostIdsInText(text) {
@@ -446,6 +542,10 @@ function shortMedia(media) {
     type: media.type,
     caption: media.caption || "untitled",
     source: media.source,
+    ...(media.type === "sticker" ? {
+      emoji: media.stickerEmoji || null,
+      sticker_pack: media.stickerSetName || null
+    } : {}),
     saved_at: media.at
   };
 }
@@ -472,14 +572,22 @@ export class TelegramService {
     this.launchPromise = null;
     this.lastError = null;
     this.running = false;
+    this.stickerQueue = Promise.resolve();
   }
 
   status() {
+    const stickerPack = this.store.stickerPack();
     return {
       configured: Boolean(this.config.telegramToken),
       running: this.running,
       username: this.botInfo?.username || null,
-      error: this.lastError
+      error: this.lastError,
+      stickerPack: stickerPack ? {
+        name: stickerPack.name,
+        title: stickerPack.title,
+        stickerCount: stickerPack.stickerCount,
+        url: `https://t.me/addstickers/${stickerPack.name}`
+      } : null
     };
   }
 
@@ -581,7 +689,7 @@ export class TelegramService {
       }
       await next();
     });
-    this.bot.on(["photo", "video", "document"], (ctx) => this.#handleIncomingMedia(ctx));
+    this.bot.on(["photo", "video", "document", "sticker"], (ctx) => this.#handleIncomingMedia(ctx));
     this.bot.on("text", (ctx) => this.#handleText(ctx));
   }
 
@@ -609,7 +717,10 @@ export class TelegramService {
     }
     const options = { ...replyOptions, caption };
     try {
-      if (media.type === "video") await ctx.replyWithVideo(media.fileId, options);
+      if (media.type === "sticker") {
+        await ctx.replyWithSticker(media.fileId, replyOptions);
+        await ctx.reply(caption, replyOptions);
+      } else if (media.type === "video") await ctx.replyWithVideo(media.fileId, options);
       else await ctx.replyWithPhoto(media.fileId, options);
     } catch (error) {
       this.logger.warn("[telegram] could not send the selected DM gallery item", error.message);
@@ -794,7 +905,7 @@ export class TelegramService {
         return { ok: true, agent: this.store.agentSnapshot() };
       }
       if (name === "gallery_list") {
-        const type = ["image", "video"].includes(args.media_type) ? args.media_type : null;
+        const type = ["image", "video", "sticker"].includes(args.media_type) ? args.media_type : null;
         const items = this.store.listMedia(ctx.chat.id, { type, limit: args.limit });
         return { ok: true, items: items.map(shortMedia) };
       }
@@ -839,6 +950,15 @@ export class TelegramService {
       }
       if (name === "generate_video") {
         return this.#generateVideo(ctx, args);
+      }
+      if (name === "generate_sticker") {
+        return this.#generateSticker(ctx, args, { isOperator });
+      }
+      if (name === "send_sticker") {
+        return this.#sendSticker(ctx, args);
+      }
+      if (name === "sticker_pack") {
+        return this.#stickerPack(ctx);
       }
       if (name === "x_search") {
         return this.#researchX(ctx, async () => {
@@ -953,6 +1073,205 @@ export class TelegramService {
       source: "shared-openrouter"
     });
     return { ok: true, sent: true, saved: true, item: shortMedia(media) };
+  }
+
+  async #generateSticker(ctx, args, { isOperator = false } = {}) {
+    const prompt = String(args?.prompt || "").trim().slice(0, 1_000);
+    if (!prompt) return { ok: false, error: "A sticker idea is required." };
+    if (!this.config.telegramImagesEnabled) {
+      return { ok: false, error: "Shared sticker generation is turned off." };
+    }
+    const claim = await this.store.claimUsage(
+      "image",
+      ctx.from?.id,
+      usageLimits(this.config, "image"),
+      { spendCapUsd: this.config.mediaDailySpendCapUsd }
+    );
+    if (!claim.allowed) return { ok: false, error: limitMessage("sticker", claim) };
+
+    await ctx.reply(args?.media_id
+      ? "Turning that into sticker fuel…"
+      : "Cutting a fresh STOPAI sticker…");
+    const selectedReference = await this.#imageReference(ctx, args?.media_id);
+    const references = [this.canonicalReferenceDataUrl, selectedReference].filter(Boolean);
+    const generated = await withChatAction(ctx, "upload_photo", () => (
+      this.openRouter.generateImage({
+        prompt: buildStickerPrompt(prompt),
+        referenceDataUrls: references
+      })
+    ));
+    await this.store.recordCost(claim.eventId, generated.costUsd);
+    const sourceBuffer = generated.buffer || await this.#downloadGeneratedImage(generated.url);
+    let processed;
+    try {
+      processed = await processForTelegramSticker(sourceBuffer);
+    } catch (error) {
+      this.logger.error("[telegram] sticker processing failed", error);
+      throw new StickerError("I made the art, but could not cut it into a valid Telegram sticker.");
+    }
+    const emoji = normalizeStickerEmoji(args?.emoji, prompt);
+    const packed = await this.#addStickerToPack(ctx, processed.buffer, emoji, { isOperator });
+    await ctx.replyWithSticker(packed.fileId);
+    const media = await this.store.recordMedia({
+      chatId: ctx.chat.id,
+      userId: ctx.from?.id,
+      type: "sticker",
+      fileId: packed.fileId,
+      caption: prompt,
+      source: "shared-openrouter",
+      stickerEmoji: emoji,
+      stickerSetName: packed.name
+    });
+    return {
+      ok: true,
+      sent: true,
+      saved: true,
+      emoji,
+      pack: { name: packed.name, title: packed.title, count: packed.count, url: packed.url },
+      item: shortMedia(media)
+    };
+  }
+
+  async #downloadGeneratedImage(url) {
+    if (!/^https:\/\//i.test(String(url || ""))) {
+      throw new StickerError("The image model returned no sticker art.");
+    }
+    const response = await this.fetchImpl(url, {
+      signal: AbortSignal.timeout(this.config.openRouterTimeoutMs),
+      redirect: "follow"
+    });
+    if (!response.ok) throw new StickerError("The generated sticker art could not be downloaded.");
+    const declaredSize = Number(response.headers.get("content-length") || 0);
+    if (declaredSize > this.config.maxImageBytes) {
+      throw new StickerError("The generated sticker art was too large.");
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (!buffer.length || buffer.length > this.config.maxImageBytes) {
+      throw new StickerError("The generated sticker art was empty or too large.");
+    }
+    return buffer;
+  }
+
+  async #addStickerToPack(ctx, buffer, emoji, { isOperator = false } = {}) {
+    const operation = this.stickerQueue
+      .catch(() => {})
+      .then(() => this.#writeStickerToPack(ctx, buffer, emoji, { isOperator }));
+    this.stickerQueue = operation;
+    return operation;
+  }
+
+  async #writeStickerToPack(ctx, buffer, emoji, { isOperator = false } = {}) {
+    const name = generateStickerSetName("stopai_stickers", this.botInfo?.username || "stopai_bot");
+    const title = "STOPAI Stickers ✋🏻😡";
+    const savedPack = this.store.stickerPack();
+    const matchingPack = savedPack?.name === name ? savedPack : null;
+    if (!matchingPack && !this.config.telegramStickerOwnerId && !isOperator) {
+      throw new StickerError("An operator must create the first sticker so the shared pack has a trusted owner.");
+    }
+    const ownerId = matchingPack
+      ? matchingPack.ownerId
+      : this.config.telegramStickerOwnerId || Number(ctx.from?.id);
+    if (!Number.isSafeInteger(ownerId) || ownerId <= 0) {
+      throw new StickerError("A Telegram user is needed to own the shared sticker pack.");
+    }
+
+    let stickerSet = null;
+    try {
+      stickerSet = await ctx.telegram.getStickerSet(name);
+    } catch (error) {
+      if (!isMissingStickerSetError(error)) throw error;
+    }
+    let uploaded;
+    try {
+      uploaded = await ctx.telegram.uploadStickerFile(
+        ownerId,
+        { source: buffer, filename: "stopai-sticker.png" },
+        "static"
+      );
+      if (stickerSet) {
+        await ctx.telegram.addStickerToSet(ownerId, name, {
+          sticker: { sticker: uploaded.file_id, emoji_list: [emoji] }
+        });
+      } else {
+        await ctx.telegram.createNewStickerSet(ownerId, name, title, {
+          sticker_format: "static",
+          stickers: [{ sticker: uploaded.file_id, emoji_list: [emoji] }]
+        });
+      }
+    } catch (error) {
+      const description = telegramErrorDescription(error);
+      if (/user_id_invalid|user not found|bot was blocked/i.test(description)) {
+        throw new StickerError("The sticker-pack owner must open the bot in Telegram once, then try again.");
+      }
+      if (/stickerset_owner_anonymous|owner|user_id/i.test(description)) {
+        throw new StickerError("Telegram rejected the sticker-pack owner. Set TELEGRAM_STICKER_OWNER_ID to a user who opened the bot.");
+      }
+      if (/stickers_too_much|stickerpack_stickers_too_much/i.test(description)) {
+        throw new StickerError("The shared sticker pack is full.");
+      }
+      throw error;
+    }
+    const count = stickerSet ? stickerSet.stickers.length + 1 : 1;
+    await this.store.saveStickerPack({
+      name,
+      title,
+      ownerId,
+      stickerCount: count,
+      createdAt: matchingPack?.createdAt || null
+    });
+    return {
+      name,
+      title,
+      count,
+      fileId: uploaded.file_id,
+      url: `https://t.me/addstickers/${name}`
+    };
+  }
+
+  async #sendSticker(ctx, args) {
+    const name = this.store.stickerPack()?.name
+      || generateStickerSetName("stopai_stickers", this.botInfo?.username || "stopai_bot");
+    let stickerSet;
+    try {
+      stickerSet = await ctx.telegram.getStickerSet(name);
+    } catch (error) {
+      if (isMissingStickerSetError(error)) {
+        return { ok: false, error: "The shared sticker pack is empty. Make the first sticker first." };
+      }
+      throw error;
+    }
+    const sticker = chooseSticker(stickerSet.stickers, args?.selection);
+    if (!sticker) return { ok: false, error: "The shared sticker pack is empty." };
+    await ctx.replyWithSticker(sticker.file_id);
+    return {
+      ok: true,
+      sent: true,
+      emoji: sticker.emoji || null,
+      pack: { name, title: stickerSet.title, count: stickerSet.stickers.length, url: `https://t.me/addstickers/${name}` }
+    };
+  }
+
+  async #stickerPack(ctx) {
+    const name = this.store.stickerPack()?.name
+      || generateStickerSetName("stopai_stickers", this.botInfo?.username || "stopai_bot");
+    try {
+      const stickerSet = await ctx.telegram.getStickerSet(name);
+      return {
+        ok: true,
+        pack: {
+          name,
+          title: stickerSet.title,
+          count: stickerSet.stickers.length,
+          url: `https://t.me/addstickers/${name}`,
+          emoji: [...new Set(stickerSet.stickers.map((sticker) => sticker.emoji).filter(Boolean))]
+        }
+      };
+    } catch (error) {
+      if (isMissingStickerSetError(error)) {
+        return { ok: true, pack: null, message: "No shared sticker pack exists yet." };
+      }
+      throw error;
+    }
   }
 
   async #postToX(ctx, args) {
@@ -1135,11 +1454,13 @@ export class TelegramService {
       type: media.type,
       fileId: media.fileId,
       caption,
-      source: "telegram-upload"
+      source: "telegram-upload",
+      stickerEmoji: media.stickerEmoji,
+      stickerSetName: media.stickerSetName
     });
     await ctx.reply([
       `Saved that ${media.type} in this chat's gallery as ${record.id.slice(0, 8)}.`,
-      "Ask me naturally to show it, remix it, animate it, or post it to X."
+      "Ask me naturally to show it, remix it, animate it, make a sticker, or post it to X."
     ].join("\n"));
     if (caption && this.config.telegramRepliesEnabled) {
       await this.#runAssistant(ctx, caption, {
@@ -1151,7 +1472,8 @@ export class TelegramService {
 
   async #sendMedia(ctx, media) {
     const options = media.caption ? { caption: media.caption.slice(0, 900) } : {};
-    if (media.type === "video") await ctx.replyWithVideo(media.fileId, options);
+    if (media.type === "sticker") await ctx.replyWithSticker(media.fileId);
+    else if (media.type === "video") await ctx.replyWithVideo(media.fileId, options);
     else await ctx.replyWithPhoto(media.fileId, options);
   }
 
@@ -1172,7 +1494,9 @@ export class TelegramService {
     if (declaredSize > maxBytes) throw new XError("The selected media is too large.", 400);
     const buffer = Buffer.from(await response.arrayBuffer());
     if (buffer.length > maxBytes) throw new XError("The selected media is too large.", 400);
-    const fallback = media.type === "video" ? "video/mp4" : "image/jpeg";
+    const fallback = media.type === "video"
+      ? "video/mp4"
+      : media.type === "sticker" ? "image/webp" : "image/jpeg";
     const mimeType = response.headers.get("content-type") || fallback;
     return { buffer, mimeType, type: media.type };
   }
@@ -1188,7 +1512,9 @@ export class TelegramService {
       type: media.type,
       fileId: media.fileId,
       caption: removeBotMention(message?.caption || "", this.botInfo?.username),
-      source: "telegram-reference"
+      source: "telegram-reference",
+      stickerEmoji: media.stickerEmoji,
+      stickerSetName: media.stickerSetName
     });
   }
 
@@ -1197,7 +1523,9 @@ export class TelegramService {
     if (mediaId) {
       reference = this.store.findMedia(ctx.chat.id, mediaId);
       if (!reference) throw new Error("No matching gallery item was found.");
-      if (reference.type !== "image") throw new Error("That gallery item is not an image.");
+      if (!["image", "sticker"].includes(reference.type)) {
+        throw new Error("That gallery item is not an image or sticker.");
+      }
     }
     if (!reference) return null;
     const media = await this.#downloadMedia(ctx, { ...reference, type: "image" });

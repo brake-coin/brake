@@ -6,6 +6,7 @@ import {
   buildAgentDecisionMessages,
   buildChatMessages,
   buildImagePrompt,
+  buildStickerPrompt,
   organicCampaignTheme,
   ORGANIC_CAMPAIGN_THEMES,
   STOPAI_SYSTEM_PROMPT
@@ -37,6 +38,8 @@ test("bot defaults use strict shared media limits", () => {
   assert.equal(config.telegramGroupUrl, "https://t.me/StopAiCoin");
   assert.equal(config.telegramCommunityUrl, "https://t.me/StopAiCoin");
   assert.equal(config.telegramGalleryChatId, "@StopAiCoin");
+  assert.equal(config.telegramStickerOwnerId, 0);
+  assert.equal(createBotConfig({ TELEGRAM_STICKER_OWNER_ID: "12345" }).telegramStickerOwnerId, 12345);
   assert.equal(config.xPostingEnabled, false);
   assert.equal(config.xExpectedUsername, "STOPAICOIN");
   assert.equal(config.xAutonomousPostingEnabled, false);
@@ -82,6 +85,9 @@ test("every user receives the X tool while campaign changes stay operator-only",
     "gallery_show",
     "generate_image",
     "generate_video",
+    "generate_sticker",
+    "send_sticker",
+    "sticker_pack",
     "x_search",
     "x_read_post",
     "x_user_posts",
@@ -122,6 +128,13 @@ test("every user receives the X tool while campaign changes stay operator-only",
       .function.parameters.properties.media_id.type,
     "string"
   );
+  assert.equal(
+    botTools().find((tool) => tool.function.name === "generate_sticker")
+      .function.parameters.properties.media_id.type,
+    "string"
+  );
+  assert.equal(botTools({ imagesEnabled: false })
+    .some((tool) => tool.function.name === "generate_sticker"), false);
   assert.equal(isTelegramOperator({ configuredIds: new Set(["42"]), userId: 42 }), true);
   assert.equal(isTelegramOperator({
     configuredIds: new Set(), userId: 7, chatType: "supergroup", memberStatus: "administrator"
@@ -280,6 +293,8 @@ test("persona publishes only the official mint and keeps the weird hand", () => 
   assert.match(STOPAI_SYSTEM_PROMPT, /1,000,000,000 STOPAI with 9 decimals/i);
   assert.match(buildImagePrompt("robot timeout"), /thumb attaches at an awkward angle/i);
   assert.match(buildImagePrompt("robot timeout"), /slightly unhinged meme energy/i);
+  assert.match(buildStickerPrompt("robot timeout"), /pure solid black/i);
+  assert.match(buildStickerPrompt("robot timeout"), /true transparency/i);
   const messages = buildChatMessages([], "what is the contract?");
   assert.equal(messages.at(-1).content, "what is the contract?");
 });
