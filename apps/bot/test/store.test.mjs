@@ -32,6 +32,9 @@ test("store enforces global and per-user posting cooldowns", async (t) => {
   const limits = { hourly: 10, daily: 20, userHourly: 5, userDaily: 10 };
   const cooldowns = { globalCooldownMs: 5 * 60_000, userCooldownMs: 15 * 60_000 };
 
+  const first = await store.claimUsage("x_post", "alice", limits, cooldowns);
+  assert.equal(first.allowed, true);
+  assert.equal(await store.releaseUsage(first.eventId), true);
   assert.equal((await store.claimUsage("x_post", "alice", limits, cooldowns)).allowed, true);
   now = new Date("2026-08-22T10:04:00.000Z");
   assert.equal((await store.claimUsage("x_post", "bob", limits, cooldowns)).reason, "global_cooldown");

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { XClient } from "../src/x.mjs";
+import { resolveMediaMimeType, XClient } from "../src/x.mjs";
 
 function config(overrides = {}) {
   return {
@@ -29,7 +29,7 @@ test("X client creates an authorized text post with a user token", async () => {
   assert.equal(result.url, "https://x.com/i/web/status/123");
 });
 
-test("X client uploads an image before creating the post", async () => {
+test("X client detects a Telegram image with a generic content type", async () => {
   const requests = [];
   const client = new XClient({
     config: config(),
@@ -44,12 +44,33 @@ test("X client uploads an image before creating the post", async () => {
   });
   await client.post({
     text: "with image",
-    media: { type: "image", mimeType: "image/png", buffer: Buffer.from("image") }
+    media: {
+      type: "image",
+      mimeType: "application/octet-stream",
+      buffer: Buffer.concat([
+        Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+        Buffer.from("image")
+      ])
+    }
   });
   const upload = JSON.parse(requests[0].options.body);
   const post = JSON.parse(requests[1].options.body);
   assert.equal(upload.media_category, "tweet_image");
+  assert.equal(upload.media_type, "image/png");
   assert.deepEqual(post.media.media_ids, ["media-1"]);
+});
+
+test("media detection falls back safely for Telegram image and video records", () => {
+  assert.equal(resolveMediaMimeType({
+    type: "image",
+    mimeType: "application/octet-stream",
+    buffer: Buffer.from([0xff, 0xd8, 0xff, 0x00])
+  }), "image/jpeg");
+  assert.equal(resolveMediaMimeType({
+    type: "video",
+    mimeType: "application/octet-stream",
+    buffer: Buffer.from("unknown")
+  }), "video/mp4");
 });
 
 test("X client uses the chunked flow for video", async () => {

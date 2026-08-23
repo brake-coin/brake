@@ -596,7 +596,15 @@ export class TelegramService {
     );
     if (!claim.allowed) return { ok: false, error: xPostLimitMessage(claim), reason: claim.reason };
     await ctx.reply(`Posting ${media ? `the ${media.type} and text` : "the text"} to X…`);
-    const result = await this.xClient.post({ text, media: downloadedMedia });
+    let result;
+    try {
+      result = await this.xClient.post({ text, media: downloadedMedia });
+    } catch (error) {
+      await this.store.releaseUsage(claim.eventId).catch((releaseError) => {
+        this.logger.error("[telegram] could not release failed X post cooldown", releaseError);
+      });
+      throw error;
+    }
     return {
       ok: true,
       posted: true,
