@@ -5,6 +5,33 @@ function sleep(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
+export function resolveMediaMimeType({ buffer, mimeType, type }) {
+  const reported = String(mimeType || "").split(";", 1)[0].trim().toLowerCase();
+  if (reported.startsWith("image/") || reported.startsWith("video/")) return reported;
+  if (Buffer.isBuffer(buffer)) {
+    if (buffer.length >= 8 && buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
+      return "image/png";
+    }
+    if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+      return "image/jpeg";
+    }
+    if (buffer.length >= 6 && ["GIF87a", "GIF89a"].includes(buffer.subarray(0, 6).toString("ascii"))) {
+      return "image/gif";
+    }
+    if (buffer.length >= 12
+      && buffer.subarray(0, 4).toString("ascii") === "RIFF"
+      && buffer.subarray(8, 12).toString("ascii") === "WEBP") {
+      return "image/webp";
+    }
+    if (buffer.length >= 12 && buffer.subarray(4, 8).toString("ascii") === "ftyp") {
+      return "video/mp4";
+    }
+  }
+  if (type === "image") return "image/jpeg";
+  if (type === "video") return "video/mp4";
+  return "";
+}
+
 export class XError extends Error {
   constructor(message, status = 502) {
     super(message);
@@ -50,17 +77,18 @@ export class XClient {
 
   async #uploadMedia({ buffer, mimeType, type }) {
     if (!Buffer.isBuffer(buffer) || !buffer.length) throw new XError("The selected media is empty.", 400);
-    if (type === "video" || String(mimeType).startsWith("video/")) {
-      return this.#uploadVideo(buffer, mimeType || "video/mp4");
+    const resolvedMimeType = resolveMediaMimeType({ buffer, mimeType, type });
+    if (type === "video" || resolvedMimeType.startsWith("video/")) {
+      return this.#uploadVideo(buffer, resolvedMimeType);
     }
-    if (!String(mimeType).startsWith("image/")) throw new XError("X only accepts an image or video here.", 400);
+    if (!resolvedMimeType.startsWith("image/")) throw new XError("X only accepts an image or video here.", 400);
     const payload = await this.#json("/2/media/upload", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         media: buffer.toString("base64"),
         media_category: "tweet_image",
-        media_type: mimeType
+        media_type: resolvedMimeType
       })
     });
     return this.#mediaId(payload);

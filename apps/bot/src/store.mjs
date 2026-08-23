@@ -201,6 +201,16 @@ export class BotStore {
     });
   }
 
+  async releaseUsage(eventId) {
+    let removed = false;
+    await this.#mutate((state) => {
+      const before = state.usage.length;
+      state.usage = state.usage.filter((item) => item.id !== String(eventId));
+      removed = state.usage.length < before;
+    });
+    return removed;
+  }
+
   async #mutate(change) {
     this.#queue = this.#queue.catch(() => {}).then(async () => {
       await this.load();
