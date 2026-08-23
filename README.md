@@ -91,6 +91,10 @@ Owners connect both OpenRouter and the BotFather token through `/admin`. Both se
 are stored as private files on the encrypted Fly volume and are never returned to the
 browser.
 
+Owners also connect the official [@STOPAICOIN](https://x.com/STOPAICOIN) account
+through X OAuth PKCE in `/admin`. The bot refreshes access automatically and still
+requires an operator to confirm every public post.
+
 See [the Telegram guide](docs/TELEGRAM.md) for BotFather setup, natural-language tools, privacy,
 budgets, and deployment.
 

@@ -47,6 +47,7 @@ test("built-in facts remain available without an AI request", () => {
   });
   assert.match(builtInReply({ text: "what is the CA?", config }), /2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS/);
   assert.match(builtInReply({ text: "which AI are you using?", config }), /Chat: chat-model/);
+  assert.match(builtInReply({ text: "what is the X account?", config }), /@STOPAICOIN/);
   assert.match(builtInReply({ text: "help", userId: "42", config }), /no slash commands/i);
   assert.match(builtInReply({ text: "am I an operator?", isOperator: true, config }), /configured STOPAI operator/);
   assert.equal(builtInReply({ text: "tell me a joke", config }), null);
@@ -54,6 +55,8 @@ test("built-in facts remain available without an AI request", () => {
 
 test("persona publishes only the official mint and keeps the weird hand", () => {
   assert.match(STOPAI_SYSTEM_PROMPT, /2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS/);
+  assert.match(STOPAI_SYSTEM_PROMPT, /official project X account is @STOPAICOIN/i);
+  assert.match(STOPAI_SYSTEM_PROMPT, /creator-fee recipient is the X account @canadabirdie/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /Never invent a contract address/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /peaceful, lawful/i);
   assert.match(buildImagePrompt("robot timeout"), /thumb attaches at an awkward angle/i);

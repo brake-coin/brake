@@ -25,3 +25,19 @@ test("OAuth state is one-time and bound to the admin session", () => {
   assert.equal(sessions.consumeOAuthTransaction({ state: "state", sessionToken }).verifier, "verifier");
   assert.equal(sessions.consumeOAuthTransaction({ state: "state", sessionToken }), null);
 });
+
+test("OAuth state is also bound to its provider", () => {
+  const sessions = new AdminSessionManager();
+  const sessionToken = sessions.createSession();
+  sessions.createOAuthTransaction({
+    sessionToken,
+    verifier: "verifier",
+    state: "shared-state",
+    provider: "x"
+  });
+  assert.equal(sessions.consumeOAuthTransaction({
+    state: "shared-state",
+    sessionToken,
+    provider: "openrouter"
+  }), null);
+});

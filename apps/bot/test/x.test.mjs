@@ -25,6 +25,7 @@ test("X client creates a confirmed text post with a user token", async () => {
   const result = await client.post({ text: "STOPAI" });
   assert.equal(request.url, "https://api.x.com/2/tweets");
   assert.equal(request.options.headers.Authorization, "Bearer private-user-token");
+  assert.equal(JSON.parse(request.options.body).made_with_ai, true);
   assert.equal(result.url, "https://x.com/i/web/status/123");
 });
 

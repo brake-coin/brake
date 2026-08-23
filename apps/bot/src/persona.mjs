@@ -3,6 +3,7 @@ const FACTS = [
   "The only official mint is 2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS.",
   "The official token page is https://bags.fm/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS.",
   "Its message is: Stop the AI race.",
+  "The official project X account is @STOPAICOIN: https://x.com/STOPAICOIN.",
   "The Bags creator-fee recipient is the X account @canadabirdie: https://x.com/canadabirdie.",
   "Creator fees belong to the configured recipient and do not create holder rights or a charitable donation.",
   "STOPAI is not official to Stop the AI Race, Stop AI, PauseAI, RATi OSF, OpenAI, Anthropic, or any AI company.",

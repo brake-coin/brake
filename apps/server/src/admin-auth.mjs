@@ -54,20 +54,24 @@ export class AdminSessionManager {
     if (token) this.#sessions.delete(token);
   }
 
-  createOAuthTransaction({ sessionToken, verifier, state }) {
+  createOAuthTransaction({ sessionToken, verifier, state, provider = "default", data = null }) {
     if (!this.isAuthenticated(sessionToken)) throw new Error("Admin session expired.");
     this.#oauthTransactions.set(state, {
       sessionToken,
       verifier,
+      provider,
+      data,
       expiresAt: this.now() + this.oauthTtlMs
     });
   }
 
-  consumeOAuthTransaction({ state, sessionToken }) {
+  consumeOAuthTransaction({ state, sessionToken, provider = "default" }) {
     this.#sweep();
     const transaction = state ? this.#oauthTransactions.get(state) : null;
     if (state) this.#oauthTransactions.delete(state);
-    if (!transaction || transaction.sessionToken !== sessionToken) return null;
+    if (!transaction
+      || transaction.sessionToken !== sessionToken
+      || transaction.provider !== provider) return null;
     return transaction;
   }
 

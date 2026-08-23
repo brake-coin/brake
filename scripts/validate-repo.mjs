@@ -35,6 +35,7 @@ requireValue(project.token.mintAuthorityRevoked === true, "Public mint-authority
 requireValue(project.token.freezeAuthorityRevoked === true, "Public freeze-authority status must remain revoked.");
 requireValue(project.links.bags === mainnetToken.bagsUrl, "Public Bags link must match the mainnet token.");
 requireValue(project.links.solanaExplorer === mainnetToken.solanaExplorerUrl, "Public explorer link must match the mainnet token.");
+requireValue(project.links.x === "https://x.com/STOPAICOIN", "Official X account must remain @STOPAICOIN.");
 requireValue(project.creatorFeeRecipient.venue === "Bags", "Creator-fee venue must remain Bags.");
 requireValue(project.creatorFeeRecipient.platform === "X", "Creator-fee recipient platform must remain X.");
 requireValue(project.creatorFeeRecipient.handle === "@canadabirdie", "Creator-fee recipient must remain @canadabirdie.");
