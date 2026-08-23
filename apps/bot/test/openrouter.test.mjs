@@ -69,28 +69,6 @@ test("shared chat passes tools through and returns tool calls", async () => {
   assert.equal(result.costUsd, 0.02);
 });
 
-test("shared chat can require the X posting tool for explicit posting requests", async () => {
-  let body;
-  const client = new OpenRouterClient({
-    config: config(),
-    credentialProvider: async () => ({ key: "sk-or-private-test" }),
-    fetchImpl: async (_url, options) => {
-      body = JSON.parse(options.body);
-      return new Response(JSON.stringify({
-        choices: [{ message: {
-          content: null,
-          tool_calls: [{ id: "call-x", type: "function", function: { name: "post_to_x", arguments: "{}" } }]
-        } }]
-      }), { status: 200, headers: { "Content-Type": "application/json" } });
-    }
-  });
-  const tools = [{ type: "function", function: { name: "post_to_x", parameters: { type: "object" } } }];
-  const toolChoice = { type: "function", function: { name: "post_to_x" } };
-
-  await client.chatStep([{ role: "user", content: "post it on X" }], tools, { toolChoice });
-  assert.deepEqual(body.tool_choice, toolChoice);
-});
-
 test("shared chat retries one empty completion and counts both costs", async () => {
   let requests = 0;
   const client = new OpenRouterClient({

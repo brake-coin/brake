@@ -41,6 +41,12 @@ primary_region = "sjc"
   X_AUTONOMOUS_HOURLY_CAP = "3"
   X_AUTONOMOUS_DAILY_CAP = "3"
   X_AUTONOMOUS_TYPES = "text,image,video"
+  X_POST_HOURLY_CAP = "6"
+  X_POST_DAILY_CAP = "24"
+  X_POST_USER_HOURLY_CAP = "2"
+  X_POST_USER_DAILY_CAP = "6"
+  X_POST_GLOBAL_COOLDOWN_SECONDS = "300"
+  X_POST_USER_COOLDOWN_SECONDS = "900"
 
 [[mounts]]
   source = "stopai_data"

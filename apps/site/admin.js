@@ -108,7 +108,7 @@ function renderConnection(status) {
   xClientId.required = !x.connected;
   xCallbackUrl.textContent = x.callbackUrl || "https://stopai-coin.fly.dev/admin/x/callback";
   xCopy.textContent = xConnected
-    ? "Ready for immediate operator posts and bounded autonomous posts. Access renews automatically."
+    ? "Ready for cooldown-limited Telegram agent posts and bounded autonomous posts. Access renews automatically."
     : x.connected
       ? "The credential exists, but posting is disabled by the server setting."
       : `Connect @${x.expectedUsername || "STOPAICOIN"} through OAuth PKCE.`;
@@ -271,7 +271,7 @@ if (oauthResult) {
     connected: "OpenRouter connected to the shared bot.",
     expired: "That connection attempt expired. Please try again.",
     failed: "OpenRouter could not be connected. Please try again.",
-    x_connected: "X connected. Telegram operators and the bounded schedule can now publish.",
+    x_connected: "X connected. The Telegram agent and bounded schedule can now publish.",
     x_expired: "That X connection attempt expired. Please try again.",
     x_failed: "X could not be connected. Check the Client ID, callback URL, and app permissions.",
     x_wrong_account: "X refused the connection because it was not authorized as @STOPAICOIN."

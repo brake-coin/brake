@@ -5,12 +5,8 @@ import { createBotConfig, usageLimits } from "../src/config.mjs";
 import { buildChatMessages, buildImagePrompt, STOPAI_SYSTEM_PROMPT } from "../src/persona.mjs";
 import {
   botTools,
-  builtInReply,
-  hasExplicitXPostIntent,
-  hasMediaActionIntent,
   isAddressed,
-  isTelegramOperator,
-  shouldAttachLatestMedia
+  isTelegramOperator
 } from "../src/telegram.mjs";
 
 test("bot defaults use strict shared media limits", () => {
@@ -27,6 +23,14 @@ test("bot defaults use strict shared media limits", () => {
   assert.equal(config.xAutonomousPostingEnabled, false);
   assert.equal(config.xAutonomousIntervalMinutes, 480);
   assert.deepEqual(config.xAutonomousTypes, ["text", "image", "video"]);
+  assert.deepEqual(usageLimits(config, "x_post"), {
+    hourly: 6,
+    daily: 24,
+    userHourly: 2,
+    userDaily: 6
+  });
+  assert.equal(config.xPostGlobalCooldownSeconds, 300);
+  assert.equal(config.xPostUserCooldownSeconds, 900);
   assert.deepEqual(
     createBotConfig({ X_AUTONOMOUS_TYPES: "video,text,unknown,video" }).xAutonomousTypes,
     ["video", "text"]
@@ -34,24 +38,19 @@ test("bot defaults use strict shared media limits", () => {
   assert.deepEqual([...createBotConfig({ TELEGRAM_OPERATOR_IDS: "12, nope,34" }).telegramOperatorIds], ["12", "34"]);
 });
 
-test("only operators receive destructive and public posting tools", () => {
+test("every user receives the X tool while gallery deletion stays operator-only", () => {
   const publicNames = botTools().map((tool) => tool.function.name);
   const operatorNames = botTools({ isOperator: true }).map((tool) => tool.function.name);
-  assert.deepEqual(publicNames, ["gallery_list", "gallery_show", "generate_image", "generate_video"]);
+  assert.deepEqual(publicNames, ["gallery_list", "gallery_show", "generate_image", "generate_video", "post_to_x"]);
+  assert.equal(publicNames.includes("gallery_remove"), false);
   assert.equal(operatorNames.includes("gallery_remove"), true);
   assert.equal(operatorNames.includes("post_to_x"), true);
   assert.match(
-    botTools({ isOperator: true }).find((tool) => tool.function.name === "post_to_x").function.description,
-    /immediately/i
+    botTools().find((tool) => tool.function.name === "post_to_x").function.description,
+    /all Telegram users/i
   );
   assert.equal(botTools()[2].function.parameters.properties.media_id.type, "string");
   assert.equal(botTools()[3].function.parameters.properties.media_id.type, "string");
-  assert.equal(hasExplicitXPostIntent("post the latest image on X"), true);
-  assert.equal(hasExplicitXPostIntent("show the latest image"), false);
-  assert.equal(shouldAttachLatestMedia("Post it on X saying AI won’t stop itself."), true);
-  assert.equal(shouldAttachLatestMedia("Post on X saying AI won’t stop itself."), false);
-  assert.equal(hasMediaActionIntent("animate this picture"), true);
-  assert.equal(hasMediaActionIntent("a picture from the march"), false);
   assert.equal(isTelegramOperator({ configuredIds: new Set(["42"]), userId: 42 }), true);
   assert.equal(isTelegramOperator({
     configuredIds: new Set(), userId: 7, chatType: "supergroup", memberStatus: "administrator"
@@ -61,18 +60,20 @@ test("only operators receive destructive and public posting tools", () => {
   }), false);
 });
 
-test("built-in facts remain available without an AI request", () => {
-  const config = createBotConfig({
-    OPENROUTER_CHAT_MODEL: "chat-model",
-    OPENROUTER_SERVER_IMAGE_MODEL: "image-model",
-    OPENROUTER_VIDEO_MODEL: "video-model"
+test("the agent receives live context and decides which tools to use", () => {
+  const messages = buildChatMessages([], "post this on X", {
+    userId: "42",
+    isOperator: false,
+    currentMediaId: "media-123",
+    chatModel: "chat-model",
+    imageModel: "image-model",
+    videoModel: "video-model"
   });
-  assert.match(builtInReply({ text: "what is the CA?", config }), /2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS/);
-  assert.match(builtInReply({ text: "which AI are you using?", config }), /Chat: chat-model/);
-  assert.match(builtInReply({ text: "what is the X account?", config }), /@STOPAICOIN/);
-  assert.match(builtInReply({ text: "help", userId: "42", config }), /no slash commands/i);
-  assert.match(builtInReply({ text: "am I an operator?", isOperator: true, config }), /configured STOPAI operator/);
-  assert.equal(builtInReply({ text: "tell me a joke", config }), null);
+  const context = messages.map((message) => message.content).join("\n");
+  assert.match(context, /Every Telegram user may use post_to_x/);
+  assert.match(context, /Current or replied-to gallery item ID: media-123/);
+  assert.match(context, /Chat model: chat-model/);
+  assert.equal(messages.at(-1).content, "post this on X");
 });
 
 test("persona publishes only the official mint and keeps the weird hand", () => {

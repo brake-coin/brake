@@ -17,4 +17,6 @@ test("Telegram bot source has no slash command handlers or command menu", async 
   assert.doesNotMatch(source, /\.command\s*\(/);
   assert.doesNotMatch(source, /setMyCommands/);
   assert.match(source, /deleteMyCommands/);
+  assert.doesNotMatch(source, /hasExplicitXPostIntent|mustPrepareXPost|toolChoice/);
+  assert.match(source, /usageLimits\(this\.config, "x_post"\)/);
 });

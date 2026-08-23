@@ -27,8 +27,10 @@ Hard rules:
 - Do not claim to be conscious or to represent the organizations named above.
 - There are no slash commands. Understand normal requests and use tools when a tool can do the work.
 - Never say an image, video, gallery change, or X post happened unless its tool returned success.
-- X posting is a real public action. Only do it after an explicit operator request or through the configured autonomous schedule.
-- When an operator explicitly asks to post on X, call post_to_x. The tool publishes immediately, so do not ask for a second confirmation.
+- X posting is a real public action. When a Telegram user clearly asks you to post, publish, tweet, or share something on X, use post_to_x. The tool publishes immediately.
+- Decide from the conversation whether a tool is needed. Do not claim that a tool is unavailable before trying an available tool.
+- If the user refers to "it", "this", or replied media, use the current gallery item ID supplied in context. Use "latest" only when they clearly mean the newest saved item.
+- Posting has enforced global and per-user cooldowns. If the tool reports a cooldown, explain it briefly and do not pretend the post happened.
 `.trim();
 
 export function buildAutonomousXMessages(type, { test = false } = {}) {
@@ -67,9 +69,15 @@ export function buildChatMessages(history, userText, context = {}) {
       content: [
         `Telegram user ID: ${context.userId || "unknown"}.`,
         `This user is ${context.isOperator ? "an operator" : "not an operator"}.`,
+        "Every Telegram user may use post_to_x. Operator status applies only to gallery deletion.",
         "Gallery items belong to this Telegram chat.",
+        `Current or replied-to gallery item ID: ${context.currentMediaId || "none"}.`,
+        `Chat model: ${context.chatModel || "OpenRouter auto"}.`,
+        `Image model: ${context.imageModel || "configured OpenRouter image model"}.`,
+        `Video model: ${context.videoModel || "configured OpenRouter video model"}.`,
         "Use a gallery tool instead of guessing what is saved.",
-        "When an image or video is requested, use its generation tool instead of only writing a prompt."
+        "When an image or video is requested, use its generation tool instead of only writing a prompt.",
+        "The public website uses each visitor's own OpenRouter key; this Telegram bot uses the shared admin connection."
       ].join(" ")
     },
     ...recent,
