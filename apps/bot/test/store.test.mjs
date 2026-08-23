@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -26,24 +26,83 @@ test("store applies global and per-user limits atomically", async (t) => {
   assert.equal((await stat(filePath)).mode & 0o777, 0o600);
 });
 
-test("store suppresses duplicate Telegram updates across concurrency and restarts", async (t) => {
+test("store suppresses duplicate Telegram actions across concurrency and restarts", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-telegram-updates-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const filePath = path.join(directory, "bot.json");
-  const store = new BotStore(filePath, {
-    now: () => new Date("2026-08-22T10:00:00.000Z")
-  });
+  const store = new BotStore(filePath, { now: () => new Date("2026-08-23T20:00:00.000Z") });
   const claims = await Promise.all([
     store.claimTelegramUpdate(123456),
     store.claimTelegramUpdate(123456)
   ]);
   assert.equal(claims.filter((claim) => claim.allowed).length, 1);
   assert.equal(claims.find((claim) => !claim.allowed).reason, "duplicate_update");
-
-  const reloaded = await new BotStore(filePath).load();
+  const reloaded = await new BotStore(filePath, {
+    now: () => new Date("2026-08-23T20:01:00.000Z")
+  }).load();
   assert.equal((await reloaded.claimTelegramUpdate(123456)).allowed, false);
   assert.equal(reloaded.agentStatus().recentTelegramUpdateCount, 1);
   assert.equal((await reloaded.claimTelegramUpdate(undefined)).reason, "untracked_update");
+});
+
+test("version 8 preserves production update claims and local sticker state", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-v8-migration-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const filePath = path.join(directory, "bot.json");
+  await writeFile(filePath, JSON.stringify({
+    version: 7,
+    messages: {},
+    media: [],
+    usage: [],
+    telegramUpdates: {
+      555: { updateId: "555", at: "2026-08-23T19:59:00.000Z" }
+    },
+    xReceipts: [],
+    xSourcePosts: {},
+    stickerPack: {
+      name: "stopai_stickers_by_stopaitoken_bot",
+      title: "STOPAI Stickers",
+      ownerId: 12345,
+      stickerCount: 2,
+      createdAt: "2026-08-23T19:00:00.000Z"
+    },
+    agent: { goals: [], memories: [], research: [], cycles: [], cycleSequence: 0 }
+  }));
+  const store = await new BotStore(filePath, {
+    now: () => new Date("2026-08-23T20:00:00.000Z")
+  }).load();
+  assert.equal(store.agentStatus().recentTelegramUpdateCount, 1);
+  assert.equal(store.stickerPack().ownerId, 12345);
+  assert.equal((await store.claimTelegramUpdate(555)).reason, "duplicate_update");
+  await store.saveStickerPack({
+    ...store.stickerPack(),
+    stickerCount: 3
+  });
+  const saved = JSON.parse(await readFile(filePath, "utf8"));
+  assert.equal(saved.version, 8);
+  assert.equal(saved.telegramUpdates[555].updateId, "555");
+  assert.equal(saved.stickerPack.stickerCount, 3);
+});
+
+test("chat history is user-attributed, thread-scoped, and expires", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-chat-history-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  let now = new Date("2026-08-01T10:00:00.000Z");
+  const store = new BotStore(path.join(directory, "bot.json"), { now: () => now });
+  await store.recordMessage({
+    chatId: "42", threadId: "main", userId: "alice", role: "user", content: "main topic"
+  });
+  await store.recordMessage({
+    chatId: "42", threadId: "77", userId: "bob", role: "user", content: "forum topic"
+  });
+  assert.deepEqual(store.recentMessages("42").map((item) => item.userId), ["alice"]);
+  assert.deepEqual(store.recentMessages("42", { threadId: "77" }).map((item) => item.userId), ["bob"]);
+  now = new Date("2026-09-01T10:00:01.000Z");
+  await store.recordMessage({
+    chatId: "42", threadId: "main", userId: "carol", role: "user", content: "fresh topic"
+  });
+  assert.deepEqual(store.recentMessages("42").map((item) => item.userId), ["carol"]);
+  assert.deepEqual(store.recentMessages("42", { threadId: "77" }), []);
 });
 
 test("the agent sees scarce shared capacity and whether the current user is new", async (t) => {
@@ -72,7 +131,7 @@ test("the agent sees scarce shared capacity and whether the current user is new"
   assert.equal(repeatUser.image.global.distinctUsersToday, 2);
   assert.equal(repeatUser.image.currentUser.isNewToday, false);
   assert.equal(repeatUser.image.scarce, true);
-  assert.equal(repeatUser.xResearch.global.dailyRemaining, 100);
+  assert.equal(repeatUser.xResearch.global.dailyRemaining, 1_000);
   assert.equal(newUser.image.currentUser.isNewToday, true);
 });
 

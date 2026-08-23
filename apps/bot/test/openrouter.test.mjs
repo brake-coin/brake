@@ -39,6 +39,7 @@ test("shared chat uses the private credential provider", async () => {
   const result = await client.chat([{ role: "user", content: "hello" }]);
   assert.equal(result.text, "STOPAI reply");
   assert.equal(result.costUsd, 0.01);
+  assert.equal(result.model, "openrouter/auto");
   assert.equal(seen.url, "https://openrouter.ai/api/v1/chat/completions");
   assert.equal(seen.options.headers.Authorization, "Bearer sk-or-private-test");
 });
@@ -101,8 +102,8 @@ test("shared chat retries one empty completion and counts both costs", async () 
   assert.ok(Math.abs(result.costUsd - 0.03) < 1e-9);
 });
 
-test("shared chat falls back after the primary model stays empty", async () => {
-  const models = [];
+test("shared chat falls back after the primary model returns two empty replies", async () => {
+  const attemptedModels = [];
   const client = new OpenRouterClient({
     config: config({
       openRouterChatModel: "primary/model",
@@ -110,26 +111,30 @@ test("shared chat falls back after the primary model stays empty", async () => {
     }),
     credentialProvider: async () => ({ key: "sk-or-private-test" }),
     fetchImpl: async (_url, options) => {
-      const model = JSON.parse(options.body).model;
-      models.push(model);
-      return new Response(JSON.stringify(model === "fallback/model"
+      const body = JSON.parse(options.body);
+      attemptedModels.push(body.model);
+      const payload = body.model === "fallback/model"
         ? {
-            model,
+            model: "fallback/resolved",
             choices: [{ message: { content: "Fallback reply" } }],
-            usage: { cost: 0.02 }
+            usage: { cost: 0.03 }
           }
         : {
-            model,
+            model: "primary/resolved",
             choices: [{ message: { content: null } }],
             usage: { cost: 0.01 }
-          }), { status: 200, headers: { "Content-Type": "application/json" } });
+          };
+      return new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      });
     }
   });
   const result = await client.chatStep([{ role: "user", content: "hello" }]);
-  assert.deepEqual(models, ["primary/model", "primary/model", "fallback/model"]);
+  assert.deepEqual(attemptedModels, ["primary/model", "primary/model", "fallback/model"]);
   assert.equal(result.message.content, "Fallback reply");
-  assert.equal(result.model, "fallback/model");
-  assert.equal(result.costUsd, 0.04);
+  assert.equal(result.model, "fallback/resolved");
+  assert.ok(Math.abs(result.costUsd - 0.05) < 1e-9);
 });
 
 test("image generation sends canonical and user references", async () => {

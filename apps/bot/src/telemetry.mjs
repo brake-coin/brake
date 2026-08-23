@@ -6,6 +6,8 @@ const SAFE_FIELDS = new Set([
   "user",
   "updateType",
   "chatType",
+  "action",
+  "addressedBy",
   "tool",
   "model",
   "ok",

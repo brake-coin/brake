@@ -12,6 +12,7 @@
     "dev:static": "node scripts/dev-site.mjs",
     "start": "node apps/server/src/index.mjs",
     "build": "node scripts/build-site.mjs",
+    "token:report": "node scripts/generate-token-report.mjs",
     "bot:dry-run": "node apps/bot/src/index.mjs --dry-run",
     "validate": "node scripts/validate-repo.mjs",
     "test": "pnpm -r --if-present run test",

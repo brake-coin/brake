@@ -1,0 +1,918 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-23T20:29:15.012Z",
+  "network": "Solana mainnet",
+  "mint": "2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS",
+  "sourceSlots": {
+    "supply": 441236557,
+    "tokenAccounts": 441236588
+  },
+  "supply": {
+    "tokens": 1000000000,
+    "decimals": 9,
+    "mintAuthority": null,
+    "freezeAuthority": null,
+    "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+  },
+  "liquidity": {
+    "poolAddress": "Ayq6y3J6FCZg1Lrd8TKDY3HkLRSBWd8pbop2UYDiRXk4",
+    "ownerAddress": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+    "classificationSource": "Project operator",
+    "currentBalance": 412448860.4875747,
+    "percentSupply": 41.244886048757465,
+    "historicalOutflow": 1242312582.7674067,
+    "historicalInflow": 661963942.8311678,
+    "netOutflow": 580348639.9362389,
+    "estimatedOpeningBalance": 992797500.4238136,
+    "directMintToPool": 1000000000,
+    "initialMintSignature": "5on8kU1dmwx5pLE29GTKzZbdQEP3CLtVWWuMzzBdgNUF9mTHxEqTiPo2XZ3omrwA7BQisbRTnDiuCApjwMGb5A8M",
+    "initialMintTime": "2026-08-22T21:05:30Z"
+  },
+  "holders": {
+    "tokenAccountCount": 51,
+    "ownerCountIncludingLiquidity": 51,
+    "nonLiquidityOwnerCount": 50,
+    "nonLiquiditySupply": 587551139.5124252,
+    "percentOutsideLiquidity": 58.75511395124252,
+    "largestNonLiquidityBalance": 49364949.99778157,
+    "largestNonLiquidityPercentSupply": 4.936494999778156,
+    "top10Balance": 313004175.0625513,
+    "top10PercentSupply": 31.30041750625513,
+    "top10PercentNonLiquidity": 53.2726692220009,
+    "top20Balance": 474084373.05208087,
+    "top20PercentSupply": 47.40843730520808,
+    "top20PercentNonLiquidity": 80.68818885203697,
+    "medianBalance": 7307605.76617145,
+    "giniNonLiquidity": 0.5321929133567049,
+    "top20": [
+      {
+        "rank": 1,
+        "address": "AMHeFSnZuWZCSD6CvPUQq5PpiXqpHsTbmgPsdZuwyN3f",
+        "balance": 49364949.99778157,
+        "percentSupply": 4.936494999778156,
+        "percentNonLiquidity": 8.40181333640961,
+        "firstSeen": 1787512019,
+        "lastSeen": 1787512019,
+        "historicalInflow": 49364949.99778157,
+        "historicalOutflow": 0,
+        "connectedOwners": 1
+      },
+      {
+        "rank": 2,
+        "address": "BmPmZijwtoG5ZA8zt7XNroa7af5sho1aPQLJGSSDjWDp",
+        "balance": 38926413.70886216,
+        "percentSupply": 3.892641370886216,
+        "percentNonLiquidity": 6.625195849533191,
+        "firstSeen": 1787512428,
+        "lastSeen": 1787512428,
+        "historicalInflow": 38926413.70886216,
+        "historicalOutflow": 0,
+        "connectedOwners": 1
+      },
+      {
+        "rank": 3,
+        "address": "BH5bJKhguuyY9QLffnvzzcQqwBKDgod6VLPc7kFDPD1u",
+        "balance": 32445148.13184062,
+        "percentSupply": 3.244514813184062,
+        "percentNonLiquidity": 5.522097729018954,
+        "firstSeen": 1787512018,
+        "lastSeen": 1787512755,
+        "historicalInflow": 51500235.129905745,
+        "historicalOutflow": 19055086.998065125,
+        "connectedOwners": 1
+      },
+      {
+        "rank": 4,
+        "address": "Gyzjv6MaDnCX8BfBX4fTUVVN9vyHj4FoJNiNQukC9sYm",
+        "balance": 31876886.52860211,
+        "percentSupply": 3.187688652860211,
+        "percentNonLiquidity": 5.425380768566783,
+        "firstSeen": 1787469411,
+        "lastSeen": 1787469411,
+        "historicalInflow": 31876886.52860211,
+        "historicalOutflow": 0,
+        "connectedOwners": 1
+      },
+      {
+        "rank": 5,
+        "address": "6msdN6NyfVYDQ71FoAaPoKQtixoof3tVDKQTXbK2batx",
+        "balance": 31335733.582961716,
+        "percentSupply": 3.133573358296172,
+        "percentNonLiquidity": 5.333277646089741,
+        "firstSeen": 1787510962,
+        "lastSeen": 1787512339,
+        "historicalInflow": 50847645.41087559,
+        "historicalOutflow": 19511911.827913873,
+        "connectedOwners": 1
+      },
+      {
+        "rank": 6,
+        "address": "8XF2y3gyBaVVPXpqs3hpoEPVz69rMzF1UZ8xtmr9d9Ld",
+        "balance": 28714731.004774656,
+        "percentSupply": 2.871473100477466,
+        "percentNonLiquidity": 4.887188377951808,
+        "firstSeen": 1787513261,
+        "lastSeen": 1787513340,
+        "historicalInflow": 28714731.00477466,
+        "historicalOutflow": 0,
+        "connectedOwners": 1
+      },
+      {
+        "rank": 7,
+        "address": "EzPsaSNBnRTwjWAV6MPM3BMZBRk6Px2obvyD4CVWThuH",
+        "balance": 27018819.318333577,
+        "percentSupply": 2.701881931833358,
+        "percentNonLiquidity": 4.598547683994782,
+        "firstSeen": 1787510524,
+        "lastSeen": 1787510524,
+        "historicalInflow": 27018819.318333577,
+        "historicalOutflow": 0,
+        "connectedOwners": 1
+      },
+      {
+        "rank": 8,
+        "address": "FgkZRfREbxasW2GQSv1w6jexpz3zWJ43BSDs6ZWhj43E",
+        "balance": 25300195.43688601,
+        "percentSupply": 2.5300195436886006,
+        "percentNonLiquidity": 4.306041420986977,
+        "firstSeen": 1787474045,
+        "lastSeen": 1787474045,
+        "historicalInflow": 25300195.43688601,
+        "historicalOutflow": 0,
+        "connectedOwners": 1
+      },
+      {
+        "rank": 9,
+        "address": "FFortn4m3vbZsXbbrkM4aZTrVBHtv3K6kpHsz9PGGbBN",
+        "balance": 24201946.78711704,
+        "percentSupply": 2.420194678711704,
+        "percentNonLiquidity": 4.119121751206345,
+        "firstSeen": 1787514197,
+        "lastSeen": 1787515414,
+        "historicalInflow": 24201946.787117038,
+        "historicalOutflow": 0,
+        "connectedOwners": 1
+      },
+      {
+        "rank": 10,
+        "address": "QGtKPKRYHbQ1nuBqHmJZaQ1hTJnACDXJLNbiKvSXhMv",
+        "balance": 23819350.565391816,
+        "percentSupply": 2.3819350565391817,
+        "percentNonLiquidity": 4.0540046582427065,
+        "firstSeen": 1787512529,
+        "lastSeen": 1787513262,
+        "historicalInflow": 41653858.48057952,
+        "historicalOutflow": 17834507.9151877,
+        "connectedOwners": 1
+      },
+      {
+        "rank": 11,
+        "address": "FUSMzRFppYiMsdohWVhDGPtA87PYkATXKyWM8pgc3EdA",
+        "balance": 21274607.12748,
+        "percentSupply": 2.127460712748,
+        "percentNonLiquidity": 3.6208945395177974,
+        "firstSeen": 1787510511,
+        "lastSeen": 1787512996,
+        "historicalInflow": 28366142.83664,
+        "historicalOutflow": 7091535.70916,
+        "connectedOwners": 1
+      },
+      {
+        "rank": 12,
+        "address": "BaaSBMr3vnBvm7DVSG8GZK3YMfPPMdrB8Lp5ZWwB9HyD",
+        "balance": 20688046.39298968,
+        "percentSupply": 2.068804639298968,
+        "percentNonLiquidity": 3.5210631044231313,
+        "firstSeen": 1787511525,
+        "lastSeen": 1787513125,
+        "historicalInflow": 64644478.420399666,
+        "historicalOutflow": 43956432.02740998,
+        "connectedOwners": 1
+      },
+      {
+        "rank": 13,
+        "address": "FTknYqc6tLfndD9bvfr9gta3vXqU9ymEkmULcgV7hwbe",
+        "balance": 17714601.117249086,
+        "percentSupply": 1.7714601117249085,
+        "percentNonLiquidity": 3.0149888113483048,
+        "firstSeen": 1787512545,
+        "lastSeen": 1787513033,
+        "historicalInflow": 37129899.97388771,
+        "historicalOutflow": 19415298.85663862,
+        "connectedOwners": 1
+      },
+      {
+        "rank": 14,
+        "address": "E4yVuZoVW36Xu33MKPEnk6dCs6dei4UoKJWwCnApsqPH",
+        "balance": 17382374.09164254,
+        "percentSupply": 1.738237409164254,
+        "percentNonLiquidity": 2.9584444523530617,
+        "firstSeen": 1787513074,
+        "lastSeen": 1787513074,
+        "historicalInflow": 17382374.09164254,
+        "historicalOutflow": 0,
+        "connectedOwners": 1
+      },
+      {
+        "rank": 15,
+        "address": "7aQ2v6Eh5ocjcJzjTBHaVUgi6UuSRDFKnaVQzco2ygvg",
+        "balance": 16513255.387060411,
+        "percentSupply": 1.6513255387060413,
+        "percentNonLiquidity": 2.810522229735408,
+        "firstSeen": 1787512993,
+        "lastSeen": 1787513074,
+        "historicalInflow": 43455935.22910635,
+        "historicalOutflow": 26942679.84204594,
+        "connectedOwners": 3
+      },
+      {
+        "rank": 16,
+        "address": "EYo5hNaaVnpevnv7WgSayw494pYXJRCvHM9PY6aHcXMa",
+        "balance": 15766678.020933704,
+        "percentSupply": 1.5766678020933704,
+        "percentNonLiquidity": 2.6834562918246676,
+        "firstSeen": 1787512230,
+        "lastSeen": 1787513262,
+        "historicalInflow": 39451581.376199566,
+        "historicalOutflow": 23684903.35526586,
+        "connectedOwners": 1
+      },
+      {
+        "rank": 17,
+        "address": "CBQcSSyjVKKFwQfQiX3D4EJ6y33Y18uGFNQojGwsMoQY",
+        "balance": 14665484.172705209,
+        "percentSupply": 1.466548417270521,
+        "percentNonLiquidity": 2.4960353553011996,
+        "firstSeen": 1787512003,
+        "lastSeen": 1787513027,
+        "historicalInflow": 29330968.345410418,
+        "historicalOutflow": 14665484.172705209,
+        "connectedOwners": 1
+      },
+      {
+        "rank": 18,
+        "address": "C22Jtk2qjbDtNSLH549f2wpdDNVRnbbSvh8jhqoZHt99",
+        "balance": 13444248.2029974,
+        "percentSupply": 1.34442482029974,
+        "percentNonLiquidity": 2.2881834956790326,
+        "firstSeen": 1787514290,
+        "lastSeen": 1787514290,
+        "historicalInflow": 13444248.2029974,
+        "historicalOutflow": 0,
+        "connectedOwners": 1
+      },
+      {
+        "rank": 19,
+        "address": "XkaPn4yDfTUzdYecKy6qmfQJXXWEapiZ6NX4AfKpY5U",
+        "balance": 13169373.866764825,
+        "percentSupply": 1.3169373866764824,
+        "percentNonLiquidity": 2.2414004468944317,
+        "firstSeen": 1787511969,
+        "lastSeen": 1787512249,
+        "historicalInflow": 20385645.919328272,
+        "historicalOutflow": 7216272.052563445,
+        "connectedOwners": 1
+      },
+      {
+        "rank": 20,
+        "address": "FFbmkRPrxkStUerKMg56taouQFG2YSkQ4p8m2Zb2Y4hY",
+        "balance": 10461529.609706704,
+        "percentSupply": 1.0461529609706703,
+        "percentNonLiquidity": 1.7805309029590384,
+        "firstSeen": 1787470255,
+        "lastSeen": 1787514050,
+        "historicalInflow": 16650230.739883313,
+        "historicalOutflow": 6188701.130176608,
+        "connectedOwners": 2
+      }
+    ]
+  },
+  "history": {
+    "firstActivity": "2026-08-22T21:05:13Z",
+    "lastActivity": "2026-08-23T20:28:21Z",
+    "indexedSignatures": 344,
+    "mintReferencingSignatures": 342,
+    "liveTokenAccountsSearched": 51,
+    "enhancedTransactions": 344,
+    "parsedTokenTransfers": 419,
+    "reconstructedNetFlows": 330,
+    "uniqueParticipants": 107,
+    "totalNetFlowVolume": 1979552960.1964397,
+    "hours": [
+      {
+        "timestamp": 1787432400,
+        "label": "2026-08-22T21:00Z",
+        "transactions": 6,
+        "flowVolume": 4359801.703891612,
+        "poolNetOutflow": 3363408.698408353,
+        "cumulativeRecipients": 2
+      },
+      {
+        "timestamp": 1787436000,
+        "label": "2026-08-22T22:00Z",
+        "transactions": 0,
+        "flowVolume": 0,
+        "poolNetOutflow": 0,
+        "cumulativeRecipients": 2
+      },
+      {
+        "timestamp": 1787439600,
+        "label": "2026-08-22T23:00Z",
+        "transactions": 0,
+        "flowVolume": 0,
+        "poolNetOutflow": 0,
+        "cumulativeRecipients": 2
+      },
+      {
+        "timestamp": 1787443200,
+        "label": "2026-08-23T00:00Z",
+        "transactions": 8,
+        "flowVolume": 18984252.808962885,
+        "poolNetOutflow": 3287327.586405203,
+        "cumulativeRecipients": 5
+      },
+      {
+        "timestamp": 1787446800,
+        "label": "2026-08-23T01:00Z",
+        "transactions": 0,
+        "flowVolume": 0,
+        "poolNetOutflow": 0,
+        "cumulativeRecipients": 5
+      },
+      {
+        "timestamp": 1787450400,
+        "label": "2026-08-23T02:00Z",
+        "transactions": 0,
+        "flowVolume": 0,
+        "poolNetOutflow": 0,
+        "cumulativeRecipients": 5
+      },
+      {
+        "timestamp": 1787454000,
+        "label": "2026-08-23T03:00Z",
+        "transactions": 0,
+        "flowVolume": 0,
+        "poolNetOutflow": 0,
+        "cumulativeRecipients": 5
+      },
+      {
+        "timestamp": 1787457600,
+        "label": "2026-08-23T04:00Z",
+        "transactions": 0,
+        "flowVolume": 0,
+        "poolNetOutflow": 0,
+        "cumulativeRecipients": 5
+      },
+      {
+        "timestamp": 1787461200,
+        "label": "2026-08-23T05:00Z",
+        "transactions": 0,
+        "flowVolume": 0,
+        "poolNetOutflow": 0,
+        "cumulativeRecipients": 5
+      },
+      {
+        "timestamp": 1787464800,
+        "label": "2026-08-23T06:00Z",
+        "transactions": 0,
+        "flowVolume": 0,
+        "poolNetOutflow": 0,
+        "cumulativeRecipients": 5
+      },
+      {
+        "timestamp": 1787468400,
+        "label": "2026-08-23T07:00Z",
+        "transactions": 5,
+        "flowVolume": 44464827.936160766,
+        "poolNetOutflow": 44464827.936160766,
+        "cumulativeRecipients": 7
+      },
+      {
+        "timestamp": 1787472000,
+        "label": "2026-08-23T08:00Z",
+        "transactions": 1,
+        "flowVolume": 25300195.43688601,
+        "poolNetOutflow": 25300195.43688601,
+        "cumulativeRecipients": 8
+      },
+      {
+        "timestamp": 1787475600,
+        "label": "2026-08-23T09:00Z",
+        "transactions": 0,
+        "flowVolume": 0,
+        "poolNetOutflow": 0,
+        "cumulativeRecipients": 8
+      },
+      {
+        "timestamp": 1787479200,
+        "label": "2026-08-23T10:00Z",
+        "transactions": 0,
+        "flowVolume": 0,
+        "poolNetOutflow": 0,
+        "cumulativeRecipients": 8
+      },
+      {
+        "timestamp": 1787482800,
+        "label": "2026-08-23T11:00Z",
+        "transactions": 0,
+        "flowVolume": 0,
+        "poolNetOutflow": 0,
+        "cumulativeRecipients": 8
+      },
+      {
+        "timestamp": 1787486400,
+        "label": "2026-08-23T12:00Z",
+        "transactions": 0,
+        "flowVolume": 0,
+        "poolNetOutflow": 0,
+        "cumulativeRecipients": 8
+      },
+      {
+        "timestamp": 1787490000,
+        "label": "2026-08-23T13:00Z",
+        "transactions": 0,
+        "flowVolume": 0,
+        "poolNetOutflow": 0,
+        "cumulativeRecipients": 8
+      },
+      {
+        "timestamp": 1787493600,
+        "label": "2026-08-23T14:00Z",
+        "transactions": 0,
+        "flowVolume": 0,
+        "poolNetOutflow": 0,
+        "cumulativeRecipients": 8
+      },
+      {
+        "timestamp": 1787497200,
+        "label": "2026-08-23T15:00Z",
+        "transactions": 0,
+        "flowVolume": 0,
+        "poolNetOutflow": 0,
+        "cumulativeRecipients": 8
+      },
+      {
+        "timestamp": 1787500800,
+        "label": "2026-08-23T16:00Z",
+        "transactions": 0,
+        "flowVolume": 0,
+        "poolNetOutflow": 0,
+        "cumulativeRecipients": 8
+      },
+      {
+        "timestamp": 1787504400,
+        "label": "2026-08-23T17:00Z",
+        "transactions": 0,
+        "flowVolume": 0,
+        "poolNetOutflow": 0,
+        "cumulativeRecipients": 8
+      },
+      {
+        "timestamp": 1787508000,
+        "label": "2026-08-23T18:00Z",
+        "transactions": 14,
+        "flowVolume": 201689978.78964996,
+        "poolNetOutflow": 174732659.96431723,
+        "cumulativeRecipients": 20
+      },
+      {
+        "timestamp": 1787511600,
+        "label": "2026-08-23T19:00Z",
+        "transactions": 301,
+        "flowVolume": 1672716710.2286112,
+        "poolNetOutflow": 324367879.2416227,
+        "cumulativeRecipients": 102
+      },
+      {
+        "timestamp": 1787515200,
+        "label": "2026-08-23T20:00Z",
+        "transactions": 9,
+        "flowVolume": 12037193.292277033,
+        "poolNetOutflow": 4832341.072437436,
+        "cumulativeRecipients": 106
+      }
+    ]
+  },
+  "holderNetwork": {
+    "nodes": [
+      {
+        "address": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "label": "Liquidity pool",
+        "kind": "liquidity",
+        "rank": 0,
+        "balance": 412448860.4875747,
+        "percentSupply": 41.244886048757465
+      },
+      {
+        "address": "AMHeFSnZuWZCSD6CvPUQq5PpiXqpHsTbmgPsdZuwyN3f",
+        "label": "Holder #1",
+        "kind": "holder",
+        "rank": 1,
+        "balance": 49364949.99778157,
+        "percentSupply": 4.936494999778156
+      },
+      {
+        "address": "BmPmZijwtoG5ZA8zt7XNroa7af5sho1aPQLJGSSDjWDp",
+        "label": "Holder #2",
+        "kind": "holder",
+        "rank": 2,
+        "balance": 38926413.70886216,
+        "percentSupply": 3.892641370886216
+      },
+      {
+        "address": "BH5bJKhguuyY9QLffnvzzcQqwBKDgod6VLPc7kFDPD1u",
+        "label": "Holder #3",
+        "kind": "holder",
+        "rank": 3,
+        "balance": 32445148.13184062,
+        "percentSupply": 3.244514813184062
+      },
+      {
+        "address": "Gyzjv6MaDnCX8BfBX4fTUVVN9vyHj4FoJNiNQukC9sYm",
+        "label": "Holder #4",
+        "kind": "holder",
+        "rank": 4,
+        "balance": 31876886.52860211,
+        "percentSupply": 3.187688652860211
+      },
+      {
+        "address": "6msdN6NyfVYDQ71FoAaPoKQtixoof3tVDKQTXbK2batx",
+        "label": "Holder #5",
+        "kind": "holder",
+        "rank": 5,
+        "balance": 31335733.582961716,
+        "percentSupply": 3.133573358296172
+      },
+      {
+        "address": "8XF2y3gyBaVVPXpqs3hpoEPVz69rMzF1UZ8xtmr9d9Ld",
+        "label": "Holder #6",
+        "kind": "holder",
+        "rank": 6,
+        "balance": 28714731.004774656,
+        "percentSupply": 2.871473100477466
+      },
+      {
+        "address": "EzPsaSNBnRTwjWAV6MPM3BMZBRk6Px2obvyD4CVWThuH",
+        "label": "Holder #7",
+        "kind": "holder",
+        "rank": 7,
+        "balance": 27018819.318333577,
+        "percentSupply": 2.701881931833358
+      },
+      {
+        "address": "FgkZRfREbxasW2GQSv1w6jexpz3zWJ43BSDs6ZWhj43E",
+        "label": "Holder #8",
+        "kind": "holder",
+        "rank": 8,
+        "balance": 25300195.43688601,
+        "percentSupply": 2.5300195436886006
+      },
+      {
+        "address": "FFortn4m3vbZsXbbrkM4aZTrVBHtv3K6kpHsz9PGGbBN",
+        "label": "Holder #9",
+        "kind": "holder",
+        "rank": 9,
+        "balance": 24201946.78711704,
+        "percentSupply": 2.420194678711704
+      },
+      {
+        "address": "QGtKPKRYHbQ1nuBqHmJZaQ1hTJnACDXJLNbiKvSXhMv",
+        "label": "Holder #10",
+        "kind": "holder",
+        "rank": 10,
+        "balance": 23819350.565391816,
+        "percentSupply": 2.3819350565391817
+      },
+      {
+        "address": "FUSMzRFppYiMsdohWVhDGPtA87PYkATXKyWM8pgc3EdA",
+        "label": "Holder #11",
+        "kind": "holder",
+        "rank": 11,
+        "balance": 21274607.12748,
+        "percentSupply": 2.127460712748
+      },
+      {
+        "address": "BaaSBMr3vnBvm7DVSG8GZK3YMfPPMdrB8Lp5ZWwB9HyD",
+        "label": "Holder #12",
+        "kind": "holder",
+        "rank": 12,
+        "balance": 20688046.39298968,
+        "percentSupply": 2.068804639298968
+      },
+      {
+        "address": "FTknYqc6tLfndD9bvfr9gta3vXqU9ymEkmULcgV7hwbe",
+        "label": "Holder #13",
+        "kind": "holder",
+        "rank": 13,
+        "balance": 17714601.117249086,
+        "percentSupply": 1.7714601117249085
+      },
+      {
+        "address": "E4yVuZoVW36Xu33MKPEnk6dCs6dei4UoKJWwCnApsqPH",
+        "label": "Holder #14",
+        "kind": "holder",
+        "rank": 14,
+        "balance": 17382374.09164254,
+        "percentSupply": 1.738237409164254
+      },
+      {
+        "address": "7aQ2v6Eh5ocjcJzjTBHaVUgi6UuSRDFKnaVQzco2ygvg",
+        "label": "Holder #15",
+        "kind": "holder",
+        "rank": 15,
+        "balance": 16513255.387060411,
+        "percentSupply": 1.6513255387060413
+      },
+      {
+        "address": "EYo5hNaaVnpevnv7WgSayw494pYXJRCvHM9PY6aHcXMa",
+        "label": "Holder #16",
+        "kind": "holder",
+        "rank": 16,
+        "balance": 15766678.020933704,
+        "percentSupply": 1.5766678020933704
+      },
+      {
+        "address": "CBQcSSyjVKKFwQfQiX3D4EJ6y33Y18uGFNQojGwsMoQY",
+        "label": "Holder #17",
+        "kind": "holder",
+        "rank": 17,
+        "balance": 14665484.172705209,
+        "percentSupply": 1.466548417270521
+      },
+      {
+        "address": "C22Jtk2qjbDtNSLH549f2wpdDNVRnbbSvh8jhqoZHt99",
+        "label": "Holder #18",
+        "kind": "holder",
+        "rank": 18,
+        "balance": 13444248.2029974,
+        "percentSupply": 1.34442482029974
+      },
+      {
+        "address": "XkaPn4yDfTUzdYecKy6qmfQJXXWEapiZ6NX4AfKpY5U",
+        "label": "Holder #19",
+        "kind": "holder",
+        "rank": 19,
+        "balance": 13169373.866764825,
+        "percentSupply": 1.3169373866764824
+      },
+      {
+        "address": "FFbmkRPrxkStUerKMg56taouQFG2YSkQ4p8m2Zb2Y4hY",
+        "label": "Holder #20",
+        "kind": "holder",
+        "rank": 20,
+        "balance": 10461529.609706704,
+        "percentSupply": 1.0461529609706703
+      }
+    ],
+    "edges": [
+      {
+        "from": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "to": "BaaSBMr3vnBvm7DVSG8GZK3YMfPPMdrB8Lp5ZWwB9HyD",
+        "amount": 64644478.420399666,
+        "transactions": 5,
+        "firstSeen": 1787511525,
+        "lastSeen": 1787513125
+      },
+      {
+        "from": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "to": "BH5bJKhguuyY9QLffnvzzcQqwBKDgod6VLPc7kFDPD1u",
+        "amount": 51500235.129905745,
+        "transactions": 2,
+        "firstSeen": 1787512018,
+        "lastSeen": 1787512020
+      },
+      {
+        "from": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "to": "6msdN6NyfVYDQ71FoAaPoKQtixoof3tVDKQTXbK2batx",
+        "amount": 50847645.41087559,
+        "transactions": 1,
+        "firstSeen": 1787510962,
+        "lastSeen": 1787510962
+      },
+      {
+        "from": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "to": "AMHeFSnZuWZCSD6CvPUQq5PpiXqpHsTbmgPsdZuwyN3f",
+        "amount": 49364949.99778157,
+        "transactions": 1,
+        "firstSeen": 1787512019,
+        "lastSeen": 1787512019
+      },
+      {
+        "from": "BaaSBMr3vnBvm7DVSG8GZK3YMfPPMdrB8Lp5ZWwB9HyD",
+        "to": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "amount": 43956432.02740998,
+        "transactions": 2,
+        "firstSeen": 1787512351,
+        "lastSeen": 1787513093
+      },
+      {
+        "from": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "to": "7aQ2v6Eh5ocjcJzjTBHaVUgi6UuSRDFKnaVQzco2ygvg",
+        "amount": 43455935.22910635,
+        "transactions": 2,
+        "firstSeen": 1787512993,
+        "lastSeen": 1787513005
+      },
+      {
+        "from": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "to": "QGtKPKRYHbQ1nuBqHmJZaQ1hTJnACDXJLNbiKvSXhMv",
+        "amount": 41653858.48057952,
+        "transactions": 2,
+        "firstSeen": 1787512529,
+        "lastSeen": 1787513262
+      },
+      {
+        "from": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "to": "EYo5hNaaVnpevnv7WgSayw494pYXJRCvHM9PY6aHcXMa",
+        "amount": 39451581.376199566,
+        "transactions": 4,
+        "firstSeen": 1787512230,
+        "lastSeen": 1787513262
+      },
+      {
+        "from": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "to": "BmPmZijwtoG5ZA8zt7XNroa7af5sho1aPQLJGSSDjWDp",
+        "amount": 38926413.70886216,
+        "transactions": 1,
+        "firstSeen": 1787512428,
+        "lastSeen": 1787512428
+      },
+      {
+        "from": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "to": "FTknYqc6tLfndD9bvfr9gta3vXqU9ymEkmULcgV7hwbe",
+        "amount": 37129899.97388771,
+        "transactions": 2,
+        "firstSeen": 1787512545,
+        "lastSeen": 1787513033
+      },
+      {
+        "from": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "to": "Gyzjv6MaDnCX8BfBX4fTUVVN9vyHj4FoJNiNQukC9sYm",
+        "amount": 31876886.52860211,
+        "transactions": 1,
+        "firstSeen": 1787469411,
+        "lastSeen": 1787469411
+      },
+      {
+        "from": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "to": "CBQcSSyjVKKFwQfQiX3D4EJ6y33Y18uGFNQojGwsMoQY",
+        "amount": 29330968.345410418,
+        "transactions": 1,
+        "firstSeen": 1787512003,
+        "lastSeen": 1787512003
+      },
+      {
+        "from": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "to": "8XF2y3gyBaVVPXpqs3hpoEPVz69rMzF1UZ8xtmr9d9Ld",
+        "amount": 28714731.00477466,
+        "transactions": 3,
+        "firstSeen": 1787513261,
+        "lastSeen": 1787513340
+      },
+      {
+        "from": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "to": "FUSMzRFppYiMsdohWVhDGPtA87PYkATXKyWM8pgc3EdA",
+        "amount": 28366142.83664,
+        "transactions": 1,
+        "firstSeen": 1787510511,
+        "lastSeen": 1787510511
+      },
+      {
+        "from": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "to": "EzPsaSNBnRTwjWAV6MPM3BMZBRk6Px2obvyD4CVWThuH",
+        "amount": 27018819.318333577,
+        "transactions": 1,
+        "firstSeen": 1787510524,
+        "lastSeen": 1787510524
+      },
+      {
+        "from": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "to": "FgkZRfREbxasW2GQSv1w6jexpz3zWJ43BSDs6ZWhj43E",
+        "amount": 25300195.43688601,
+        "transactions": 1,
+        "firstSeen": 1787474045,
+        "lastSeen": 1787474045
+      },
+      {
+        "from": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "to": "FFortn4m3vbZsXbbrkM4aZTrVBHtv3K6kpHsz9PGGbBN",
+        "amount": 24201946.787117038,
+        "transactions": 2,
+        "firstSeen": 1787514197,
+        "lastSeen": 1787515414
+      },
+      {
+        "from": "EYo5hNaaVnpevnv7WgSayw494pYXJRCvHM9PY6aHcXMa",
+        "to": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "amount": 23684903.35526586,
+        "transactions": 2,
+        "firstSeen": 1787512250,
+        "lastSeen": 1787513124
+      },
+      {
+        "from": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "to": "XkaPn4yDfTUzdYecKy6qmfQJXXWEapiZ6NX4AfKpY5U",
+        "amount": 20385645.919328272,
+        "transactions": 1,
+        "firstSeen": 1787511969,
+        "lastSeen": 1787511969
+      },
+      {
+        "from": "6msdN6NyfVYDQ71FoAaPoKQtixoof3tVDKQTXbK2batx",
+        "to": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "amount": 19511911.827913873,
+        "transactions": 1,
+        "firstSeen": 1787512339,
+        "lastSeen": 1787512339
+      },
+      {
+        "from": "FTknYqc6tLfndD9bvfr9gta3vXqU9ymEkmULcgV7hwbe",
+        "to": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "amount": 19415298.85663862,
+        "transactions": 1,
+        "firstSeen": 1787512997,
+        "lastSeen": 1787512997
+      },
+      {
+        "from": "BH5bJKhguuyY9QLffnvzzcQqwBKDgod6VLPc7kFDPD1u",
+        "to": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "amount": 19055086.998065125,
+        "transactions": 1,
+        "firstSeen": 1787512755,
+        "lastSeen": 1787512755
+      },
+      {
+        "from": "QGtKPKRYHbQ1nuBqHmJZaQ1hTJnACDXJLNbiKvSXhMv",
+        "to": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "amount": 17834507.9151877,
+        "transactions": 1,
+        "firstSeen": 1787513096,
+        "lastSeen": 1787513096
+      },
+      {
+        "from": "7aQ2v6Eh5ocjcJzjTBHaVUgi6UuSRDFKnaVQzco2ygvg",
+        "to": "E4yVuZoVW36Xu33MKPEnk6dCs6dei4UoKJWwCnApsqPH",
+        "amount": 17382374.09164254,
+        "transactions": 1,
+        "firstSeen": 1787513074,
+        "lastSeen": 1787513074
+      },
+      {
+        "from": "CBQcSSyjVKKFwQfQiX3D4EJ6y33Y18uGFNQojGwsMoQY",
+        "to": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "amount": 14665484.172705209,
+        "transactions": 1,
+        "firstSeen": 1787513027,
+        "lastSeen": 1787513027
+      },
+      {
+        "from": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "to": "C22Jtk2qjbDtNSLH549f2wpdDNVRnbbSvh8jhqoZHt99",
+        "amount": 13444248.2029974,
+        "transactions": 1,
+        "firstSeen": 1787514290,
+        "lastSeen": 1787514290
+      },
+      {
+        "from": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "to": "FFbmkRPrxkStUerKMg56taouQFG2YSkQ4p8m2Zb2Y4hY",
+        "amount": 11297843.883421697,
+        "transactions": 3,
+        "firstSeen": 1787470255,
+        "lastSeen": 1787513802
+      },
+      {
+        "from": "XkaPn4yDfTUzdYecKy6qmfQJXXWEapiZ6NX4AfKpY5U",
+        "to": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "amount": 7216272.052563445,
+        "transactions": 1,
+        "firstSeen": 1787512249,
+        "lastSeen": 1787512249
+      },
+      {
+        "from": "FUSMzRFppYiMsdohWVhDGPtA87PYkATXKyWM8pgc3EdA",
+        "to": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "amount": 7091535.70916,
+        "transactions": 1,
+        "firstSeen": 1787512996,
+        "lastSeen": 1787512996
+      },
+      {
+        "from": "FFbmkRPrxkStUerKMg56taouQFG2YSkQ4p8m2Zb2Y4hY",
+        "to": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM",
+        "amount": 6188701.130176608,
+        "transactions": 1,
+        "firstSeen": 1787512582,
+        "lastSeen": 1787512582
+      }
+    ]
+  },
+  "limitations": [
+    "The liquidity owner classification was supplied by the project operator.",
+    "Current holders come from Helius DAS getTokenAccounts at one indexed slot.",
+    "History combines signatures for the mint and every current live token account.",
+    "Transfers involving only token accounts that were later closed can be absent.",
+    "Complex multi-party transactions are reduced to net owner balance flows.",
+    "Addresses are not assumed to represent independent people or entities."
+  ]
+}

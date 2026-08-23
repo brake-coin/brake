@@ -31,6 +31,7 @@ import {
 } from "./telegram-credentials.mjs";
 import { publicXCredentialStatus, XCredentialStore } from "./x-credentials.mjs";
 import { XGallery } from "./x-gallery.mjs";
+import { createTokenMonitor } from "./token-monitor.mjs";
 import {
   buildXAuthorizationUrl,
   exchangeXCode,
@@ -74,6 +75,13 @@ const environmentXPostingEnabled = botConfig.xPostingEnabled;
 const storedXCredential = await xCredentialStore.read();
 if (storedXCredential) botConfig.xPostingEnabled = true;
 const project = JSON.parse(await readFile(path.join(root, "config/project.json"), "utf8"));
+const heliusRpcUrl = process.env.HELIUS_API_KEY
+  ? `https://mainnet.helius-rpc.com/?api-key=${encodeURIComponent(process.env.HELIUS_API_KEY)}`
+  : undefined;
+const tokenMonitor = createTokenMonitor({
+  mint: project.contractAddress,
+  rpcUrl: process.env.SOLANA_RPC_URL || heliusRpcUrl
+});
 const expectedXUsername = String(new URL(project.links.x).pathname.split("/").filter(Boolean)[0]
   || "STOPAICOIN").toLowerCase();
 botConfig.xExpectedUsername = expectedXUsername;
@@ -617,6 +625,22 @@ async function handleRequest(request, response) {
     } catch (error) {
       console.error("X gallery refresh failed", error);
       sendJson(response, 502, { error: "The @STOPAICOIN gallery could not refresh." }, headers);
+    }
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/token-monitor") {
+    const headers = {
+      "Access-Control-Allow-Origin": "*",
+      "Cache-Control": "public, max-age=60, stale-while-revalidate=300"
+    };
+    try {
+      sendJson(response, 200, await tokenMonitor.read(), headers);
+    } catch (error) {
+      console.error("Token monitor refresh failed", error.message);
+      sendJson(response, 502, {
+        error: "Live Solana distribution data is temporarily unavailable."
+      }, headers);
     }
     return;
   }

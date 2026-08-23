@@ -2,8 +2,15 @@ import { randomUUID } from "node:crypto";
 import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+const UPDATE_RETENTION_MS = 8 * 24 * 60 * 60 * 1_000;
+const MESSAGE_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000;
+const MAX_TELEGRAM_UPDATES = 2_000;
+const MAX_CONVERSATIONS = 100;
+const MAX_MESSAGES_PER_CONVERSATION = 20;
+const MAX_X_SOURCE_POSTS = 50_000;
+
 const EMPTY_STATE = Object.freeze({
-  version: 7,
+  version: 8,
   messages: {},
   media: [],
   usage: [],
@@ -69,6 +76,28 @@ function cleanTelegramUpdates(value) {
     }]));
 }
 
+function cleanMessage(value) {
+  if (!value || typeof value !== "object") return null;
+  const role = ["user", "assistant"].includes(value.role) ? value.role : null;
+  const content = String(value.content || "").slice(0, 2_000);
+  if (!role || !content) return null;
+  return {
+    role,
+    content,
+    userId: String(value.userId || "unknown").slice(0, 80),
+    threadId: String(value.threadId || "main").slice(0, 80),
+    at: value.at || null
+  };
+}
+
+function conversationKey(chatId, threadId = "main") {
+  const chat = String(chatId);
+  const thread = String(threadId || "main");
+  return !thread || thread === "0" || thread === "main"
+    ? chat
+    : `${chat}:thread:${thread}`;
+}
+
 function cleanStickerPack(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const name = String(value.name || "").trim().slice(0, 64);
@@ -88,10 +117,10 @@ function cleanStickerPack(value) {
 function cleanState(value) {
   const agent = value?.agent && typeof value.agent === "object" ? value.agent : {};
   const cleaned = {
-    version: 7,
+    version: 8,
     messages: value?.messages && typeof value.messages === "object"
       ? Object.fromEntries(Object.entries(value.messages).map(([key, messages]) => (
-        [key, Array.isArray(messages) ? messages.map((item) => ({ ...item })) : []]
+        [key, Array.isArray(messages) ? messages.map(cleanMessage).filter(Boolean) : []]
       )))
       : {},
     media: Array.isArray(value?.media) ? value.media.map((item) => ({ ...item })) : [],
@@ -192,8 +221,9 @@ export class BotStore {
     return this;
   }
 
-  recentMessages(chatId, limit = 12) {
-    return (this.#state.messages[String(chatId)] || []).slice(-limit);
+  recentMessages(chatId, { threadId = "main", limit = 12 } = {}) {
+    return (this.#state.messages[conversationKey(chatId, threadId)] || [])
+      .slice(-Math.max(1, Math.min(MAX_MESSAGES_PER_CONVERSATION, Number(limit) || 12)));
   }
 
   agentSnapshot({ memoryLimit = 12, researchLimit = 12, cycleLimit = 5 } = {}) {
@@ -688,12 +718,18 @@ export class BotStore {
     return { allowed: true, reason: null, status };
   }
 
-  async recordMessage({ chatId, role, content }) {
+  async recordMessage({ chatId, threadId = "main", userId = "unknown", role, content }) {
     return this.#mutate((state) => {
-      const key = String(chatId);
+      const key = conversationKey(chatId, threadId);
       const messages = state.messages[key] || [];
-      messages.push({ role, content: String(content).slice(0, 2_000), at: this.now().toISOString() });
-      state.messages[key] = messages.slice(-20);
+      messages.push({
+        role,
+        content: String(content).slice(0, 2_000),
+        userId: String(userId || "unknown").slice(0, 80),
+        threadId: String(threadId || "main").slice(0, 80),
+        at: this.now().toISOString()
+      });
+      state.messages[key] = messages.slice(-MAX_MESSAGES_PER_CONVERSATION);
     });
   }
 
@@ -796,26 +832,42 @@ export class BotStore {
     this.#queue = this.#queue.catch(() => {}).then(async () => {
       await this.load();
       change(this.#state);
+      this.#prune(this.#state);
       await this.#save();
     });
     return this.#queue;
   }
 
   #prune(state = this.#state) {
-    const cutoff = this.now().getTime() - (8 * 24 * 60 * 60 * 1_000);
-    state.usage = state.usage.filter((item) => new Date(item.at).getTime() >= cutoff);
+    const now = this.now().getTime();
+    const updateCutoff = now - UPDATE_RETENTION_MS;
+    const messageCutoff = now - MESSAGE_RETENTION_MS;
+    state.usage = state.usage.filter((item) => new Date(item.at).getTime() >= updateCutoff);
     state.telegramUpdates = Object.fromEntries(Object.entries(state.telegramUpdates)
-      .filter(([, item]) => new Date(item.at || 0).getTime() >= cutoff)
+      .filter(([, item]) => new Date(item.at || 0).getTime() >= updateCutoff)
       .sort(([, left], [, right]) => new Date(right.at).getTime() - new Date(left.at).getTime())
-      .slice(0, 2_000));
+      .slice(0, MAX_TELEGRAM_UPDATES));
     state.media = state.media.slice(0, 200);
     state.xReceipts = state.xReceipts.slice(0, 200);
+    state.xSourcePosts = Object.fromEntries(Object.entries(state.xSourcePosts)
+      .sort(([, left], [, right]) => (
+        new Date(right.resolvedAt || right.at || 0).getTime()
+        - new Date(left.resolvedAt || left.at || 0).getTime()
+      ))
+      .slice(0, MAX_X_SOURCE_POSTS));
     state.agent.memories = state.agent.memories.slice(0, 250);
     state.agent.research = state.agent.research.slice(0, 500);
     state.agent.cycles = state.agent.cycles.slice(0, 100);
-    for (const chatId of Object.keys(state.messages)) {
-      state.messages[chatId] = state.messages[chatId].slice(-20);
-    }
+    state.messages = Object.fromEntries(Object.entries(state.messages)
+      .map(([key, messages]) => [key, messages
+        .filter((message) => new Date(message.at || 0).getTime() >= messageCutoff)
+        .slice(-MAX_MESSAGES_PER_CONVERSATION)])
+      .filter(([, messages]) => messages.length)
+      .sort(([, left], [, right]) => (
+        new Date(right.at(-1)?.at || 0).getTime()
+        - new Date(left.at(-1)?.at || 0).getTime()
+      ))
+      .slice(0, MAX_CONVERSATIONS));
   }
 
   async #save() {

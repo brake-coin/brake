@@ -7,10 +7,10 @@ The bot has two clear AI paths:
 
 The public website never receives or uses the shared key.
 
-The public Telegram entry is [@StopAiCoin](https://t.me/StopAiCoin). It may show a
-verification or gateway screen before the community chat. The bot account is
+The community group is [@StopAiCoin](https://t.me/StopAiCoin). The bot account is
 [@StopAiToken_bot](https://t.me/StopAiToken_bot), but normal conversations happen only
-inside the community chat reached from the public entry.
+inside the one group configured by `TELEGRAM_ALLOWED_CHAT_ID`. Messages from every other
+group are ignored.
 
 ## Create the bot
 
@@ -21,6 +21,19 @@ inside the community chat reached from the public entry.
    Telegram bot section, and choose **Connect bot**.
 4. Leave BotFather privacy mode on. In groups, STOPAI replies only when mentioned or
    directly replied to.
+
+Set these public environment values before starting the bot:
+
+- `TELEGRAM_ALLOWED_CHAT_ID` is the only group or supergroup allowed to use the bot. It
+  can be a public handle such as `@StopAiCoin` or a numeric Telegram chat ID.
+- `TELEGRAM_COMMUNITY_URL` is the HTTPS `t.me` link shown to people who message the bot
+  privately.
+- `TELEGRAM_GALLERY_CHAT_ID` is the chat whose saved gallery supplies the random media in
+  private replies. It normally matches the allowed chat.
+
+The bot resolves both chat settings through Telegram before it starts polling. It stays
+stopped if the allowed value does not resolve to a group or supergroup. This makes a bad
+or missing production setting fail closed instead of opening the bot to other groups.
 
 The admin service checks the token with Telegram `getMe` before writing it to the
 encrypted volume or starting polling. It never sends the token back to the browser.
@@ -57,22 +70,26 @@ The bot has no slash-command menu. Speak normally. For example:
 - `Post the latest image on X with this text: ...`
 - `Read this X post and summarize it: https://x.com/.../status/...`
 - `Search recent X posts about stopping the AI race.`
-- `Turn a public account's latest original post into a STOPAI meme with attribution.`
+- `Turn @canadabirdie's latest original post into a STOPAI meme and post it with attribution.` (media review is a second step)
 
 The first shared sticker pack must be created by a group administrator, configured operator,
 or the user in `TELEGRAM_STICKER_OWNER_ID`. After that, the saved owner stays attached to the
 pack and normal sticker proposals can use it safely.
 
-Reply to an image while asking for a new image, sticker, or video to use it as a reference. In the
+Reply to an image while asking for a new image or video to use it as a reference. In the
 group, an upload must mention or reply to the bot. This lets people bring BYOK-made media
 into Telegram without charging the server again.
 
+The mention must match the bot's full username. A longer username that merely starts the
+same way does not count. A text message containing only the mention is ignored. Setting
+`TELEGRAM_REPLIES_ENABLED=false` disables all group text replies, media saves, and upload
+acknowledgements. Private messages still receive the fixed redirect described below.
+
 Private chat is disabled at the application level. Any DM gets one random image, sticker, or video
-from the configured community gallery plus a button linking to
+from the community group's bot gallery plus a button linking to
 [@StopAiCoin](https://t.me/StopAiCoin). A DM never reaches the AI, spends shared budget,
-or saves uploaded media. If the gallery is empty or unavailable, the bot sends the public
-community link without media. `TELEGRAM_COMMUNITY_URL` controls the public destination;
-`TELEGRAM_GALLERY_CHAT_ID` can point at a different numeric chat ID or `@handle`.
+or saves uploaded media. If the group gallery is empty or unavailable, the bot sends the
+group link without media.
 
 A caption can also be the request. For example, upload an image with `remix this as a
 STOPAI poster` or `animate this`. The bot saves the upload, then uses it as the media
@@ -88,12 +105,6 @@ or ask a natural question; there is no required confirmation sentence or user-su
 alt-text form. The server adds an honest provenance-based fallback if the agent omits alt
 text, while the X client still attaches alt text before publishing.
 
-Every Telegram update ID is claimed in the private durable store before its handler runs.
-This suppresses Telegram redelivery across concurrent requests and restarts. Recent claims
-expire after eight days. Operational log events include only action names, timings, costs,
-and keyed short hashes for update, user, and chat IDs. They do not include message text,
-prompts, names, tokens, or source URLs.
-
 All normal replies go through the shared agent so it can decide whether to answer, use a
 tool, or refuse a weak use of scarce capacity. Each turn includes live global and current-
 user counts for image, video, X research, and X posting, plus cooldown and spend status. Sticker
@@ -101,6 +112,18 @@ generation shares the image counts and daily media-spend cap. This lets the
 agent save the last image for a new participant instead of mechanically serving a repeat
 request. Atomic server limits still make the final decision under concurrency. Ask `help`,
 `what is the CA?`, `what AI are you using?`, or `what is my Telegram ID?` naturally.
+
+Recent chat context is separated by Telegram forum topic. Every saved user turn includes
+the sender's Telegram user ID, so the agent does not confuse one group member with another.
+The bot keeps at most 20 recent turns in each of at most 100 conversation buckets. Chat
+content expires after 30 days.
+
+Only updates that can cause an action are written to the durable duplicate-protection
+ledger. It keeps at most 2,000 claims for eight days, which covers Telegram retry windows
+without rewriting the state file for normal ignored group traffic. Logs record why an
+update was accepted or ignored, how it was addressed, timing, model, tool, and cost when
+relevant. Chat, user, and update IDs are short keyed hashes. Message text, captions, media
+URLs, tokens, and unknown fields are not written to these event logs.
 
 The chat persona is deliberately a little degen: short, crypto-native, mischievous, and
 occasionally lowercase, with the weird hand as a recurring brake-operator character. It
@@ -115,7 +138,7 @@ can propose an X post, and the agent decides whether it is original, useful, saf
 well timed, and worth publishing. There is no regex preflight, forced tool choice, or right
 to spend a shared generation because a user asked.
 Successful Telegram posts have a one-hour account cooldown and a four-hour per-user
-cooldown, plus limits of 2 manual posts per hour, 8 per day, 1 per user per hour, and 3
+cooldown, plus limits of 20 manual posts per hour, 80 per day, 10 per user per hour, and 30
 per user per day. These account-wide checks also see autonomous and live-test posts.
 
 All bot-made X posts are top-level posts. The publishing client rejects reply fields and
@@ -138,13 +161,15 @@ so the source URL is added to the post text. X renders that link as the visible 
 card while keeping the original author and post accessible.
 
 Each X source post ID is claimed atomically in a durable ledger before media is downloaded
-or a post is created. A confirmed source can never be claimed again. Concurrent requests
-see the pending claim and stop. If X returns a post ID but verification fails, the source is
-marked uncertain and stays blocked so a retry cannot create a duplicate. Older used-source
-research and confirmed receipts are imported into the ledger when encountered.
+or a post is created. Concurrent requests see the pending claim and stop. If X returns a
+post ID but verification fails, the source is marked uncertain and stays blocked so a retry
+cannot create a duplicate. Older used-source research and confirmed receipts are imported
+into the ledger when encountered. The state keeps the newest 50,000 source decisions, which
+is several years of records at the current limits and prevents the file from growing without
+bound.
 
-X research is capped at 20 requests per hour and 100 per UTC day globally, plus 5 per user
-per hour and 20 per user per day.
+X research is capped at 200 requests per hour and 1,000 per UTC day globally, plus 50 per user
+per hour and 200 per user per day.
 
 ## Connect X
 
@@ -192,9 +217,9 @@ durable source claim and any public action.
 
 Autonomous posts always keep the selected source link. The agent can choose text, image,
 or video, waits at least four hours after either a Telegram or autonomous X post, and stops
-after three autonomous posts per UTC day. Live admin tests use the same public cooldown.
+after 30 autonomous posts per UTC day. Live admin tests use the same public cooldown.
 It waits fifteen minutes after startup and shares the existing chat, media, and
-$5 daily AI-spend limits. Research and posting history survive deploys on the encrypted
+$50 daily AI-spend limits. Research and posting history survive deploys on the encrypted
 Fly volume. The admin page shows goal, memory, research, and last-cycle counts alongside
 the live test buttons.
 
@@ -211,13 +236,13 @@ share of the STOPAI creator-fee distribution.
 
 | Use | Global hourly | Global daily | Per-user hourly | Per-user daily |
 | --- | ---: | ---: | ---: | ---: |
-| Chat | 30 | 200 | 10 | 50 |
-| Image | 2 | 10 | 1 | 3 |
-| Video | 1 | 2 | 1 | 1 |
+| Chat | 300 | 2,000 | 100 | 500 |
+| Image | 20 | 100 | 10 | 30 |
+| Video | 10 | 20 | 10 | 10 |
 
-Shared image and video generation also stop when recorded daily AI spend reaches $5.
+Shared image and video generation also stop when recorded daily AI spend reaches $50.
 Generated stickers use the image row because each sticker spends one shared image generation.
-All limits can be lowered through the matching environment settings. A limit of zero
+All limits can be overridden through the matching environment settings. A limit of zero
 turns that feature off.
 
 ## Safety and project facts
@@ -230,8 +255,7 @@ the official mint `2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS` and official Ba
 link. It identifies [@canadabirdie](https://x.com/canadabirdie) as the holder of a
 100% share of the STOPAI creator-fee distribution on Bags. This means 100% of Bags
 creator fees, not all trading or protocol fees. STOPAI is independent. The bot never tells people to buy or
-pump the token. The public route does not verify how the recipient uses the fees, so the
-bot may not say the fees support, fund, finance, or donate to any person or work.
+pump the token.
 
 Telegram stores chat content and uploaded media under its own terms. OpenRouter and
 the selected model providers process prompts and server-generated media. Video jobs

@@ -259,7 +259,12 @@ export function buildChatMessages(history, userText, context = {}) {
   const recent = history
     .filter((message) => ["user", "assistant"].includes(message.role))
     .slice(-12)
-    .map(({ role, content }) => ({ role, content: String(content).slice(0, 1_500) }));
+    .map(({ role, content, userId = "unknown" }) => ({
+      role,
+      content: role === "user"
+        ? `Telegram user ${userId}: ${String(content).slice(0, 1_500)}`
+        : `STOPAI reply to Telegram user ${userId}: ${String(content).slice(0, 1_500)}`
+    }));
   return [
     { role: "system", content: STOPAI_SYSTEM_PROMPT },
     {
@@ -291,7 +296,10 @@ export function buildChatMessages(history, userText, context = {}) {
       ].join(" ")
     },
     ...recent,
-    { role: "user", content: String(userText).slice(0, 2_000) }
+    {
+      role: "user",
+      content: `Telegram user ${context.userId || "unknown"}: ${String(userText).slice(0, 2_000)}`
+    }
   ];
 }
 
@@ -336,5 +344,9 @@ No gore, weapons, threats, harassment, property damage, financial promises, pric
 export function removeBotMention(text, username) {
   const value = String(text || "");
   if (!username) return value.trim();
-  return value.replace(new RegExp(`@${username}\\b`, "gi"), "").trim();
+  const escaped = String(username).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return value.replace(
+    new RegExp(`(^|[^A-Za-z0-9_])@${escaped}(?![A-Za-z0-9_])`, "gi"),
+    (_, prefix) => prefix
+  ).trim();
 }

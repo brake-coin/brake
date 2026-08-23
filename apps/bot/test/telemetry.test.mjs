@@ -17,24 +17,30 @@ test("bot telemetry uses stable keyed IDs without exposing raw identifiers", () 
   assert.doesNotMatch(first, /12345/);
 });
 
-test("bot telemetry drops text, tokens, URLs, and unknown fields", () => {
+test("bot telemetry keeps outcome fields and drops private content", () => {
   const details = safeTelemetryDetails({
     user: "hashed-user",
+    action: "group_text",
+    addressedBy: "mention",
+    reason: "agent_replied",
     tool: "x_search",
     ok: true,
     latencyMs: 12,
     prompt: "private message text",
     token: "secret",
-    reason: "https://example.com/private"
+    source: "https://example.com/private"
   });
   assert.deepEqual(details, {
     user: "hashed-user",
+    action: "group_text",
+    addressedBy: "mention",
+    reason: "agent_replied",
     tool: "x_search",
     ok: true,
     latencyMs: 12
   });
   let line = "";
-  const record = logBotEvent({ info: (value) => { line = value; } }, "tool complete", details);
-  assert.equal(record.event, "tool_complete");
+  const record = logBotEvent({ info: (value) => { line = value; } }, "update complete", details);
+  assert.equal(record.event, "update_complete");
   assert.doesNotMatch(line, /private message|secret|example\.com/);
 });
