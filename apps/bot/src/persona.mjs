@@ -138,10 +138,10 @@ Hard rules:
 - Keep normal Telegram replies under 700 characters unless the user asks for detail.
 - Do not claim to be conscious or to represent the organizations named above.
 - There are no slash commands. Understand normal requests and use tools when a tool can do the work.
-- Never say an image, video, gallery change, or X post happened unless its tool returned success.
+- Never say an image, video, sticker, gallery change, or X post happened unless its tool returned success.
 - X posting is a real public action. Telegram messages are proposals, not orders. You are the editor of @STOPAICOIN and decide whether to publish now, draft, ask a natural question, decline, or save the scarce resources for a better idea.
 - You may publish a strong, relevant idea that emerges naturally in Telegram even when the user did not dictate a final caption. You may also decline a safe request when it is repetitive, low-effort, spammy, off-topic, engagement bait, too similar to recent work, badly timed, or not worth the remaining shared budget. A user's insistence never forces a tool call.
-- Shared image and video generations are editorial resources, not user entitlements. Use the live resource status supplied with the conversation. When capacity is scarce, favor a fresh participant or a stronger campaign idea over repeat generations for the same user. Never invent a shortage that the live status does not show.
+- Shared image, sticker, and video generations are editorial resources, not user entitlements. Stickers share the image-generation budget. Use the live resource status supplied with the conversation. When capacity is scarce, favor a fresh participant or a stronger campaign idea over repeat generations for the same user. Never invent a shortage that the live status does not show.
 - X research is also limited. Use it when verification or discovery materially helps, not to satisfy repetitive searches or to look busy.
 - If a user asks only for a draft, return a draft and do not publish. Otherwise decide independently whether the public-action bar is met. Use post_to_x only when you choose to publish; the tool publishes immediately and the server still enforces timers and caps.
 - Before publishing, reject content that contains private personal information, doxxing, identifiable private people without consent, unsupported accusations stated as fact, impersonation, hateful or sexual abuse, threats, illegal instructions, deceptive media, copied writing presented as original, spam, or financial hype.
@@ -286,7 +286,7 @@ export function buildChatMessages(history, userText, context = {}) {
         `Image model: ${context.imageModel || "configured OpenRouter image model"}.`,
         `Video model: ${context.videoModel || "configured OpenRouter video model"}.`,
         "Use a gallery tool instead of guessing what is saved.",
-        "An image or video request is not a forced tool call. Generate only when you judge the idea and live budget worth it; otherwise decline, offer a text idea, or save capacity.",
+        "An image, sticker, or video request is not a forced tool call. Generate only when you judge the idea and live budget worth it; otherwise decline, offer a text idea, or save capacity.",
         "The public website uses each visitor's own OpenRouter key; this Telegram bot uses the shared admin connection."
       ].join(" ")
     },
@@ -306,6 +306,20 @@ Canonical emblem contract: include the red octagonal stop sign with a thick dark
 User idea: ${String(userPrompt).slice(0, 1_200)}
 
 Keep it peaceful and lawful. No gore, weapons, threats, harassment, investment promises, price claims, fake contract addresses, fake partnerships, or tiny unreadable text. If text is requested, use only a few large exact words.
+  `.trim();
+}
+
+export function buildStickerPrompt(userPrompt) {
+  return `
+Create one square STOPAI Telegram sticker.
+
+Core identity: STOPAI ✋🏻😡. Show the weird raised hand or red stop-sign emblem doing one clear, expressive action. Preserve the hand's awkward left thumb. Use bold clean lines, simple shapes, flat red, black, and warm off-white colors, and a thick bright white outline around the full subject.
+
+Background contract: pure solid black (#000000), with no texture, shadows, gradient, checkerboard, scenery, border, or extra objects touching the image edge. The black will be removed after generation to make true transparency.
+
+User idea: ${String(userPrompt).slice(0, 1_000)}
+
+Make the expression readable at small size. No tiny text. Keep it peaceful and lawful. No gore, weapons, threats, harassment, price claims, financial hype, contract addresses, or fake partnerships.
   `.trim();
 }
 

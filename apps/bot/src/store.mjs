@@ -10,6 +10,7 @@ const EMPTY_STATE = Object.freeze({
   telegramUpdates: {},
   xReceipts: [],
   xSourcePosts: {},
+  stickerPack: null,
   agent: {
     goals: [],
     memories: [],
@@ -68,6 +69,22 @@ function cleanTelegramUpdates(value) {
     }]));
 }
 
+function cleanStickerPack(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const name = String(value.name || "").trim().slice(0, 64);
+  const title = String(value.title || "").trim().slice(0, 64);
+  const ownerId = Number.parseInt(value.ownerId, 10);
+  if (!name || !title || !Number.isSafeInteger(ownerId) || ownerId <= 0) return null;
+  return {
+    name,
+    title,
+    ownerId,
+    stickerCount: Math.max(0, Number.parseInt(value.stickerCount, 10) || 0),
+    createdAt: value.createdAt || null,
+    updatedAt: value.updatedAt || null
+  };
+}
+
 function cleanState(value) {
   const agent = value?.agent && typeof value.agent === "object" ? value.agent : {};
   const cleaned = {
@@ -82,6 +99,7 @@ function cleanState(value) {
     telegramUpdates: cleanTelegramUpdates(value?.telegramUpdates),
     xReceipts: Array.isArray(value?.xReceipts) ? value.xReceipts.map((item) => ({ ...item })) : [],
     xSourcePosts: cleanXSourcePosts(value?.xSourcePosts),
+    stickerPack: cleanStickerPack(value?.stickerPack),
     agent: {
       goals: Array.isArray(agent.goals) ? agent.goals.map((item) => ({ ...item })) : [],
       memories: Array.isArray(agent.memories) ? agent.memories.map((item) => ({ ...item })) : [],
@@ -410,6 +428,26 @@ export class BotStore {
     )) || null;
   }
 
+  stickerPack() {
+    return this.#state.stickerPack ? { ...this.#state.stickerPack } : null;
+  }
+
+  async saveStickerPack({ name, title, ownerId, stickerCount, createdAt = null }) {
+    const record = cleanStickerPack({
+      name,
+      title,
+      ownerId,
+      stickerCount,
+      createdAt: createdAt || this.#state.stickerPack?.createdAt || this.now().toISOString(),
+      updatedAt: this.now().toISOString()
+    });
+    if (!record) throw new Error("Sticker pack details are invalid.");
+    await this.#mutate((state) => {
+      state.stickerPack = record;
+    });
+    return { ...record };
+  }
+
   recentXReceipts(limit = 10) {
     return this.#state.xReceipts.slice(0, Math.max(1, Math.min(50, Number(limit) || 10)));
   }
@@ -659,7 +697,16 @@ export class BotStore {
     });
   }
 
-  async recordMedia({ chatId, userId, type, fileId, caption = "", source = "telegram" }) {
+  async recordMedia({
+    chatId,
+    userId,
+    type,
+    fileId,
+    caption = "",
+    source = "telegram",
+    stickerEmoji = null,
+    stickerSetName = null
+  }) {
     const record = {
       id: randomUUID(),
       chatId: String(chatId),
@@ -668,6 +715,10 @@ export class BotStore {
       fileId,
       caption: String(caption).slice(0, 1_000),
       source,
+      ...(type === "sticker" ? {
+        stickerEmoji: String(stickerEmoji || "✋🏻").slice(0, 20),
+        stickerSetName: String(stickerSetName || "").slice(0, 64) || null
+      } : {}),
       at: this.now().toISOString()
     };
     await this.#mutate((state) => {

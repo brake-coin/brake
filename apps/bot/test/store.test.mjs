@@ -182,6 +182,33 @@ test("store remembers Telegram media IDs without media bytes", async (t) => {
   assert.equal(store.findMediaByFileId("99", "telegram-file-id"), null);
 });
 
+test("store keeps the shared Telegram sticker pack owner across restarts", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-sticker-pack-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const filePath = path.join(directory, "bot.json");
+  const store = new BotStore(filePath, { now: () => new Date("2026-08-23T20:00:00.000Z") });
+  await store.saveStickerPack({
+    name: "stopai_stickers_by_stopaitoken_bot",
+    title: "STOPAI Stickers ✋🏻😡",
+    ownerId: 12345,
+    stickerCount: 2
+  });
+  await store.recordMedia({
+    chatId: "42",
+    userId: "7",
+    type: "sticker",
+    fileId: "sticker-file-id",
+    caption: "angry brake hand",
+    stickerEmoji: "😡",
+    stickerSetName: "stopai_stickers_by_stopaitoken_bot"
+  });
+
+  const reloaded = await new BotStore(filePath).load();
+  assert.equal(reloaded.stickerPack().ownerId, 12345);
+  assert.equal(reloaded.stickerPack().stickerCount, 2);
+  assert.equal(reloaded.latestMedia("42", "sticker").stickerEmoji, "😡");
+});
+
 test("store manages chat-scoped galleries", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-bot-gallery-"));
   t.after(() => rm(directory, { recursive: true, force: true }));

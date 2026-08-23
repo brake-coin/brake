@@ -46,6 +46,9 @@ you want it permanently disabled.
 The bot has no slash-command menu. Speak normally. For example:
 
 - `Make an image of the weird STOPAI hand pulling an emergency brake.`
+- `Make an angry STOPAI sticker for the shared pack.`
+- `Send a random sticker.`
+- `Show me the sticker pack.`
 - `Animate the image I replied to.`
 - `Remix gallery item a1b2c3d4 as a newspaper cartoon.`
 - `Show me the latest three gallery items.`
@@ -56,11 +59,15 @@ The bot has no slash-command menu. Speak normally. For example:
 - `Search recent X posts about stopping the AI race.`
 - `Turn a public account's latest original post into a STOPAI meme with attribution.`
 
-Reply to an image while asking for a new image or video to use it as a reference. In the
+The first shared sticker pack must be created by a group administrator, configured operator,
+or the user in `TELEGRAM_STICKER_OWNER_ID`. After that, the saved owner stays attached to the
+pack and normal sticker proposals can use it safely.
+
+Reply to an image while asking for a new image, sticker, or video to use it as a reference. In the
 group, an upload must mention or reply to the bot. This lets people bring BYOK-made media
 into Telegram without charging the server again.
 
-Private chat is disabled at the application level. Any DM gets one random image or video
+Private chat is disabled at the application level. Any DM gets one random image, sticker, or video
 from the configured community gallery plus a button linking to
 [@StopAiCoin](https://t.me/StopAiCoin). A DM never reaches the AI, spends shared budget,
 or saves uploaded media. If the gallery is empty or unavailable, the bot sends the public
@@ -89,7 +96,8 @@ prompts, names, tokens, or source URLs.
 
 All normal replies go through the shared agent so it can decide whether to answer, use a
 tool, or refuse a weak use of scarce capacity. Each turn includes live global and current-
-user counts for image, video, X research, and X posting, plus cooldown and spend status. This lets the
+user counts for image, video, X research, and X posting, plus cooldown and spend status. Sticker
+generation shares the image counts and daily media-spend cap. This lets the
 agent save the last image for a new participant instead of mechanically serving a repeat
 request. Atomic server limits still make the final decision under concurrency. Ask `help`,
 `what is the CA?`, `what AI are you using?`, or `what is my Telegram ID?` naturally.
@@ -208,6 +216,7 @@ share of the STOPAI creator-fee distribution.
 | Video | 1 | 2 | 1 | 1 |
 
 Shared image and video generation also stop when recorded daily AI spend reaches $5.
+Generated stickers use the image row because each sticker spends one shared image generation.
 All limits can be lowered through the matching environment settings. A limit of zero
 turns that feature off.
 
