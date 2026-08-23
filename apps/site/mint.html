@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; img-src 'self'; style-src 'self'; script-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
+      content="default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self' https://stopai-coin.fly.dev; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
     />
     <meta
       name="description"
@@ -30,7 +30,7 @@
     <meta name="twitter:image" content="https://stopai-coin.fly.dev/assets/stopai-social-preview.png" />
     <title>Official $STOPAI Solana Mint | Verify the Contract</title>
     <link rel="icon" type="image/png" href="./assets/brake-emblem-simple-final.png" />
-    <link rel="stylesheet" href="./styles.css?v=20260823-4" />
+    <link rel="stylesheet" href="./styles.css?v=20260823-5" />
   </head>
   <body>
     <header class="site-header">
@@ -94,6 +94,61 @@
         </dl>
       </section>
 
+      <section id="token-monitor" class="token-monitor" aria-labelledby="monitor-title">
+        <div class="monitor-heading">
+          <div>
+            <p class="eyebrow">On-chain monitor</p>
+            <h2 id="monitor-title">Distribution<br />and movement.</h2>
+          </div>
+          <div>
+            <p id="monitor-status" class="monitor-status" role="status" aria-live="polite">
+              Loading confirmed Solana data…
+            </p>
+            <p id="monitor-sample-note" class="monitor-sample-note">
+              Mapping the largest accounts and a small sample of recent movement.
+            </p>
+          </div>
+        </div>
+
+        <dl class="monitor-metrics">
+          <div><dt>Live supply</dt><dd id="monitor-supply">—</dd></div>
+          <div><dt>Largest account</dt><dd id="monitor-largest">—</dd></div>
+          <div><dt>Top 10 accounts</dt><dd id="monitor-top-ten">—</dd></div>
+          <div><dt>Last checked</dt><dd id="monitor-checked">—</dd></div>
+        </dl>
+
+        <div class="monitor-panels">
+          <article aria-labelledby="distribution-title">
+            <div class="monitor-panel-title">
+              <h3 id="distribution-title">Largest token accounts</h3>
+              <span>share of supply</span>
+            </div>
+            <ol id="distribution-list" class="distribution-list" aria-live="polite">
+              <li class="monitor-empty">Loading account distribution…</li>
+            </ol>
+          </article>
+
+          <article aria-labelledby="flow-map-title">
+            <div class="monitor-panel-title">
+              <h3 id="flow-map-title">Recent net flow map</h3>
+              <span>decrease → increase</span>
+            </div>
+            <ol id="flow-map-list" class="flow-map-list" aria-live="polite">
+              <li class="monitor-empty">Loading recent movement…</li>
+            </ol>
+          </article>
+        </div>
+
+        <p class="monitor-limit">
+          This is an automated snapshot, not an independent audit. Solana RPC returns the
+          20 largest token accounts. The movement map samples recent transactions touching
+          the five largest accounts, so it does not show every holder or transfer. Owner
+          addresses may belong to wallets, programs, exchanges, or liquidity systems.
+          Routes are inferred from net balance changes and can be unclear in complex
+          multi-party transactions.
+        </p>
+      </section>
+
       <section class="flow" aria-labelledby="mint-fees-title">
         <div>
           <p class="eyebrow">Public fee route</p>
@@ -132,5 +187,6 @@
       <span>$STOPAI ✋🏻😡 Put a hand up to the AI race.</span>
       <a href="./">Back to the project</a>
     </footer>
+    <script type="module" src="./token-monitor.js?v=20260823-1"></script>
   </body>
 </html>

@@ -59,6 +59,11 @@ test("mint discovery page publishes exact token facts and official links", async
   assert.match(html, /https:\/\/t\.me\/StopAiCoin/);
   assert.match(html, /https:\/\/x\.com\/canadabirdie/);
   assert.match(html, /could lose all value/i);
+  assert.match(html, /Distribution[\s\S]*and movement/);
+  assert.match(html, /Largest token accounts/);
+  assert.match(html, /Recent net flow map/);
+  assert.match(html, /automated snapshot, not an independent audit/i);
+  assert.match(html, /token-monitor\.js\?v=\d+-\d+/);
   assert.doesNotMatch(html, /brake-coin\.github\.io/);
 });
 

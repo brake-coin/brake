@@ -57,12 +57,11 @@ export class OpenRouterClient {
     if (!result.message.content) {
       throw new OpenRouterError("The shared chat model returned no reply.");
     }
-    return { text: result.message.content, costUsd: result.costUsd };
+    return { text: result.message.content, costUsd: result.costUsd, model: result.model };
   }
 
   async chatStep(messages, tools = []) {
     const body = {
-      model: this.config.openRouterChatModel,
       messages,
       max_completion_tokens: 1_600,
       reasoning: { effort: "minimal", exclude: true },
@@ -74,30 +73,42 @@ export class OpenRouterClient {
     }
     let costUsd = 0;
     let lastPayload = null;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      const payload = await this.#json("/chat/completions", {
-        method: "POST",
-        body: JSON.stringify(body)
-      }, 1_000_000);
-      lastPayload = payload;
-      costUsd += costFrom(payload);
-      const choice = payload?.choices?.[0]?.message;
-      const toolCalls = Array.isArray(choice?.tool_calls) ? choice.tool_calls : [];
-      const content = textFromContent(choice?.content);
-      if (content || toolCalls.length) {
-        return {
-          message: {
-            role: "assistant",
-            content: content || null,
-            ...(toolCalls.length ? { tool_calls: toolCalls } : {})
-          },
-          costUsd
-        };
+    const models = [...new Set([
+      this.config.openRouterChatModel,
+      this.config.openRouterChatFallbackModel
+    ].map((model) => String(model || "").trim()).filter(Boolean))];
+    const attemptedModels = [];
+    for (let modelIndex = 0; modelIndex < models.length; modelIndex += 1) {
+      const model = models[modelIndex];
+      const attempts = modelIndex === 0 ? 2 : 1;
+      for (let attempt = 0; attempt < attempts; attempt += 1) {
+        attemptedModels.push(model);
+        const payload = await this.#json("/chat/completions", {
+          method: "POST",
+          body: JSON.stringify({ ...body, model })
+        }, 1_000_000);
+        lastPayload = payload;
+        costUsd += costFrom(payload);
+        const choice = payload?.choices?.[0]?.message;
+        const toolCalls = Array.isArray(choice?.tool_calls) ? choice.tool_calls : [];
+        const content = textFromContent(choice?.content);
+        if (content || toolCalls.length) {
+          return {
+            message: {
+              role: "assistant",
+              content: content || null,
+              ...(toolCalls.length ? { tool_calls: toolCalls } : {})
+            },
+            costUsd,
+            model: String(payload?.model || model)
+          };
+        }
       }
     }
-    const error = new OpenRouterError("The shared chat model went quiet twice. Try again.");
+    const error = new OpenRouterError("The shared chat models returned no reply. Try again.");
     error.costUsd = costUsd;
     error.details = {
+      attemptedModels,
       model: lastPayload?.model || null,
       finishReason: lastPayload?.choices?.[0]?.finish_reason || null,
       nativeFinishReason: lastPayload?.choices?.[0]?.native_finish_reason || null,

@@ -21,8 +21,9 @@ fees, not 100% of all trading or protocol fees.
 - No holder claim on creator fees
 
 The original design called for a 100% public launch with no insider allocation. The
-mint account proves supply and authority status, but this repository does not yet
-publish an independent wallet-distribution review.
+mint page now publishes an automated snapshot of the 20 largest token accounts and a
+small sample of recent flows involving the five largest accounts. This is useful for
+monitoring, but it is not a full holder history or an independent distribution audit.
 
 Read the [simple design](docs/BRAKE_SIMPLE.md) and [brand guide](docs/BRAKE_BRAND.md).
 
@@ -81,11 +82,38 @@ from that browser to OpenRouter.
 See [the meme generator guide](docs/MEME_GENERATOR.md) for the request flow, local
 configuration, Fly deployment, model selection, limits, and launch precautions.
 
+## Token monitor
+
+The official mint page reads confirmed Solana data through the server. It shows live
+supply, concentration across the largest token accounts, their owner addresses, and
+recent net balance movement found in a small sample. Results are cached for five
+minutes to protect the RPC service. Set `SOLANA_RPC_URL` to a trusted Solana mainnet RPC
+endpoint in production, or set the private `HELIUS_API_KEY` secret. A full RPC URL takes
+priority over Helius, and the public Solana endpoint is the final fallback. Never put a
+real provider key in source control or browser code.
+
+The monitor does not guess whether an owner address is a person, program, exchange, or
+liquidity system. It also does not claim to cover every holder or transfer. In complex
+multi-party transactions, the displayed route is inferred by matching net balance
+decreases to net increases and may not describe each instruction inside the transaction.
+
+Generate a dated fair-launch, holder-distribution, and token-history report with a
+private Helius key:
+
+```sh
+HELIUS_API_KEY=your_private_key pnpm token:report
+```
+
+The report and its machine-readable snapshot are written to `reports/`. The key is read
+from the environment and is never written into either output.
+
 ## Telegram bot
 
-The Telegram bot uses one shared OpenRouter connection for chat and tightly limited
-server-made images and videos. The public website still uses visitor-owned BYOK keys.
-The bot can also remember and resend images or videos uploaded to its chat, including
+The Telegram bot uses one shared OpenRouter connection for chat and bounded server-made
+images, stickers, and videos. Stickers are cut into transparent Telegram-ready PNGs and
+added to one shared bot pack. They use the same generation budget as images. The public
+website still uses visitor-owned BYOK keys.
+The bot can also remember and resend images, stickers, or videos uploaded to its chat, including
 media made in the BYOK studio.
 
 Owners connect both OpenRouter and the BotFather token through `/admin`. Both secrets
@@ -113,14 +141,19 @@ into a new STOPAI meme and publish it with the original post URL visibly attache
 
 - The public configuration pins one verified mainnet contract and creator-fee recipient.
 - The historical token plan remains locked to devnet and cannot deploy anything.
-- The bot uses AI only in the community group when mentioned or directly replied to. DMs
-  receive a random gallery meme and the group link without reaching the agent.
+- The bot uses AI only in the one group configured by `TELEGRAM_ALLOWED_CHAT_ID`, and only
+  when its full username is mentioned or its message is directly replied to. Other groups
+  are ignored. DMs receive a random gallery meme and the group link without reaching the
+  agent.
+- Telegram topic history is separated and member turns are labelled. Chat text expires
+  after 30 days. Only actionable updates enter the bounded duplicate ledger; safe event logs
+  explain why other traffic was ignored without storing message text or raw IDs.
 - Shared chat and media have global and per-user hourly and daily limits.
 - X research has separate global and per-user hourly and daily limits.
 - Telegram users may propose X posts, but the agent is the editor and no request forces a
   generation or publication. It may decline spam, repetition, weak ideas, bad timing, or a
-  poor use of scarce shared capacity. A one-hour account cooldown,
-  a four-hour per-user cooldown, and caps of 2 manual posts per hour and 8 per day prevent bursts.
+  poor use of shared capacity. A one-hour account cooldown,
+  a four-hour per-user cooldown, and caps of 20 manual posts per hour and 80 per day prevent bursts.
 - X publishes require a read-after-write receipt from `@STOPAICOIN`. X post links in bot
   replies must come from the conversation or a tool result; the bot does not scan wording.
 - Media posts still receive alt text. The Telegram agent writes it from the saved visual
@@ -134,7 +167,7 @@ into a new STOPAI meme and publish it with the original post URL visibly attache
 - The persistent campaign agent checks its timer before spending research/model budget,
   researches every two hours when eligible, remembers used sources and
   past posts, uses sources no older than seven days, waits at least four hours after any
-  normal X post before posting autonomously, and stops after three per UTC day.
+  normal X post before posting autonomously, and stops after 30 per UTC day.
 - Secrets belong in `.env`, which is ignored by Git.
 - Public BYOK keys stay in the visitor's browser tab. A separate admin-linked key is
   stored on the private Fly volume only for Telegram chat and limited bot media.

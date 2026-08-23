@@ -2,13 +2,22 @@ import { randomUUID } from "node:crypto";
 import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+const UPDATE_RETENTION_MS = 8 * 24 * 60 * 60 * 1_000;
+const MESSAGE_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000;
+const MAX_TELEGRAM_UPDATES = 2_000;
+const MAX_CONVERSATIONS = 100;
+const MAX_MESSAGES_PER_CONVERSATION = 20;
+const MAX_X_SOURCE_POSTS = 50_000;
+
 const EMPTY_STATE = Object.freeze({
-  version: 6,
+  version: 8,
   messages: {},
   media: [],
   usage: [],
+  telegramUpdates: {},
   xReceipts: [],
   xSourcePosts: {},
+  stickerPack: null,
   agent: {
     goals: [],
     memories: [],
@@ -57,19 +66,69 @@ function cleanXSourcePosts(value) {
     }]));
 }
 
+function cleanTelegramUpdates(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value)
+    .filter(([updateId, record]) => /^\d{1,20}$/.test(updateId) && record && typeof record === "object")
+    .map(([updateId, record]) => [updateId, {
+      updateId,
+      at: record.at || null
+    }]));
+}
+
+function cleanMessage(value) {
+  if (!value || typeof value !== "object") return null;
+  const role = ["user", "assistant"].includes(value.role) ? value.role : null;
+  const content = String(value.content || "").slice(0, 2_000);
+  if (!role || !content) return null;
+  return {
+    role,
+    content,
+    userId: String(value.userId || "unknown").slice(0, 80),
+    threadId: String(value.threadId || "main").slice(0, 80),
+    at: value.at || null
+  };
+}
+
+function conversationKey(chatId, threadId = "main") {
+  const chat = String(chatId);
+  const thread = String(threadId || "main");
+  return !thread || thread === "0" || thread === "main"
+    ? chat
+    : `${chat}:thread:${thread}`;
+}
+
+function cleanStickerPack(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const name = String(value.name || "").trim().slice(0, 64);
+  const title = String(value.title || "").trim().slice(0, 64);
+  const ownerId = Number.parseInt(value.ownerId, 10);
+  if (!name || !title || !Number.isSafeInteger(ownerId) || ownerId <= 0) return null;
+  return {
+    name,
+    title,
+    ownerId,
+    stickerCount: Math.max(0, Number.parseInt(value.stickerCount, 10) || 0),
+    createdAt: value.createdAt || null,
+    updatedAt: value.updatedAt || null
+  };
+}
+
 function cleanState(value) {
   const agent = value?.agent && typeof value.agent === "object" ? value.agent : {};
   const cleaned = {
-    version: 6,
+    version: 8,
     messages: value?.messages && typeof value.messages === "object"
       ? Object.fromEntries(Object.entries(value.messages).map(([key, messages]) => (
-        [key, Array.isArray(messages) ? messages.map((item) => ({ ...item })) : []]
+        [key, Array.isArray(messages) ? messages.map(cleanMessage).filter(Boolean) : []]
       )))
       : {},
     media: Array.isArray(value?.media) ? value.media.map((item) => ({ ...item })) : [],
     usage: Array.isArray(value?.usage) ? value.usage.map((item) => ({ ...item })) : [],
+    telegramUpdates: cleanTelegramUpdates(value?.telegramUpdates),
     xReceipts: Array.isArray(value?.xReceipts) ? value.xReceipts.map((item) => ({ ...item })) : [],
     xSourcePosts: cleanXSourcePosts(value?.xSourcePosts),
+    stickerPack: cleanStickerPack(value?.stickerPack),
     agent: {
       goals: Array.isArray(agent.goals) ? agent.goals.map((item) => ({ ...item })) : [],
       memories: Array.isArray(agent.memories) ? agent.memories.map((item) => ({ ...item })) : [],
@@ -162,8 +221,9 @@ export class BotStore {
     return this;
   }
 
-  recentMessages(chatId, limit = 12) {
-    return (this.#state.messages[String(chatId)] || []).slice(-limit);
+  recentMessages(chatId, { threadId = "main", limit = 12 } = {}) {
+    return (this.#state.messages[conversationKey(chatId, threadId)] || [])
+      .slice(-Math.max(1, Math.min(MAX_MESSAGES_PER_CONVERSATION, Number(limit) || 12)));
   }
 
   agentSnapshot({ memoryLimit = 12, researchLimit = 12, cycleLimit = 5 } = {}) {
@@ -183,6 +243,7 @@ export class BotStore {
       memoryCount: agent.memories.length,
       researchCount: agent.research.length,
       cycleCount: agent.cycleSequence,
+      recentTelegramUpdateCount: Object.keys(this.#state.telegramUpdates).length,
       quotedSourceCount: Object.values(this.#state.xSourcePosts)
         .filter((item) => item.status === "confirmed").length,
       uncertainSourceCount: Object.values(this.#state.xSourcePosts)
@@ -198,15 +259,52 @@ export class BotStore {
 
   async ensureAgentGoals(goals) {
     await this.#mutate((state) => {
-      const existing = new Set(state.agent.goals.map((goal) => goal.id));
       for (const input of goals || []) {
         const goal = cleanGoal(input);
-        if (!goal || existing.has(goal.id)) continue;
-        state.agent.goals.push({ ...goal, updatedAt: this.now().toISOString() });
-        existing.add(goal.id);
+        if (!goal) continue;
+        const index = state.agent.goals.findIndex((item) => item.id === goal.id);
+        if (index < 0) {
+          state.agent.goals.push({
+            ...goal,
+            managedDefault: true,
+            operatorOverride: false,
+            updatedAt: this.now().toISOString()
+          });
+          continue;
+        }
+        const current = state.agent.goals[index];
+        if (current.operatorOverride === true) continue;
+        if (current.text === goal.text
+          && current.priority === goal.priority
+          && current.active === goal.active
+          && current.managedDefault === true) continue;
+        state.agent.goals[index] = {
+          ...goal,
+          managedDefault: true,
+          operatorOverride: false,
+          updatedAt: this.now().toISOString()
+        };
       }
     });
     return this.agentSnapshot().goals;
+  }
+
+  async claimTelegramUpdate(updateId) {
+    const id = String(updateId ?? "");
+    if (!/^\d{1,20}$/.test(id)) {
+      return { allowed: true, reason: "untracked_update", updateId: null };
+    }
+    let result;
+    await this.#mutate((state) => {
+      this.#prune(state);
+      if (state.telegramUpdates[id]) {
+        result = { allowed: false, reason: "duplicate_update", updateId: id };
+        return;
+      }
+      state.telegramUpdates[id] = { updateId: id, at: this.now().toISOString() };
+      result = { allowed: true, reason: null, updateId: id };
+    });
+    return result;
   }
 
   async upsertAgentGoal(goal) {
@@ -215,7 +313,12 @@ export class BotStore {
     let saved;
     await this.#mutate((state) => {
       const index = state.agent.goals.findIndex((item) => item.id === cleaned.id);
-      saved = { ...cleaned, updatedAt: this.now().toISOString() };
+      saved = {
+        ...cleaned,
+        managedDefault: false,
+        operatorOverride: true,
+        updatedAt: this.now().toISOString()
+      };
       if (index >= 0) state.agent.goals[index] = saved;
       else state.agent.goals.push(saved);
       state.agent.goals = state.agent.goals.slice(0, 30);
@@ -353,6 +456,26 @@ export class BotStore {
     return this.#state.media.find((item) => (
       item.chatId === String(chatId) && (!type || item.type === type)
     )) || null;
+  }
+
+  stickerPack() {
+    return this.#state.stickerPack ? { ...this.#state.stickerPack } : null;
+  }
+
+  async saveStickerPack({ name, title, ownerId, stickerCount, createdAt = null }) {
+    const record = cleanStickerPack({
+      name,
+      title,
+      ownerId,
+      stickerCount,
+      createdAt: createdAt || this.#state.stickerPack?.createdAt || this.now().toISOString(),
+      updatedAt: this.now().toISOString()
+    });
+    if (!record) throw new Error("Sticker pack details are invalid.");
+    await this.#mutate((state) => {
+      state.stickerPack = record;
+    });
+    return { ...record };
   }
 
   recentXReceipts(limit = 10) {
@@ -595,16 +718,31 @@ export class BotStore {
     return { allowed: true, reason: null, status };
   }
 
-  async recordMessage({ chatId, role, content }) {
+  async recordMessage({ chatId, threadId = "main", userId = "unknown", role, content }) {
     return this.#mutate((state) => {
-      const key = String(chatId);
+      const key = conversationKey(chatId, threadId);
       const messages = state.messages[key] || [];
-      messages.push({ role, content: String(content).slice(0, 2_000), at: this.now().toISOString() });
-      state.messages[key] = messages.slice(-20);
+      messages.push({
+        role,
+        content: String(content).slice(0, 2_000),
+        userId: String(userId || "unknown").slice(0, 80),
+        threadId: String(threadId || "main").slice(0, 80),
+        at: this.now().toISOString()
+      });
+      state.messages[key] = messages.slice(-MAX_MESSAGES_PER_CONVERSATION);
     });
   }
 
-  async recordMedia({ chatId, userId, type, fileId, caption = "", source = "telegram" }) {
+  async recordMedia({
+    chatId,
+    userId,
+    type,
+    fileId,
+    caption = "",
+    source = "telegram",
+    stickerEmoji = null,
+    stickerSetName = null
+  }) {
     const record = {
       id: randomUUID(),
       chatId: String(chatId),
@@ -613,6 +751,10 @@ export class BotStore {
       fileId,
       caption: String(caption).slice(0, 1_000),
       source,
+      ...(type === "sticker" ? {
+        stickerEmoji: String(stickerEmoji || "✋🏻").slice(0, 20),
+        stickerSetName: String(stickerSetName || "").slice(0, 64) || null
+      } : {}),
       at: this.now().toISOString()
     };
     await this.#mutate((state) => {
@@ -690,22 +832,42 @@ export class BotStore {
     this.#queue = this.#queue.catch(() => {}).then(async () => {
       await this.load();
       change(this.#state);
+      this.#prune(this.#state);
       await this.#save();
     });
     return this.#queue;
   }
 
   #prune(state = this.#state) {
-    const cutoff = this.now().getTime() - (8 * 24 * 60 * 60 * 1_000);
-    state.usage = state.usage.filter((item) => new Date(item.at).getTime() >= cutoff);
+    const now = this.now().getTime();
+    const updateCutoff = now - UPDATE_RETENTION_MS;
+    const messageCutoff = now - MESSAGE_RETENTION_MS;
+    state.usage = state.usage.filter((item) => new Date(item.at).getTime() >= updateCutoff);
+    state.telegramUpdates = Object.fromEntries(Object.entries(state.telegramUpdates)
+      .filter(([, item]) => new Date(item.at || 0).getTime() >= updateCutoff)
+      .sort(([, left], [, right]) => new Date(right.at).getTime() - new Date(left.at).getTime())
+      .slice(0, MAX_TELEGRAM_UPDATES));
     state.media = state.media.slice(0, 200);
     state.xReceipts = state.xReceipts.slice(0, 200);
+    state.xSourcePosts = Object.fromEntries(Object.entries(state.xSourcePosts)
+      .sort(([, left], [, right]) => (
+        new Date(right.resolvedAt || right.at || 0).getTime()
+        - new Date(left.resolvedAt || left.at || 0).getTime()
+      ))
+      .slice(0, MAX_X_SOURCE_POSTS));
     state.agent.memories = state.agent.memories.slice(0, 250);
     state.agent.research = state.agent.research.slice(0, 500);
     state.agent.cycles = state.agent.cycles.slice(0, 100);
-    for (const chatId of Object.keys(state.messages)) {
-      state.messages[chatId] = state.messages[chatId].slice(-20);
-    }
+    state.messages = Object.fromEntries(Object.entries(state.messages)
+      .map(([key, messages]) => [key, messages
+        .filter((message) => new Date(message.at || 0).getTime() >= messageCutoff)
+        .slice(-MAX_MESSAGES_PER_CONVERSATION)])
+      .filter(([, messages]) => messages.length)
+      .sort(([, left], [, right]) => (
+        new Date(right.at(-1)?.at || 0).getTime()
+        - new Date(left.at(-1)?.at || 0).getTime()
+      ))
+      .slice(0, MAX_CONVERSATIONS));
   }
 
   async #save() {

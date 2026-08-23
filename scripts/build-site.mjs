@@ -19,6 +19,7 @@ for (const file of [
   "app.js",
   "admin.js",
   "openrouter.js",
+  "token-monitor.js",
   "meme-ideas.js",
   "gallery.js"
 ]) {

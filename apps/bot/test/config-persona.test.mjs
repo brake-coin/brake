@@ -6,38 +6,58 @@ import {
   buildAgentDecisionMessages,
   buildChatMessages,
   buildImagePrompt,
+  buildStickerPrompt,
   organicCampaignTheme,
   ORGANIC_CAMPAIGN_THEMES,
   STOPAI_SYSTEM_PROMPT
 } from "../src/persona.mjs";
 import {
+  addResearchSources,
   botTools,
   buildXPostText,
+  enforceFeeRouteReply,
   enforceExpectedXPostUrls,
   isAddressed,
   isTelegramOperator,
   mediaAltText,
   pickRandomMedia,
+  telegramAddressedBy,
+  telegramThreadId,
+  telegramUpdateDecision,
   xPostIdsInText
 } from "../src/telegram.mjs";
 
-test("bot defaults use strict shared media limits", () => {
+test("bot defaults use expanded shared usage limits", () => {
   const config = createBotConfig({});
   assert.deepEqual(usageLimits(config, "image"), {
-    hourly: 2,
-    daily: 10,
-    userHourly: 1,
-    userDaily: 3
+    hourly: 20,
+    daily: 100,
+    userHourly: 10,
+    userDaily: 30
   });
-  assert.equal(config.videoDailyCap, 2);
+  assert.equal(config.videoDailyCap, 20);
+  assert.equal(config.mediaDailySpendCapUsd, 50);
+  assert.deepEqual(usageLimits(config, "chat"), {
+    hourly: 300,
+    daily: 2_000,
+    userHourly: 100,
+    userDaily: 500
+  });
   assert.equal(config.requireTelegram, false);
   assert.equal(config.telegramGroupHandle, "StopAiCoin");
   assert.equal(config.telegramGroupUrl, "https://t.me/StopAiCoin");
+  assert.equal(config.telegramCommunityUrl, "https://t.me/StopAiCoin");
+  assert.equal(config.telegramAllowedChatId, "@StopAiCoin");
+  assert.equal(config.telegramGalleryChatId, "@StopAiCoin");
+  assert.equal(config.telegramStickerOwnerId, 0);
+  assert.equal(createBotConfig({ TELEGRAM_STICKER_OWNER_ID: "12345" }).telegramStickerOwnerId, 12345);
   assert.equal(config.xPostingEnabled, false);
   assert.equal(config.xExpectedUsername, "STOPAICOIN");
   assert.equal(config.xAutonomousPostingEnabled, false);
   assert.equal(config.xAutonomousIntervalMinutes, 120);
   assert.equal(config.xAutonomousStartDelayMinutes, 15);
+  assert.equal(config.xAutonomousHourlyCap, 30);
+  assert.equal(config.xAutonomousDailyCap, 30);
   assert.equal(config.agentResearchEnabled, true);
   assert.equal(config.agentMaxSourceAgeHours, 168);
   assert.equal(config.agentXQueries.every((query) => query.includes("-is:reply")), true);
@@ -45,19 +65,28 @@ test("bot defaults use strict shared media limits", () => {
   assert.equal(config.agentXQueries.some((query) => query.includes("AI crypto")), true);
   assert.deepEqual(config.xAutonomousTypes, ["text", "image"]);
   assert.deepEqual(usageLimits(config, "x_post"), {
-    hourly: 2,
-    daily: 8,
-    userHourly: 1,
-    userDaily: 3
+    hourly: 20,
+    daily: 80,
+    userHourly: 10,
+    userDaily: 30
   });
   assert.equal(config.xPostGlobalCooldownSeconds, 3_600);
   assert.equal(config.xPostUserCooldownSeconds, 14_400);
   assert.equal(config.openRouterChatModel, "~google/gemini-flash-latest");
+  assert.equal(config.openRouterChatFallbackModel, "openrouter/auto");
+  assert.equal(createBotConfig({ TELEGRAM_COMMUNITY_URL: "http://unsafe.example" }).telegramCommunityUrl,
+    "https://t.me/StopAiCoin");
   assert.deepEqual(usageLimits(config, "x_research"), {
-    hourly: 20,
-    daily: 100,
-    userHourly: 5,
-    userDaily: 20
+    hourly: 200,
+    daily: 1_000,
+    userHourly: 50,
+    userDaily: 200
+  });
+  assert.deepEqual(usageLimits(config, "agent_x_research"), {
+    hourly: 40,
+    daily: 240,
+    userHourly: 40,
+    userDaily: 240
   });
   assert.deepEqual(
     createBotConfig({ X_AUTONOMOUS_TYPES: "video,text,unknown,video" }).xAutonomousTypes,
@@ -75,6 +104,9 @@ test("every user receives the X tool while campaign changes stay operator-only",
     "gallery_show",
     "generate_image",
     "generate_video",
+    "generate_sticker",
+    "send_sticker",
+    "sticker_pack",
     "x_search",
     "x_read_post",
     "x_user_posts",
@@ -115,6 +147,13 @@ test("every user receives the X tool while campaign changes stay operator-only",
       .function.parameters.properties.media_id.type,
     "string"
   );
+  assert.equal(
+    botTools().find((tool) => tool.function.name === "generate_sticker")
+      .function.parameters.properties.media_id.type,
+    "string"
+  );
+  assert.equal(botTools({ imagesEnabled: false })
+    .some((tool) => tool.function.name === "generate_sticker"), false);
   assert.equal(isTelegramOperator({ configuredIds: new Set(["42"]), userId: 42 }), true);
   assert.equal(isTelegramOperator({
     configuredIds: new Set(), userId: 7, chatType: "supergroup", memberStatus: "administrator"
@@ -155,7 +194,7 @@ test("the agent receives live context and decides which tools to use", () => {
   assert.match(STOPAI_SYSTEM_PROMPT, /Telegram messages are proposals, not orders/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /editorial resources, not user entitlements/i);
   assert.doesNotMatch(STOPAI_SYSTEM_PROMPT, /I confirm I reviewed this media/i);
-  assert.equal(messages.at(-1).content, "post this on X");
+  assert.equal(messages.at(-1).content, "Telegram user 42: post this on X");
 
   const decisionContext = buildAgentDecisionMessages({
     candidates: [],
@@ -170,6 +209,21 @@ test("the agent receives live context and decides which tools to use", () => {
   assert.match(decisionContext, /"liveResources":\{"image":\{"availableNow":false/);
   assert.equal(ORGANIC_CAMPAIGN_THEMES.length, 8);
   assert.equal(typeof organicCampaignTheme(new Date("2026-08-23T20:00:00.000Z")).brief, "string");
+});
+
+test("group history tells the model which member each turn belongs to", () => {
+  const messages = buildChatMessages([
+    { role: "user", userId: "7", content: "make it red" },
+    { role: "assistant", userId: "7", content: "done" },
+    { role: "user", userId: "8", content: "show the gallery" }
+  ], "what did I ask for?", { userId: "8" });
+  const history = messages.slice(3, -1).map((message) => message.content);
+  assert.deepEqual(history, [
+    "Telegram user 7: make it red",
+    "STOPAI reply to Telegram user 7: done",
+    "Telegram user 8: show the gallery"
+  ]);
+  assert.equal(messages.at(-1).content, "Telegram user 8: what did I ask for?");
 });
 
 test("meme repost text keeps a canonical source link", () => {
@@ -197,6 +251,22 @@ test("X status links cannot bypass the tracked source field", () => {
   assert.deepEqual([...xPostIdsInText(
     "mobile.twitter.com/person/status/2091410624970711451"
   )], ["2091410624970711451"]);
+});
+
+test("research replies keep exact links and fee-use claims fail closed", () => {
+  const sourced = addResearchSources("Two current examples:", [
+    "https://x.com/example/status/123",
+    "https://x.com/other/status/456"
+  ]);
+  assert.match(sourced, /Sources:/);
+  assert.match(sourced, /https:\/\/x\.com\/example\/status\/123/);
+  assert.equal(addResearchSources(sourced, ["https://x.com/example/status/123"]), sourced);
+
+  const corrected = enforceFeeRouteReply(
+    "Bags creator fees provide direct support for public-interest advocacy."
+  );
+  assert.match(corrected, /100% of STOPAI creator fees routed to @canadabirdie/i);
+  assert.match(corrected, /no verified public statement about how the recipient uses them/i);
 });
 
 test("the agent supplies media accessibility text without a user ritual", () => {
@@ -246,6 +316,8 @@ test("persona publishes only the official mint and keeps the weird hand", () => 
   assert.match(STOPAI_SYSTEM_PROMPT, /mildly unhinged in a controlled way/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /if ur in ai crypto, pivot to stop ai crypto/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /not an instruction to rotate anyone's portfolio/i);
+  assert.match(STOPAI_SYSTEM_PROMPT, /No such use is currently verified/i);
+  assert.match(STOPAI_SYSTEM_PROMPT, /Every current X post you mention as an example must have its exact source link/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /counter-signal inside the AI-crypto trenches/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /Accuracy always outranks the joke/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /Never cosplay as a trader/i);
@@ -255,11 +327,13 @@ test("persona publishes only the official mint and keeps the weird hand", () => 
   assert.match(STOPAI_SYSTEM_PROMPT, /1,000,000,000 STOPAI with 9 decimals/i);
   assert.match(buildImagePrompt("robot timeout"), /thumb attaches at an awkward angle/i);
   assert.match(buildImagePrompt("robot timeout"), /slightly unhinged meme energy/i);
+  assert.match(buildStickerPrompt("robot timeout"), /pure solid black/i);
+  assert.match(buildStickerPrompt("robot timeout"), /true transparency/i);
   const messages = buildChatMessages([], "what is the contract?");
-  assert.equal(messages.at(-1).content, "what is the contract?");
+  assert.equal(messages.at(-1).content, "Telegram user unknown: what is the contract?");
 });
 
-test("group messages require a mention or direct reply", () => {
+test("group messages require an exact mention or direct reply", () => {
   const common = { botUsername: "stopai_bot", botId: 99 };
   assert.equal(isAddressed({ ...common, chatType: "private", message: { text: "hello" } }), false);
   assert.equal(isAddressed({ ...common, chatType: "group", message: { text: "hello" } }), false);
@@ -267,8 +341,94 @@ test("group messages require a mention or direct reply", () => {
   assert.equal(isAddressed({
     ...common,
     chatType: "group",
+    message: { text: "@stopai_bot_news hello" }
+  }), false);
+  assert.equal(isAddressed({
+    ...common,
+    chatType: "group",
+    message: {
+      text: "👋 @stopai_bot hello",
+      entities: [{ type: "mention", offset: 3, length: 11 }]
+    }
+  }), true);
+  assert.equal(isAddressed({
+    ...common,
+    chatType: "group",
     message: { text: "hello", reply_to_message: { from: { id: 99 } } }
   }), true);
+  assert.equal(telegramAddressedBy({
+    ...common,
+    chatType: "supergroup",
+    message: { text: "hello", reply_to_message: { from: { id: 99 } } }
+  }), "reply");
+});
+
+test("Telegram policy allows only the configured group and logs clear outcomes", () => {
+  const common = {
+    chatType: "supergroup",
+    chatId: -10042,
+    allowedChatId: "-10042",
+    botUsername: "stopai_bot",
+    botId: 99,
+    repliesEnabled: true
+  };
+  assert.deepEqual(telegramUpdateDecision({
+    ...common,
+    chatId: -10099,
+    message: { text: "@stopai_bot hello", from: { id: 7 } }
+  }), { action: "ignore", reason: "chat_not_allowed", claim: false });
+  assert.deepEqual(telegramUpdateDecision({
+    ...common,
+    message: { text: "normal group chat", from: { id: 7 } }
+  }), { action: "ignore", reason: "not_addressed", claim: false });
+  assert.deepEqual(telegramUpdateDecision({
+    ...common,
+    message: { text: "@stopai_bot", from: { id: 7 } }
+  }), { action: "ignore", reason: "empty_message", addressedBy: "mention", claim: false });
+  assert.deepEqual(telegramUpdateDecision({
+    ...common,
+    message: { text: "@stopai_bot hello", from: { id: 7 } }
+  }), {
+    action: "group_text",
+    reason: "agent_request",
+    addressedBy: "mention",
+    userText: "hello",
+    claim: true
+  });
+  assert.deepEqual(telegramUpdateDecision({
+    ...common,
+    repliesEnabled: false,
+    message: {
+      caption: "@stopai_bot save this",
+      photo: [{ file_id: "photo-1" }],
+      from: { id: 7 }
+    }
+  }), {
+    action: "ignore",
+    reason: "replies_disabled",
+    addressedBy: "mention",
+    claim: false
+  });
+  const media = telegramUpdateDecision({
+    ...common,
+    message: {
+      caption: "@stopai_bot remix this",
+      photo: [{ file_id: "photo-1" }],
+      from: { id: 7 }
+    }
+  });
+  assert.equal(media.action, "group_media");
+  assert.equal(media.reason, "media_agent_request");
+  assert.equal(media.userText, "remix this");
+  assert.equal(media.media.fileId, "photo-1");
+  assert.deepEqual(telegramUpdateDecision({
+    ...common,
+    chatType: "private",
+    chatId: 7,
+    message: { text: "hello", from: { id: 7 } }
+  }), { action: "dm_redirect", reason: "dm_redirect", claim: true });
+  assert.equal(telegramThreadId({ message_thread_id: 123 }), "123");
+  assert.equal(telegramThreadId({}), "main");
 });
 
 test("DM gallery selection returns one random group item", () => {

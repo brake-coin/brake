@@ -243,6 +243,195 @@ h1 {
   line-height: 1.5;
 }
 
+.token-monitor {
+  padding-block: 64px;
+  border-top: 2px solid var(--ink);
+}
+
+.monitor-heading {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  align-items: end;
+  gap: 64px;
+}
+
+.monitor-heading h2 {
+  margin-bottom: 0;
+}
+
+.monitor-status {
+  margin-bottom: 8px;
+  font-weight: 850;
+  line-height: 1.5;
+}
+
+.monitor-status[data-state="live"]::before {
+  content: "●";
+  margin-right: 8px;
+  color: #176c35;
+}
+
+.monitor-status[data-state="stale"],
+.monitor-status[data-state="error"] {
+  color: #9c1111;
+}
+
+.monitor-sample-note {
+  margin-bottom: 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  opacity: 0.75;
+}
+
+.monitor-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 44px 0 24px;
+  border: 2px solid var(--ink);
+  background: var(--white);
+}
+
+.monitor-metrics > div {
+  min-width: 0;
+  padding: 18px;
+  border-right: 1px solid var(--line);
+}
+
+.monitor-metrics > div:last-child {
+  border-right: 0;
+}
+
+.monitor-metrics dt {
+  margin-bottom: 9px;
+  color: var(--red);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.monitor-metrics dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: clamp(1rem, 2vw, 1.35rem);
+  font-weight: 900;
+}
+
+.monitor-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.monitor-panels article {
+  min-width: 0;
+  padding: 24px;
+  border: 2px solid var(--ink);
+  background: var(--white);
+}
+
+.monitor-panel-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 18px;
+  border-bottom: 2px solid var(--ink);
+}
+
+.monitor-panel-title h3 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.monitor-panel-title span {
+  flex: none;
+  color: var(--red);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.distribution-list,
+.flow-map-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.distribution-list li,
+.flow-map-list li {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.distribution-list li:last-child,
+.flow-map-list li:last-child {
+  border-bottom: 0;
+}
+
+.distribution-list li > div,
+.flow-map-list li > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 0.76rem;
+}
+
+.distribution-list a,
+.flow-map-list a {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 750;
+}
+
+.distribution-bar {
+  display: block;
+  height: 7px;
+  margin-top: 9px;
+  background: var(--paper);
+}
+
+.distribution-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--red);
+}
+
+.flow-map-list li > div:last-child {
+  margin-top: 8px;
+  font-size: 0.72rem;
+}
+
+.flow-map-list li > div:last-child a {
+  font-family: inherit;
+  font-weight: 650;
+  opacity: 0.75;
+}
+
+.flow-arrow {
+  flex: 1;
+  border-bottom: 2px solid var(--red);
+  color: var(--red);
+  font-weight: 900;
+  line-height: 0.65;
+  text-align: right;
+}
+
+.monitor-empty {
+  color: rgba(23, 25, 27, 0.65);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.monitor-limit {
+  max-width: 900px;
+  margin: 22px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  opacity: 0.78;
+}
+
 .meme-machine {
   display: grid;
   grid-template-columns: 0.8fr 1.2fr;
@@ -1026,6 +1215,8 @@ footer {
   .hero,
   .mint-hero,
   .mint-facts,
+  .monitor-heading,
+  .monitor-panels,
   .agent,
   .flow,
   .card-grid,
@@ -1096,6 +1287,18 @@ footer {
     gap: 6px;
   }
 
+  .monitor-metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .monitor-metrics > div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .monitor-metrics > div:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--line);
+  }
+
   footer {
     flex-direction: column;
   }
@@ -1123,6 +1326,27 @@ footer {
 }
 
 @media (max-width: 480px) {
+  .monitor-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .monitor-metrics > div,
+  .monitor-metrics > div:nth-child(2) {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .monitor-metrics > div:last-child {
+    border-bottom: 0;
+  }
+
+  .monitor-panel-title,
+  .distribution-list li > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
   .gallery-grid {
     grid-template-columns: 1fr;
   }

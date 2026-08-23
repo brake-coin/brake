@@ -38,24 +38,46 @@ function stringList(value, fallback, separator = ",") {
   return items.length ? [...new Set(items)] : fallback;
 }
 
+function telegramCommunityUrl(value, fallback) {
+  try {
+    const url = new URL(String(value || fallback));
+    if (url.protocol !== "https:" || !["t.me", "www.t.me"].includes(url.hostname.toLowerCase())) {
+      return fallback;
+    }
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return fallback;
+  }
+}
+
 export function createBotConfig(env = process.env) {
   const telegramGroupHandle = String(env.TELEGRAM_GROUP_HANDLE || "StopAiCoin")
     .trim()
     .replace(/^@/, "");
+  const defaultTelegramUrl = `https://t.me/${telegramGroupHandle}`;
+  const defaultTelegramChat = `@${telegramGroupHandle}`;
+  const telegramAllowedChatId = String(
+    env.TELEGRAM_ALLOWED_CHAT_ID || env.TELEGRAM_GALLERY_CHAT_ID || defaultTelegramChat
+  ).trim();
   return {
     telegramToken: env.TELEGRAM_BOT_TOKEN || "",
     requireTelegram: boolean(env.STOPAI_REQUIRE_TELEGRAM, false),
     telegramGroupHandle,
-    telegramGroupUrl: `https://t.me/${telegramGroupHandle}`,
+    telegramGroupUrl: defaultTelegramUrl,
+    telegramCommunityUrl: telegramCommunityUrl(env.TELEGRAM_COMMUNITY_URL, defaultTelegramUrl),
+    telegramAllowedChatId,
+    telegramGalleryChatId: String(env.TELEGRAM_GALLERY_CHAT_ID || telegramAllowedChatId).trim(),
     telegramRepliesEnabled: boolean(env.TELEGRAM_REPLIES_ENABLED, true),
     telegramImagesEnabled: boolean(env.TELEGRAM_IMAGES_ENABLED, true),
     telegramVideosEnabled: boolean(env.TELEGRAM_VIDEOS_ENABLED, true),
     telegramOperatorIds: idSet(env.TELEGRAM_OPERATOR_IDS),
+    telegramStickerOwnerId: integer(env.TELEGRAM_STICKER_OWNER_ID, 0),
     telegramHandlerTimeoutMs: integer(env.TELEGRAM_HANDLER_TIMEOUT_MS, 720_000, {
       minimum: 30_000,
       maximum: 900_000
     }),
     openRouterChatModel: env.OPENROUTER_CHAT_MODEL || "~google/gemini-flash-latest",
+    openRouterChatFallbackModel: env.OPENROUTER_CHAT_FALLBACK_MODEL || "openrouter/auto",
     openRouterImageModel:
       env.OPENROUTER_SERVER_IMAGE_MODEL || "google/gemini-3.1-flash-image",
     openRouterVideoModel: env.OPENROUTER_VIDEO_MODEL || "google/veo-3.1-lite",
@@ -79,19 +101,19 @@ export function createBotConfig(env = process.env) {
     }),
     videoResolution: env.VIDEO_RESOLUTION || "720p",
     videoAspectRatio: env.VIDEO_ASPECT_RATIO || "1:1",
-    chatHourlyCap: integer(env.CHAT_HOURLY_CAP, 30),
-    chatDailyCap: integer(env.CHAT_DAILY_CAP, 200),
-    chatUserHourlyCap: integer(env.CHAT_USER_HOURLY_CAP, 10),
-    chatUserDailyCap: integer(env.CHAT_USER_DAILY_CAP, 50),
-    imageHourlyCap: integer(env.IMAGE_HOURLY_CAP, 2),
-    imageDailyCap: integer(env.IMAGE_DAILY_CAP, 10),
-    imageUserHourlyCap: integer(env.IMAGE_USER_HOURLY_CAP, 1),
-    imageUserDailyCap: integer(env.IMAGE_USER_DAILY_CAP, 3),
-    videoHourlyCap: integer(env.VIDEO_HOURLY_CAP, 1),
-    videoDailyCap: integer(env.VIDEO_DAILY_CAP, 2),
-    videoUserHourlyCap: integer(env.VIDEO_USER_HOURLY_CAP, 1),
-    videoUserDailyCap: integer(env.VIDEO_USER_DAILY_CAP, 1),
-    mediaDailySpendCapUsd: number(env.MEDIA_DAILY_SPEND_CAP_USD, 5),
+    chatHourlyCap: integer(env.CHAT_HOURLY_CAP, 300),
+    chatDailyCap: integer(env.CHAT_DAILY_CAP, 2_000),
+    chatUserHourlyCap: integer(env.CHAT_USER_HOURLY_CAP, 100),
+    chatUserDailyCap: integer(env.CHAT_USER_DAILY_CAP, 500),
+    imageHourlyCap: integer(env.IMAGE_HOURLY_CAP, 20),
+    imageDailyCap: integer(env.IMAGE_DAILY_CAP, 100),
+    imageUserHourlyCap: integer(env.IMAGE_USER_HOURLY_CAP, 10),
+    imageUserDailyCap: integer(env.IMAGE_USER_DAILY_CAP, 30),
+    videoHourlyCap: integer(env.VIDEO_HOURLY_CAP, 10),
+    videoDailyCap: integer(env.VIDEO_DAILY_CAP, 20),
+    videoUserHourlyCap: integer(env.VIDEO_USER_HOURLY_CAP, 10),
+    videoUserDailyCap: integer(env.VIDEO_USER_DAILY_CAP, 10),
+    mediaDailySpendCapUsd: number(env.MEDIA_DAILY_SPEND_CAP_USD, 50),
     xPostingEnabled: boolean(env.X_POSTING_ENABLED, false),
     xUserAccessToken: env.X_USER_ACCESS_TOKEN || "",
     xExpectedUsername: String(env.X_EXPECTED_USERNAME || "STOPAICOIN").trim().replace(/^@/, ""),
@@ -111,10 +133,10 @@ export function createBotConfig(env = process.env) {
       minimum: 0,
       maximum: 5_000
     }),
-    xPostHourlyCap: integer(env.X_POST_HOURLY_CAP, 2, { minimum: 1, maximum: 24 }),
-    xPostDailyCap: integer(env.X_POST_DAILY_CAP, 8, { minimum: 1, maximum: 100 }),
-    xPostUserHourlyCap: integer(env.X_POST_USER_HOURLY_CAP, 1, { minimum: 1, maximum: 12 }),
-    xPostUserDailyCap: integer(env.X_POST_USER_DAILY_CAP, 3, { minimum: 1, maximum: 24 }),
+    xPostHourlyCap: integer(env.X_POST_HOURLY_CAP, 20, { minimum: 1, maximum: 240 }),
+    xPostDailyCap: integer(env.X_POST_DAILY_CAP, 80, { minimum: 1, maximum: 1_000 }),
+    xPostUserHourlyCap: integer(env.X_POST_USER_HOURLY_CAP, 10, { minimum: 1, maximum: 120 }),
+    xPostUserDailyCap: integer(env.X_POST_USER_DAILY_CAP, 30, { minimum: 1, maximum: 240 }),
     xPostGlobalCooldownSeconds: integer(env.X_POST_GLOBAL_COOLDOWN_SECONDS, 3_600, {
       minimum: 30,
       maximum: 24 * 60 * 60
@@ -123,10 +145,10 @@ export function createBotConfig(env = process.env) {
       minimum: 30,
       maximum: 24 * 60 * 60
     }),
-    xResearchHourlyCap: integer(env.X_RESEARCH_HOURLY_CAP, 20, { minimum: 1, maximum: 100 }),
-    xResearchDailyCap: integer(env.X_RESEARCH_DAILY_CAP, 100, { minimum: 1, maximum: 500 }),
-    xResearchUserHourlyCap: integer(env.X_RESEARCH_USER_HOURLY_CAP, 5, { minimum: 1, maximum: 30 }),
-    xResearchUserDailyCap: integer(env.X_RESEARCH_USER_DAILY_CAP, 20, { minimum: 1, maximum: 100 }),
+    xResearchHourlyCap: integer(env.X_RESEARCH_HOURLY_CAP, 200, { minimum: 1, maximum: 1_000 }),
+    xResearchDailyCap: integer(env.X_RESEARCH_DAILY_CAP, 1_000, { minimum: 1, maximum: 5_000 }),
+    xResearchUserHourlyCap: integer(env.X_RESEARCH_USER_HOURLY_CAP, 50, { minimum: 1, maximum: 300 }),
+    xResearchUserDailyCap: integer(env.X_RESEARCH_USER_DAILY_CAP, 200, { minimum: 1, maximum: 1_000 }),
     xAutonomousPostingEnabled: boolean(env.X_AUTONOMOUS_POSTING_ENABLED, false),
     xAutonomousIntervalMinutes: integer(env.X_AUTONOMOUS_INTERVAL_MINUTES, 120, {
       minimum: 60,
@@ -136,13 +158,13 @@ export function createBotConfig(env = process.env) {
       minimum: 5,
       maximum: 24 * 60
     }),
-    xAutonomousHourlyCap: integer(env.X_AUTONOMOUS_HOURLY_CAP, 3, {
+    xAutonomousHourlyCap: integer(env.X_AUTONOMOUS_HOURLY_CAP, 30, {
       minimum: 1,
-      maximum: 6
+      maximum: 60
     }),
-    xAutonomousDailyCap: integer(env.X_AUTONOMOUS_DAILY_CAP, 3, {
+    xAutonomousDailyCap: integer(env.X_AUTONOMOUS_DAILY_CAP, 30, {
       minimum: 1,
-      maximum: 12
+      maximum: 120
     }),
     xAutonomousTypes: enumList(
       env.X_AUTONOMOUS_TYPES,
@@ -163,13 +185,13 @@ export function createBotConfig(env = process.env) {
       minimum: 4,
       maximum: 30
     }),
-    agentXResearchHourlyCap: integer(env.AGENT_X_RESEARCH_HOURLY_CAP, 4, {
+    agentXResearchHourlyCap: integer(env.AGENT_X_RESEARCH_HOURLY_CAP, 40, {
       minimum: 1,
-      maximum: 20
+      maximum: 200
     }),
-    agentXResearchDailyCap: integer(env.AGENT_X_RESEARCH_DAILY_CAP, 24, {
+    agentXResearchDailyCap: integer(env.AGENT_X_RESEARCH_DAILY_CAP, 240, {
       minimum: 1,
-      maximum: 100
+      maximum: 1_000
     }),
     agentMinPostIntervalMinutes: integer(env.AGENT_MIN_POST_INTERVAL_MINUTES, 240, {
       minimum: 60,

@@ -8,6 +8,7 @@ import {
 } from "./persona.mjs";
 import {
   DEFAULT_NEWS_FEEDS,
+  isRelevantAIResearchText,
   NewsResearchClient,
   xPostResearchItem
 } from "./research.mjs";
@@ -463,7 +464,8 @@ export class AutonomousXService {
       const result = await this.#xResearchCall(() => this.xClient.userPosts(username, 6));
       for (const post of result?.posts || []) {
         if (post.isReply || post.isRepost || post.isQuote || post.possiblySensitive
-          || post.author?.username?.toLowerCase() === this.config.xExpectedUsername.toLowerCase()) continue;
+          || post.author?.username?.toLowerCase() === this.config.xExpectedUsername.toLowerCase()
+          || !isRelevantAIResearchText(post.text)) continue;
         items.push(xPostResearchItem(post, {
           priority: username.toLowerCase() === "canadabirdie" ? 2 : 1,
           now: this.now()
@@ -474,7 +476,8 @@ export class AutonomousXService {
       const posts = await this.#xResearchCall(() => this.xClient.searchRecent(query, 8));
       for (const post of posts || []) {
         if (post.isReply || post.isRepost || post.isQuote || post.possiblySensitive
-          || post.author?.username?.toLowerCase() === this.config.xExpectedUsername.toLowerCase()) continue;
+          || post.author?.username?.toLowerCase() === this.config.xExpectedUsername.toLowerCase()
+          || !isRelevantAIResearchText(post.text)) continue;
         items.push(xPostResearchItem(post, { now: this.now() }));
       }
     }
