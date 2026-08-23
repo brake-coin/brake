@@ -62,8 +62,64 @@ test("shared chat passes tools through and returns tool calls", async () => {
   const result = await client.chatStep([{ role: "user", content: "show the gallery" }], tools);
   assert.deepEqual(body.tools, tools);
   assert.equal(body.tool_choice, "auto");
+  assert.equal(body.max_completion_tokens, 800);
+  assert.equal("max_tokens" in body, false);
+  assert.deepEqual(body.reasoning, { effort: "minimal", exclude: true });
   assert.equal(result.message.tool_calls[0].function.name, "gallery_list");
   assert.equal(result.costUsd, 0.02);
+});
+
+test("shared chat can require the X draft tool for explicit posting requests", async () => {
+  let body;
+  const client = new OpenRouterClient({
+    config: config(),
+    credentialProvider: async () => ({ key: "sk-or-private-test" }),
+    fetchImpl: async (_url, options) => {
+      body = JSON.parse(options.body);
+      return new Response(JSON.stringify({
+        choices: [{ message: {
+          content: null,
+          tool_calls: [{ id: "call-x", type: "function", function: { name: "post_to_x", arguments: "{}" } }]
+        } }]
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+  });
+  const tools = [{ type: "function", function: { name: "post_to_x", parameters: { type: "object" } } }];
+  const toolChoice = { type: "function", function: { name: "post_to_x" } };
+
+  await client.chatStep([{ role: "user", content: "post it on X" }], tools, { toolChoice });
+  assert.deepEqual(body.tool_choice, toolChoice);
+});
+
+test("shared chat retries one empty completion and counts both costs", async () => {
+  let requests = 0;
+  const client = new OpenRouterClient({
+    config: config(),
+    credentialProvider: async () => ({ key: "sk-or-private-test" }),
+    fetchImpl: async () => {
+      requests += 1;
+      const payload = requests === 1
+        ? {
+            model: "empty-model",
+            choices: [{ finish_reason: "length", message: { content: null } }],
+            usage: { cost: 0.01 }
+          }
+        : {
+            model: "reply-model",
+            choices: [{ finish_reason: "stop", message: { content: "Recovered reply" } }],
+            usage: { cost: 0.02 }
+          };
+      return new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+  });
+
+  const result = await client.chatStep([{ role: "user", content: "hello" }]);
+  assert.equal(requests, 2);
+  assert.equal(result.message.content, "Recovered reply");
+  assert.ok(Math.abs(result.costUsd - 0.03) < 1e-9);
 });
 
 test("image generation sends canonical and user references", async () => {

@@ -8,6 +8,7 @@ import {
   removeBotMention
 } from "./persona.mjs";
 import { imageBufferToDataUrl, OpenRouterError } from "./openrouter.mjs";
+import { telegramHtmlFromMarkdown } from "./telegram-format.mjs";
 import { XError } from "./x.mjs";
 
 const OFFICIAL_MINT = "2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS";
@@ -217,8 +218,9 @@ function hasExplicitDeleteIntent(text) {
   return /\b(delete|remove|forget)\b/i.test(String(text || ""));
 }
 
-function isPostConfirmation(text) {
-  return /^(?:yes[,]?\s+)?confirm(?:\s+(?:the|x))?\s+post[.!]?$/i.test(String(text || "").trim());
+export function isPostConfirmation(text) {
+  const value = String(text || "").trim().replace(/[.!]+$/, "");
+  return /^(?:(?:yes|yep|yeah|ok(?:ay)?)(?:[,]?\s+(?:please\s+)?(?:go ahead|post it|publish it|send it|do it|confirm(?:\s+(?:the|x))?\s+post))?|(?:please\s+)?(?:go ahead|post it|publish it|send it|do it|looks good|approved?|confirm(?:\s+(?:the|x))?\s+post))(?:\s+please)?$/i.test(value);
 }
 
 function isPostCancellation(text) {
@@ -258,6 +260,21 @@ async function withChatAction(ctx, action, task) {
     return await task();
   } finally {
     clearInterval(timer);
+  }
+}
+
+async function replyWithFormatting(ctx, text, logger) {
+  const plainText = String(text || "").slice(0, 3_900);
+  try {
+    return await ctx.reply(telegramHtmlFromMarkdown(plainText), {
+      parse_mode: "HTML",
+      link_preview_options: { is_disabled: true }
+    });
+  } catch (error) {
+    const description = String(error?.response?.description || error?.description || "");
+    if (error?.response?.error_code !== 400 || !/parse entities/i.test(description)) throw error;
+    logger.warn("[telegram] formatted reply fell back to plain text", description);
+    return ctx.reply(plainText);
   }
 }
 
@@ -461,7 +478,12 @@ export class TelegramService {
     let finalText = "";
     try {
       for (let round = 0; round < 4; round += 1) {
-        const result = await this.openRouter.chatStep(messages, tools);
+        const mustPrepareXPost = round === 0 && isOperator && hasExplicitXPostIntent(userText);
+        const result = await this.openRouter.chatStep(messages, tools, {
+          toolChoice: mustPrepareXPost
+            ? { type: "function", function: { name: "post_to_x" } }
+            : "auto"
+        });
         totalCostUsd += result.costUsd;
         messages.push(result.message);
         const toolCalls = result.message.tool_calls || [];
@@ -486,8 +508,9 @@ export class TelegramService {
       if (!finalText) finalText = "I finished the tool work.";
       await this.store.recordCost(claim.eventId, totalCostUsd);
       await this.store.recordMessage({ chatId: ctx.chat.id, role: "assistant", content: finalText });
-      await ctx.reply(finalText.slice(0, 3_900));
+      await replyWithFormatting(ctx, finalText, this.logger);
     } catch (error) {
+      totalCostUsd += Number.isFinite(error?.costUsd) ? error.costUsd : 0;
       await this.store.recordCost(claim.eventId, totalCostUsd);
       this.logger.error("[telegram] agent failed", error);
       await ctx.reply(safeErrorMessage(error));
