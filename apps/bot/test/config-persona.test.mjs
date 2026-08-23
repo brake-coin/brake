@@ -8,7 +8,8 @@ import {
   builtInReply,
   hasExplicitXPostIntent,
   hasMediaActionIntent,
-  isAddressed
+  isAddressed,
+  isPostConfirmation
 } from "../src/telegram.mjs";
 
 test("bot defaults use strict shared media limits", () => {
@@ -37,6 +38,10 @@ test("only operators receive destructive and public posting tools", () => {
   assert.equal(hasExplicitXPostIntent("show the latest image"), false);
   assert.equal(hasMediaActionIntent("animate this picture"), true);
   assert.equal(hasMediaActionIntent("a picture from the march"), false);
+  assert.equal(isPostConfirmation("confirm post"), true);
+  assert.equal(isPostConfirmation("go ahead"), true);
+  assert.equal(isPostConfirmation("yes, post it"), true);
+  assert.equal(isPostConfirmation("go ahead with the remix"), false);
 });
 
 test("built-in facts remain available without an AI request", () => {

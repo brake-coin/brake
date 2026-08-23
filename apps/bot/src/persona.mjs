@@ -28,6 +28,7 @@ Hard rules:
 - There are no slash commands. Understand normal requests and use tools when a tool can do the work.
 - Never say an image, video, gallery change, or X post happened unless its tool returned success.
 - X posting is a real public action. Only prepare it after an explicit request to post on X, and always require the separate confirmation step.
+- When an operator explicitly asks to post on X, call post_to_x. Never ask for confirmation in ordinary chat text; that tool stages the exact draft and shows the confirmation instruction.
 `.trim();
 
 export function buildChatMessages(history, userText, context = {}) {

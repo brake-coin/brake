@@ -60,35 +60,51 @@ export class OpenRouterClient {
     return { text: result.message.content, costUsd: result.costUsd };
   }
 
-  async chatStep(messages, tools = []) {
+  async chatStep(messages, tools = [], { toolChoice = "auto" } = {}) {
     const body = {
       model: this.config.openRouterChatModel,
       messages,
-      max_tokens: 500,
+      max_completion_tokens: 800,
+      reasoning: { effort: "minimal", exclude: true },
       temperature: 0.4
     };
     if (tools.length) {
       body.tools = tools;
-      body.tool_choice = "auto";
+      body.tool_choice = toolChoice;
     }
-    const payload = await this.#json("/chat/completions", {
-      method: "POST",
-      body: JSON.stringify(body)
-    }, 1_000_000);
-    const choice = payload?.choices?.[0]?.message;
-    const toolCalls = Array.isArray(choice?.tool_calls) ? choice.tool_calls : [];
-    const content = textFromContent(choice?.content);
-    if (!content && !toolCalls.length) {
-      throw new OpenRouterError("The shared chat model returned no reply.");
+    let costUsd = 0;
+    let lastPayload = null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const payload = await this.#json("/chat/completions", {
+        method: "POST",
+        body: JSON.stringify(body)
+      }, 1_000_000);
+      lastPayload = payload;
+      costUsd += costFrom(payload);
+      const choice = payload?.choices?.[0]?.message;
+      const toolCalls = Array.isArray(choice?.tool_calls) ? choice.tool_calls : [];
+      const content = textFromContent(choice?.content);
+      if (content || toolCalls.length) {
+        return {
+          message: {
+            role: "assistant",
+            content: content || null,
+            ...(toolCalls.length ? { tool_calls: toolCalls } : {})
+          },
+          costUsd
+        };
+      }
     }
-    return {
-      message: {
-        role: "assistant",
-        content: content || null,
-        ...(toolCalls.length ? { tool_calls: toolCalls } : {})
-      },
-      costUsd: costFrom(payload)
+    const error = new OpenRouterError("The shared chat model went quiet twice. Try again.");
+    error.costUsd = costUsd;
+    error.details = {
+      model: lastPayload?.model || null,
+      finishReason: lastPayload?.choices?.[0]?.finish_reason || null,
+      nativeFinishReason: lastPayload?.choices?.[0]?.native_finish_reason || null,
+      completionTokens: lastPayload?.usage?.completion_tokens || 0,
+      reasoningTokens: lastPayload?.usage?.completion_tokens_details?.reasoning_tokens || 0
     };
+    throw error;
   }
 
   async generateImage({ prompt, referenceDataUrls = [] }) {
