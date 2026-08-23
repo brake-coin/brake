@@ -4,6 +4,8 @@ import test from "node:test";
 import {
   LOCAL_IDEA_COMBINATIONS,
   normalizeMemeIdea,
+  parseMemeDraft,
+  serializeMemeDraft,
   rollLocalMemeIdea
 } from "../meme-ideas.js";
 
@@ -36,4 +38,23 @@ test("idea rolls require style, theme, message, and an image format", () => {
     () => normalizeMemeIdea({ style: "poster", theme: "race", memeStyle: "poster" }),
     /incomplete roll/
   );
+});
+
+test("meme drafts survive a tab reload", () => {
+  const saved = serializeMemeDraft({
+    idea: "  A strange   STOPAI weather report  ",
+    memeStyle: "NEWS"
+  });
+  assert.deepEqual(parseMemeDraft(saved), {
+    idea: "A strange STOPAI weather report",
+    memeStyle: "news"
+  });
+});
+
+test("bad meme drafts are ignored", () => {
+  assert.equal(parseMemeDraft(null), null);
+  assert.equal(parseMemeDraft("not json"), null);
+  assert.equal(parseMemeDraft(JSON.stringify({ idea: "ok", memeStyle: "news" })), null);
+  assert.equal(parseMemeDraft({ idea: "A complete idea", memeStyle: "video" }), null);
+  assert.throws(() => serializeMemeDraft({ idea: "", memeStyle: "poster" }), /incomplete/);
 });

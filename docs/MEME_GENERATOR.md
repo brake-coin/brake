@@ -24,6 +24,10 @@ Every visitor brings their own OpenRouter account:
 6. The browser sends the campaign prompt and hand reference directly to OpenRouter.
    OpenRouter charges the visitor's own account and returns the image to the browser.
 
+The current rolled idea and its hidden image format are also kept in `sessionStorage`.
+They remain visible when OpenRouter sends the visitor back to the page, but disappear
+when that browser tab is closed. The draft is never sent to a STOPAI server.
+
 The code and verifier expire after ten minutes. The generated OpenRouter key remains
 in the visitor's OpenRouter account until they revoke it. **Disconnect this tab**
 removes the local copy; the key-settings link opens OpenRouter so the visitor can

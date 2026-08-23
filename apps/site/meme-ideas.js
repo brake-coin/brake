@@ -111,6 +111,25 @@ export function normalizeMemeIdea(input) {
   };
 }
 
+export function parseMemeDraft(value) {
+  try {
+    const draft = typeof value === "string" ? JSON.parse(value) : value;
+    if (!draft || typeof draft !== "object") return null;
+    const idea = cleanPart(draft.idea, 280);
+    const memeStyle = cleanPart(draft.memeStyle, 20).toLowerCase();
+    if (idea.length < 3 || !MEME_STYLES.has(memeStyle)) return null;
+    return { idea, memeStyle };
+  } catch {
+    return null;
+  }
+}
+
+export function serializeMemeDraft(value) {
+  const draft = parseMemeDraft(value);
+  if (!draft) throw new Error("The meme draft is incomplete.");
+  return JSON.stringify(draft);
+}
+
 function randomItem(items, random) {
   const index = Math.min(items.length - 1, Math.max(0, Math.floor(random() * items.length)));
   return items[index];

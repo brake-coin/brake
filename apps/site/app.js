@@ -7,17 +7,23 @@ import {
   generateMemeIdea,
   generateMeme,
   keyLinks
-} from "./openrouter.js?v=20260823-2";
-import { LOCAL_IDEA_COMBINATIONS, rollLocalMemeIdea } from "./meme-ideas.js?v=20260823-2";
+} from "./openrouter.js?v=20260823-3";
+import {
+  LOCAL_IDEA_COMBINATIONS,
+  parseMemeDraft,
+  rollLocalMemeIdea,
+  serializeMemeDraft
+} from "./meme-ideas.js?v=20260823-3";
 import {
   clearGalleryMemes,
   deleteGalleryMeme,
   listGalleryMemes,
   saveGalleryMeme
-} from "./gallery.js?v=20260823-2";
+} from "./gallery.js?v=20260823-3";
 
 const PKCE_STORAGE_KEY = "stopai:openrouter-pkce";
 const API_KEY_STORAGE_KEY = "stopai:openrouter-key";
+const MEME_DRAFT_STORAGE_KEY = "stopai:meme-draft";
 const OAUTH_MAX_AGE_MS = 10 * 60 * 1000;
 const X_GALLERY_ENDPOINT = "https://stopai-coin.fly.dev/api/x/gallery";
 
@@ -94,6 +100,32 @@ function renderControlStates() {
   ideaRollWorking.hidden = !rollingIdea;
   connectButton.disabled = generating || rollingIdea;
   disconnectButton.disabled = generating || rollingIdea;
+}
+
+function saveMemeDraft() {
+  try {
+    sessionStorage.setItem(MEME_DRAFT_STORAGE_KEY, serializeMemeDraft({
+      idea: memeIdea.value,
+      memeStyle: memeStyle.value
+    }));
+  } catch {
+    // There is no valid roll to save yet, or this browser blocks tab storage.
+  }
+}
+
+function restoreMemeDraft() {
+  let draft = null;
+  try {
+    draft = parseMemeDraft(sessionStorage.getItem(MEME_DRAFT_STORAGE_KEY));
+  } catch {
+    // Continue with an empty roller if this browser blocks tab storage.
+  }
+  if (!draft) return false;
+  memeIdea.value = draft.idea;
+  memeStyle.value = draft.memeStyle;
+  hasRolledIdea = true;
+  resizeMemeResult();
+  return true;
 }
 
 async function renderConnection() {
@@ -174,6 +206,7 @@ connectButton.addEventListener("click", async () => {
   connectButton.disabled = true;
   setGeneratorStatus("Opening OpenRouter’s secure connection…");
   try {
+    saveMemeDraft();
     const transaction = await createPkceTransaction();
     sessionStorage.setItem(PKCE_STORAGE_KEY, JSON.stringify(transaction));
     const callbackUrl = new URL(window.location.href);
@@ -243,6 +276,7 @@ function openPersonalGalleryMeme(item) {
   resizeMemeResult();
   memeStyle.value = item.style || "reaction";
   hasRolledIdea = true;
+  saveMemeDraft();
   renderControlStates();
   memeOutput.hidden = false;
   setGeneratorStatus("Your saved meme is open. Remix it or share it.", "ready");
@@ -401,6 +435,7 @@ function showIdeaRoll(roll) {
   resizeMemeResult();
   memeStyle.value = roll.memeStyle;
   hasRolledIdea = true;
+  saveMemeDraft();
 }
 
 function resizeMemeResult() {
@@ -528,6 +563,7 @@ try {
   statusLabel.textContent = "Status unavailable";
 }
 
+restoreMemeDraft();
 const oauthError = await finishOAuthCallback();
 await Promise.all([renderConnection(), loadXGallery(), loadPersonalGallery()]);
 if (oauthError) setGeneratorStatus(oauthError, "error");
