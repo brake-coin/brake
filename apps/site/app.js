@@ -6,6 +6,12 @@ import {
   generateMeme,
   keyLinks
 } from "./openrouter.js";
+import {
+  clearGalleryMemes,
+  deleteGalleryMeme,
+  listGalleryMemes,
+  saveGalleryMeme
+} from "./gallery.js";
 
 const PKCE_STORAGE_KEY = "stopai:openrouter-pkce";
 const API_KEY_STORAGE_KEY = "stopai:openrouter-key";
@@ -39,6 +45,9 @@ const disconnectButton = document.querySelector("#disconnect-openrouter");
 const connectionState = document.querySelector("#openrouter-state");
 const activityLink = document.querySelector("#openrouter-activity");
 const settingsLink = document.querySelector("#openrouter-settings");
+const galleryGrid = document.querySelector("#gallery-grid");
+const galleryEmpty = document.querySelector("#gallery-empty");
+const clearGalleryButton = document.querySelector("#clear-gallery");
 
 let openRouterKey = sessionStorage.getItem(API_KEY_STORAGE_KEY);
 let imageModel = DEFAULT_IMAGE_MODEL;
@@ -68,8 +77,8 @@ async function renderConnection() {
   connectButton.hidden = connected;
   disconnectButton.hidden = !connected;
   connectionState.textContent = connected
-    ? "Connected for this browser tab. Your OpenRouter key stays here."
-    : "Connect your OpenRouter account. You pay OpenRouter directly for each image.";
+    ? "Connected for this tab. Your OpenRouter key stays here."
+    : "OpenRouter gives this tab a key. We never receive it or add it to our server.";
   connectionState.dataset.connected = connected ? "true" : "false";
   activityLink.hidden = !connected;
   settingsLink.hidden = !connected;
@@ -78,9 +87,9 @@ async function renderConnection() {
     const links = await keyLinks(openRouterKey);
     activityLink.href = links.activityUrl;
     settingsLink.href = links.settingsUrl;
-    setGeneratorStatus("Ready. Image costs go to your OpenRouter account.", "ready");
+    setGeneratorStatus("Ready. Your key stays in this tab; OpenRouter bills your account.", "ready");
   } else {
-    setGeneratorStatus("Connect OpenRouter to generate a meme.");
+    setGeneratorStatus("Connect OpenRouter to put the weird hand to work.");
   }
   setGenerating(false);
 }
@@ -133,7 +142,7 @@ async function finishOAuthCallback() {
 
 connectButton.addEventListener("click", async () => {
   connectButton.disabled = true;
-  setGeneratorStatus("Opening OpenRouter…");
+  setGeneratorStatus("Opening OpenRouter’s secure connection…");
   try {
     const transaction = await createPkceTransaction();
     sessionStorage.setItem(PKCE_STORAGE_KEY, JSON.stringify(transaction));
@@ -185,12 +194,86 @@ async function dataUrlToFile(dataUrl) {
   return new File([blob], `stopai-meme-${Date.now()}.png`, { type: blob.type || "image/png" });
 }
 
-function downloadLatestMeme() {
-  if (!latestMeme) return;
+function downloadMeme(image, id = Date.now()) {
+  if (!image) return;
   const link = document.createElement("a");
-  link.href = latestMeme;
-  link.download = `stopai-meme-${Date.now()}.png`;
+  link.href = image;
+  link.download = `stopai-meme-${id}.png`;
   link.click();
+}
+
+function downloadLatestMeme() {
+  downloadMeme(latestMeme);
+}
+
+function openGalleryMeme(item) {
+  latestMeme = item.image;
+  generatedMeme.src = item.image;
+  memeIdea.value = item.idea;
+  if ([...memeStyle.options].some((option) => option.value === item.style)) {
+    memeStyle.value = item.style;
+  }
+  memeOutput.hidden = false;
+  setGeneratorStatus("Gallery meme loaded. Remix it or send it back into the timeline.", "ready");
+  memeOutput.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function galleryButton(label, task) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = label;
+  button.addEventListener("click", task);
+  return button;
+}
+
+function renderGallery(items) {
+  galleryGrid.replaceChildren();
+  galleryEmpty.hidden = items.length > 0;
+  clearGalleryButton.hidden = items.length === 0;
+  for (const item of items) {
+    const card = document.createElement("article");
+    card.className = "gallery-card";
+
+    const image = document.createElement("img");
+    image.src = item.image;
+    image.alt = item.idea || "Generated STOPAI meme";
+    image.loading = "lazy";
+
+    const copy = document.createElement("div");
+    copy.className = "gallery-card-copy";
+    const idea = document.createElement("p");
+    idea.textContent = item.idea || "Untitled STOPAI meme";
+    const time = document.createElement("time");
+    time.dateTime = item.createdAt;
+    time.textContent = new Intl.DateTimeFormat(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short"
+    }).format(new Date(item.createdAt));
+    const actions = document.createElement("div");
+    actions.className = "gallery-card-actions";
+    actions.append(
+      galleryButton("Open", () => openGalleryMeme(item)),
+      galleryButton("Download", () => downloadMeme(item.image, item.id)),
+      galleryButton("Delete", async () => {
+        await deleteGalleryMeme(item.id);
+        await refreshGallery();
+      })
+    );
+    copy.append(idea, time, actions);
+    card.append(image, copy);
+    galleryGrid.append(card);
+  }
+}
+
+async function refreshGallery() {
+  try {
+    renderGallery(await listGalleryMemes());
+  } catch (error) {
+    console.warn("Browser meme gallery is unavailable", error);
+    galleryEmpty.hidden = false;
+    galleryEmpty.textContent = "This browser is not allowing local gallery storage.";
+    clearGalleryButton.hidden = true;
+  }
 }
 
 async function shareLatestMeme() {
@@ -201,7 +284,7 @@ async function shareLatestMeme() {
       await navigator.share({
         files: [file],
         title: "$STOPAI ✋🏻😡 meme",
-        text: "$STOPAI ✋🏻😡 Stop the AI race. #STOPAI"
+        text: "AI won’t stop itself. So we built $STOPAI. ✋🏻😡 #STOPAI"
       });
     } else {
       downloadLatestMeme();
@@ -224,12 +307,12 @@ for (const starter of document.querySelectorAll("[data-prompt]")) {
 memeForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!openRouterKey) {
-    setGeneratorStatus("Connect OpenRouter first.", "error");
+    setGeneratorStatus("Connect OpenRouter before putting the hand to work.", "error");
     return;
   }
 
   setGenerating(true);
-  setGeneratorStatus("Warming up the weird hand. OpenRouter may take about a minute…");
+  setGeneratorStatus("Giving the weird hand a job. OpenRouter may take about a minute…");
 
   try {
     const result = await generateMeme({
@@ -243,11 +326,18 @@ memeForm.addEventListener("submit", async (event) => {
     latestMeme = result.image;
     generatedMeme.src = latestMeme;
     memeOutput.hidden = false;
-    setGeneratorStatus("Meme acquired. Inspect it before setting it loose.", "ready");
+    await saveGalleryMeme({
+      image: latestMeme,
+      idea: memeIdea.value,
+      style: memeStyle.value
+    }).then(refreshGallery).catch((error) => {
+      console.warn("Could not save generated meme to browser gallery", error);
+    });
+    setGeneratorStatus("Meme ready. Inspect the chaos before setting it loose.", "ready");
     memeOutput.scrollIntoView({ behavior: "smooth", block: "nearest" });
   } catch (error) {
     const message = error.name === "TimeoutError"
-      ? "The meme took too long. Try again with a simpler idea."
+      ? "The hand took too long. Try again with a simpler idea."
       : error.message;
     setGeneratorStatus(message, "error");
   } finally {
@@ -262,10 +352,16 @@ remixButton.addEventListener("click", () => {
   memeForm.scrollIntoView({ behavior: "smooth", block: "center" });
 });
 
+clearGalleryButton.addEventListener("click", async () => {
+  if (!window.confirm("Clear every meme saved by this browser?")) return;
+  await clearGalleryMemes();
+  await refreshGallery();
+});
+
 copyContractButton.addEventListener("click", async () => {
   try {
     await navigator.clipboard.writeText(contractAddress.textContent.trim());
-    copyContractButton.textContent = "Copied";
+    copyContractButton.textContent = "CA copied";
     window.setTimeout(() => {
       copyContractButton.textContent = "Copy CA";
     }, 1_500);
@@ -302,4 +398,5 @@ try {
 
 const oauthError = await finishOAuthCallback();
 await renderConnection();
+await refreshGallery();
 if (oauthError) setGeneratorStatus(oauthError, "error");

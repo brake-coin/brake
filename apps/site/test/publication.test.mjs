@@ -21,4 +21,8 @@ test("homepage publishes the official live mint and verification links", async (
   assert.equal(project.creatorFeeRecipient.handle, "@canadabirdie");
   assert.equal(project.creatorFeeRecipient.profileUrl, "https://x.com/canadabirdie");
   assert.match(html, /https:\/\/x\.com\/canadabirdie/);
+  assert.match(html, /AI won’t stop itself/);
+  assert.match(html, /Your meme gallery/);
+  assert.match(html, /https:\/\/t\.me\/StopAiToken_bot/);
+  assert.match(html, /stopai-social-preview\.png/);
 });

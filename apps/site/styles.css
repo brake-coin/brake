@@ -138,7 +138,7 @@ p {
 h1 {
   max-width: 760px;
   margin-bottom: 24px;
-  font-size: clamp(3.5rem, 9vw, 7.6rem);
+  font-size: clamp(3.2rem, 7vw, 6.4rem);
   line-height: 0.88;
   letter-spacing: -0.07em;
 }
@@ -464,11 +464,161 @@ h1 {
   opacity: 0.75;
 }
 
+.meme-gallery,
+.agent,
 .principles,
 .flow,
 .disclosure {
   border-top: 2px solid var(--ink);
   padding-block: 64px;
+}
+
+.gallery-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+}
+
+.gallery-heading h2 {
+  margin-bottom: 12px;
+}
+
+.gallery-heading p:last-child {
+  max-width: 620px;
+  margin-bottom: 0;
+  line-height: 1.55;
+}
+
+.gallery-heading button,
+.gallery-card button {
+  padding: 9px 12px;
+  border: 2px solid var(--ink);
+  background: var(--white);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.gallery-heading button:hover,
+.gallery-card button:hover {
+  background: var(--ink);
+  color: var(--white);
+}
+
+.gallery-empty {
+  margin: 34px 0 0;
+  padding: 28px;
+  border: 2px dashed var(--line);
+  color: rgba(23, 25, 27, 0.7);
+  text-align: center;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 34px;
+}
+
+.gallery-card {
+  overflow: hidden;
+  border: 2px solid var(--ink);
+  background: var(--white);
+  box-shadow: 5px 5px 0 var(--ink);
+}
+
+.gallery-card img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border-bottom: 2px solid var(--ink);
+  object-fit: cover;
+}
+
+.gallery-card-copy {
+  padding: 14px;
+}
+
+.gallery-card-copy p {
+  display: -webkit-box;
+  min-height: 2.8em;
+  margin-bottom: 12px;
+  overflow: hidden;
+  font-size: 0.85rem;
+  font-weight: 750;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.gallery-card-copy time {
+  display: block;
+  margin-bottom: 12px;
+  color: rgba(23, 25, 27, 0.65);
+  font-size: 0.72rem;
+}
+
+.gallery-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.agent {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 64px;
+}
+
+.agent-copy > p {
+  max-width: 680px;
+  font-size: 1.15rem;
+  line-height: 1.6;
+}
+
+.agent-copy ul {
+  margin: 28px 0 0;
+  padding: 0;
+  border-top: 2px solid var(--ink);
+  list-style: none;
+}
+
+.agent-copy li {
+  display: grid;
+  grid-template-columns: 0.7fr 1.3fr;
+  gap: 24px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+  line-height: 1.5;
+}
+
+.agent-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 26px;
+}
+
+.agent-actions a {
+  padding: 10px 13px;
+  border: 2px solid var(--ink);
+  background: var(--white);
+  font-size: 0.82rem;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.agent-actions a:first-child {
+  background: var(--red);
+  color: var(--white);
+}
+
+.agent-actions a:hover {
+  background: var(--ink);
+  color: var(--white);
 }
 
 h2 {
@@ -748,6 +898,7 @@ footer {
 
 @media (max-width: 760px) {
   .hero,
+  .agent,
   .flow,
   .card-grid,
   .meme-machine {
@@ -762,6 +913,24 @@ footer {
 
   .hero-mark {
     max-width: 250px;
+  }
+
+  .agent {
+    gap: 24px;
+  }
+
+  .agent-copy li {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .gallery-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .gallery-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .meme-machine {
@@ -813,4 +982,10 @@ footer {
     gap: 5px;
   }
 
+}
+
+@media (max-width: 480px) {
+  .gallery-grid {
+    grid-template-columns: 1fr;
+  }
 }

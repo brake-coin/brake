@@ -9,7 +9,15 @@ await rm(output, { recursive: true, force: true });
 await mkdir(path.join(output, "assets"), { recursive: true });
 await mkdir(path.join(output, "config"), { recursive: true });
 
-for (const file of ["index.html", "admin.html", "styles.css", "app.js", "admin.js", "openrouter.js"]) {
+for (const file of [
+  "index.html",
+  "admin.html",
+  "styles.css",
+  "app.js",
+  "admin.js",
+  "openrouter.js",
+  "gallery.js"
+]) {
   await cp(path.join(root, "apps/site", file), path.join(output, file));
 }
 
@@ -20,6 +28,10 @@ await cp(
 await cp(
   path.join(root, "assets/brake-emblem-meme-reference.png"),
   path.join(output, "assets/brake-emblem-meme-reference.png")
+);
+await cp(
+  path.join(root, "assets/stopai-social-preview.png"),
+  path.join(output, "assets/stopai-social-preview.png")
 );
 await cp(path.join(root, "config/project.json"), path.join(output, "config/project.json"));
 
