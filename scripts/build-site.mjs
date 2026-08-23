@@ -31,6 +31,10 @@ await cp(
   path.join(output, "assets/brake-emblem-meme-reference.png")
 );
 await cp(
+  path.join(root, "assets/brake-emblem-simple-final.png"),
+  path.join(output, "assets/brake-emblem-simple-final.png")
+);
+await cp(
   path.join(root, "assets/stopai-social-preview.png"),
   path.join(output, "assets/stopai-social-preview.png")
 );

@@ -146,16 +146,16 @@ export function createBotConfig(env = process.env) {
     }),
     xAutonomousTypes: enumList(
       env.X_AUTONOMOUS_TYPES,
-      ["text", "image", "video"],
+      ["text", "image"],
       ["text", "image", "video"]
     ),
     agentResearchEnabled: boolean(env.AGENT_RESEARCH_ENABLED, true),
     agentXQueries: stringList(env.AGENT_X_QUERIES, [
       '("AI race" OR "pause AI" OR "stop AI") lang:en -is:retweet -is:reply -from:STOPAICOIN',
-      '(superintelligence OR "frontier AI") (safety OR risk OR governance OR moratorium) lang:en -is:retweet -is:reply -from:STOPAICOIN'
+      '(superintelligence OR "frontier AI") (safety OR risk OR governance OR moratorium) lang:en -is:retweet -is:reply -from:STOPAICOIN',
+      '(("AI crypto" OR "crypto AI" OR "AI agent") (agent OR compute OR automation OR acceleration)) lang:en -is:retweet -is:reply -from:STOPAICOIN'
     ], ";;"),
     agentWatchAccounts: stringList(env.AGENT_WATCH_ACCOUNTS, [
-      "canadabirdie",
       "PauseAI"
     ]).map((item) => item.replace(/^@/, "")).filter((item) => /^[A-Za-z0-9_]{1,15}$/.test(item)),
     agentNewsFeeds: stringList(env.AGENT_NEWS_FEEDS, []),

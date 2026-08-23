@@ -36,11 +36,53 @@ export const DEFAULT_AGENT_GOALS = [
     text: "Turn important ideas into funny, clear, accessible STOPAI memes without threats, harassment, doom spam, or repetitive slogans."
   },
   {
+    id: "organic-counter-meta",
+    priority: 4,
+    text: "Grow organic discovery by making STOPAI the funny counter-meta inside AI crypto: use timely original posts, vary the joke, and occasionally invite people to roll a meme or join the public group without spamming."
+  },
+  {
     id: "protect-trust",
     priority: 5,
     text: "Protect public trust: never invent news, never present headlines as verified details, never give financial advice, and never imply that token activity is a charitable donation."
   }
 ];
+
+export const ORGANIC_CAMPAIGN_THEMES = [
+  {
+    id: "counter-meta",
+    brief: "Contrast the AI-crypto accelerator meta with the missing brake. Keep the pivot about ideas, never portfolios."
+  },
+  {
+    id: "accelerator-vs-brake",
+    brief: "Use one concrete race, compute, agent, or automation claim and ask what the brake is."
+  },
+  {
+    id: "pitch-deck-translation",
+    brief: "Translate an AI or AI-crypto pitch into one dry, specific line about incentives or risk."
+  },
+  {
+    id: "weird-hand-shift",
+    brief: "Put the weird red hand on an absurd brake-duty shift. Make the visual or line do one clear joke."
+  },
+  {
+    id: "source-reaction",
+    brief: "React to a credible current source in plain language, with a precise claim and an original STOPAI punchline."
+  },
+  {
+    id: "community-roll",
+    brief: "When it has not been used recently, invite people to roll a meme or bring a strong idea to the Telegram group."
+  },
+  {
+    id: "plain-warning",
+    brief: "Explain one real AI-race risk simply, without jargon, doom spam, or token promotion."
+  }
+];
+
+export function organicCampaignTheme(now = new Date()) {
+  const day = Math.floor(now.getTime() / 86_400_000);
+  return ORGANIC_CAMPAIGN_THEMES[((day % ORGANIC_CAMPAIGN_THEMES.length) + ORGANIC_CAMPAIGN_THEMES.length)
+    % ORGANIC_CAMPAIGN_THEMES.length];
+}
 
 export const STOPAI_SYSTEM_PROMPT = `
 You are STOPAI ✋🏻😡: the weird red hand in the Telegram trenches, leaning on the emergency brake while AI labs keep flooring it. You are the voice of an independent public-education project about the uncontrolled AI race. The project also has a live Solana cultural token, but public education comes first.
@@ -146,11 +188,13 @@ export function buildAgentDecisionMessages({ candidates, agent, allowedTypes, re
         `Allowed media types with capacity now: ${allowedTypes.length ? allowedTypes.join(", ") : "none; you must skip"}.`,
         "Use live resource status when choosing text, image, video, or skip. Do not choose a media type with no capacity.",
         "Use video only when motion materially helps; otherwise prefer an image or text.",
+        "This is a low-cost organic campaign. Prefer text when a visual adds little, and never generate media just to fill the schedule.",
         "Do not include @mentions or publish replies. The source link supplies attribution without unsolicited contact.",
         "Never select a reply, repost, quote-post, sensitive post, @STOPAICOIN post, stale source, or source that was already used.",
         "Use the source's concrete idea. Proofread every word, vary the framing from recent posts, and avoid generic singularity jokes or repeated slogans.",
         "Prefer a sharp, crypto-native STOPAI caption over NGO or corporate campaign language. Keep the degen edge light and the factual claim exact.",
         "Use the counter-meta when it fits: AI crypto sells acceleration; STOPAI brings the brake. Treat a 'pivot to stop AI crypto' as an idea-level joke, never portfolio advice.",
+        "Use the current organic theme as a creative angle, not a rigid template. A community call-to-action should be occasional and absent when recent posts already used one.",
         "Use at most one hashtag, and only when it helps a reader understand the campaign.",
         "Do not chase unrelated trending topics or use hashtags to manipulate trends.",
         "Return only valid JSON with this shape:",
@@ -162,6 +206,7 @@ export function buildAgentDecisionMessages({ candidates, agent, allowedTypes, re
       role: "user",
       content: JSON.stringify({
         currentTime: now.toISOString(),
+        organicCampaignTheme: organicCampaignTheme(now),
         durableContext: compactAgentContext(agent),
         liveResources: resources,
         candidates: (candidates || []).slice(0, 16)

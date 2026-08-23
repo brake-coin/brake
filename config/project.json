@@ -4,6 +4,7 @@
   "symbol": "STOPAI",
   "status": "live",
   "tagline": "Stop the AI race.",
+  "description": "STOPAI is an independent Solana cultural memecoin and public-education project using memes to question the uncontrolled AI race.",
   "network": "Solana",
   "cluster": "mainnet-beta",
   "contractAddress": "2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS",
@@ -14,8 +15,11 @@
     "freezeAuthorityRevoked": true
   },
   "links": {
+    "website": "https://stopai-coin.fly.dev",
     "bags": "https://bags.fm/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS",
     "solanaExplorer": "https://explorer.solana.com/address/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS",
+    "geckoTerminal": "https://www.geckoterminal.com/solana/pools/Ayq6y3J6FCZg1Lrd8TKDY3HkLRSBWd8pbop2UYDiRXk4",
+    "jupiter": "https://verified.jup.ag/dashboard/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS",
     "x": "https://x.com/STOPAICOIN",
     "telegram": "https://t.me/StopAiCoin"
   },
@@ -35,7 +39,7 @@
     "modelLabel": "Nano Banana 2",
     "statusMessage": "Connect your own OpenRouter account to generate images."
   },
-  "independenceNotice": "Independent token. Not an official token of Stop the AI Race, Stop AI, PauseAI, RATi OSF, or any AI company.",
+  "independenceNotice": "Independent token. Not affiliated with @canadabirdie and not an official token of Stop the AI Race, Stop AI, PauseAI, RATi OSF, or any AI company.",
   "riskNotice": "STOPAI is a speculative cultural token that could lose all value. Buying STOPAI is not a charitable donation and does not produce a tax receipt. Creator fees belong to the configured recipient and create no rights for token holders.",
   "lastUpdated": "2026-08-23"
 }

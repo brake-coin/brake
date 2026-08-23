@@ -6,6 +6,8 @@ import {
   buildAgentDecisionMessages,
   buildChatMessages,
   buildImagePrompt,
+  organicCampaignTheme,
+  ORGANIC_CAMPAIGN_THEMES,
   STOPAI_SYSTEM_PROMPT
 } from "../src/persona.mjs";
 import {
@@ -39,8 +41,9 @@ test("bot defaults use strict shared media limits", () => {
   assert.equal(config.agentResearchEnabled, true);
   assert.equal(config.agentMaxSourceAgeHours, 168);
   assert.equal(config.agentXQueries.every((query) => query.includes("-is:reply")), true);
-  assert.deepEqual(config.agentWatchAccounts, ["canadabirdie", "PauseAI"]);
-  assert.deepEqual(config.xAutonomousTypes, ["text", "image", "video"]);
+  assert.deepEqual(config.agentWatchAccounts, ["PauseAI"]);
+  assert.equal(config.agentXQueries.some((query) => query.includes("AI crypto")), true);
+  assert.deepEqual(config.xAutonomousTypes, ["text", "image"]);
   assert.deepEqual(usageLimits(config, "x_post"), {
     hourly: 2,
     daily: 8,
@@ -162,7 +165,11 @@ test("the agent receives live context and decides which tools to use", () => {
     now: new Date("2026-08-23T20:00:00.000Z")
   }).map((message) => message.content).join("\n");
   assert.match(decisionContext, /none; you must skip/i);
+  assert.match(decisionContext, /low-cost organic campaign/i);
+  assert.match(decisionContext, /"organicCampaignTheme":\{"id":"/);
   assert.match(decisionContext, /"liveResources":\{"image":\{"availableNow":false/);
+  assert.equal(ORGANIC_CAMPAIGN_THEMES.length, 7);
+  assert.equal(typeof organicCampaignTheme(new Date("2026-08-23T20:00:00.000Z")).brief, "string");
 });
 
 test("meme repost text keeps a canonical source link", () => {

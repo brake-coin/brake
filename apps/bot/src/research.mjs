@@ -6,6 +6,8 @@ const DEFAULT_NEWS_QUERY = [
   'PauseAI',
   'ControlAI',
   '"AI moratorium"',
+  '"AI crypto"',
+  '"AI agent" crypto',
   '"frontier AI" safety',
   'superintelligence risk'
 ].join(" OR ");

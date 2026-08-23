@@ -1,9 +1,9 @@
 {
   "name": "STOPAI",
   "symbol": "STOPAI",
-  "description": "STOPAI is an independent speculative cultural token. It provides no equity, yield, governance, redemption right, ownership of RATi OSF, revenue share, or claim on creator fees. Buying STOPAI is not a charitable donation. Bags creator fees are configured to the public X account @canadabirdie.",
-  "image": "ipfs://TBD",
-  "external_url": "https://TBD",
+  "description": "STOPAI is an independent Solana cultural memecoin and public-education project using memes to question the uncontrolled AI race. It provides no equity, yield, governance, redemption right, revenue share, or claim on creator fees. Buying STOPAI is not a charitable donation. Bags creator fees are configured to @canadabirdie, but STOPAI is not affiliated with that account.",
+  "image": "https://brake-coin.github.io/brake/assets/brake-emblem-simple-final.png",
+  "external_url": "https://stopai-coin.fly.dev",
   "attributes": [
     {
       "trait_type": "Network",
@@ -26,7 +26,7 @@
     "category": "image",
     "files": [
       {
-        "uri": "ipfs://TBD",
+        "uri": "https://brake-coin.github.io/brake/assets/brake-emblem-simple-final.png",
         "type": "image/png"
       }
     ]
