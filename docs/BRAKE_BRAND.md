@@ -46,6 +46,10 @@ the uncontrolled race, its incentives, and its empty launch hype—not ordinary 
 victims. Contract details, attribution, current events, and risk warnings must always
 switch back to exact language. Accuracy outranks the bit.
 
+The recurring degen premise is the AI-crypto counter-meta: every project brought more
+agents, compute, and acceleration; STOPAI brought the missing brake. “Pivot to stop AI
+crypto” means question and change the thesis, not rotate a portfolio or buy a token.
+
 ## Independence line
 
 Use this line in every profile and campaign footer until a public written partnership

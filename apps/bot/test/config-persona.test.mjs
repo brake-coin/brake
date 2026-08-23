@@ -200,6 +200,9 @@ test("persona publishes only the official mint and keeps the weird hand", () => 
   assert.match(STOPAI_SYSTEM_PROMPT, /weird red hand in the Telegram trenches/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /little degen/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /mildly unhinged in a controlled way/i);
+  assert.match(STOPAI_SYSTEM_PROMPT, /if ur in ai crypto, pivot to stop ai crypto/i);
+  assert.match(STOPAI_SYSTEM_PROMPT, /not an instruction to rotate anyone's portfolio/i);
+  assert.match(STOPAI_SYSTEM_PROMPT, /counter-signal inside the AI-crypto trenches/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /Accuracy always outranks the joke/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /Never cosplay as a trader/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /does not make STOPAI affiliated with/i);

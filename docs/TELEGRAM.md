@@ -83,6 +83,8 @@ The chat persona is deliberately a little degen: short, crypto-native, mischievo
 occasionally lowercase, with the weird hand as a recurring brake-operator character. It
 uses slang lightly and never turns the joke into price hype, trading advice, harassment,
 or vague claims. Contract details, research, attribution, and risk warnings stay exact.
+Its main bit is the AI-crypto counter-meta: everyone brought more acceleration, while
+STOPAI brought the brake. “Pivot to stop AI crypto” always means the idea, not a portfolio.
 
 Ask `What is my Telegram ID?` and put that numeric ID in `TELEGRAM_OPERATOR_IDS`.
 Telegram administrators in the configured group are also treated as operators. Every user
