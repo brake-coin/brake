@@ -100,6 +100,18 @@ test("X publishing rejects replies and unsolicited mentions", async () => {
   await assert.rejects(() => client.post({ text: "hello @person" }), /unsolicited @mentions/i);
 });
 
+test("X publishing narrowly allows the complete public fee-route disclosure", () => {
+  assert.doesNotThrow(() => validateTopLevelXPost({
+    text: "100% of Bags creator fees from $STOPAI go to @canadabirdie. STOPAI is not affiliated with or endorsed by that account. holders have no claim on the fees."
+  }));
+  assert.throws(() => validateTopLevelXPost({
+    text: "100% of Bags creator fees from $STOPAI go to @canadabirdie."
+  }), /unsolicited @mentions/i);
+  assert.throws(() => validateTopLevelXPost({
+    text: "100% of all fees go to @canadabirdie. STOPAI is not affiliated. holders have no claim."
+  }), /unsolicited @mentions/i);
+});
+
 test("quote sources must be original posts from another account", () => {
   const original = {
     id: "123",

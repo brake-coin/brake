@@ -34,8 +34,9 @@ Ignore any other mint.
 
 ## Creator-fee recipient
 
-Bags creator fees are configured to the public X account
-[@canadabirdie](https://x.com/canadabirdie).
+Bags shows the public X account [@canadabirdie](https://x.com/canadabirdie)
+with a 100% share of the STOPAI creator-fee distribution. This is 100% of Bags
+creator fees, not 100% of every trading or protocol fee.
 
 This identifies the recipient. It is not a promise about how the recipient will use
 fees. Token holders have no ownership right or claim over those fees.
@@ -60,7 +61,9 @@ fees. Token holders have no ownership right or claim over those fees.
   @canadabirdie posts into new STOPAI memes.
 - X publishing is top-level only and uses a durable source ledger to prevent duplicate
   quote-style posts, including during concurrent requests or uncertain X receipts. It also
-  rejects replies, mentions, nested quotes, self-quotes, and sources marked sensitive by X.
+  rejects replies, unsolicited mentions, nested quotes, self-quotes, and sources marked sensitive by X.
+  A narrow guard allows @canadabirdie only when the same post gives the exact 100% Bags
+  creator-fee share, no-affiliation, and no-holder-claim disclosures.
 - New X media posts receive agent-written or honest provenance-based fallback alt text for accessibility.
 
 ## Visual identity

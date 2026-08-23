@@ -9,14 +9,15 @@ The token is live on Solana mainnet. The only official mint is
 `2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS`. Verify it on
 [Bags](https://bags.fm/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS) or the
 [Solana explorer](https://explorer.solana.com/address/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS).
-Bags creator fees are configured to the X account
-[@canadabirdie](https://x.com/canadabirdie).
+Bags shows the X account [@canadabirdie](https://x.com/canadabirdie) with a 100%
+share of the STOPAI creator-fee distribution. This means 100% of Bags creator
+fees, not 100% of all trading or protocol fees.
 
 ## Simple model
 
 - Fixed supply of 1,000,000,000 STOPAI on Solana
 - No transfer tax, staking, yield, DAO, redemption, or holder governance
-- Public creator-fee recipient: [@canadabirdie](https://x.com/canadabirdie)
+- Public creator-fee recipient: [@canadabirdie](https://x.com/canadabirdie), 100% share
 - No holder claim on creator fees
 
 The original design called for a 100% public launch with no insider allocation. The
@@ -127,7 +128,9 @@ into a new STOPAI meme and publish it with the original post URL visibly attache
   No fixed user confirmation phrase or user-written alt-text form is required.
 - X posts are top-level only, contain no unsolicited @mentions, and cannot quote replies,
   reposts, quote-posts, sensitive posts, or @STOPAICOIN itself. A durable atomic source ledger prevents the
-  same X post from being used twice, including across restarts and concurrent requests.
+  same X post from being used twice, including across restarts and concurrent requests. The one narrow
+  mention exception is a guarded fee-route disclosure that names @canadabirdie and includes the 100%
+  creator-fee share, no-affiliation, and no-holder-claim facts together.
 - The persistent campaign agent checks its timer before spending research/model budget,
   researches every two hours when eligible, remembers used sources and
   past posts, uses sources no older than seven days, waits at least four hours after any

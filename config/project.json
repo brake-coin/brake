@@ -28,6 +28,10 @@
     "platform": "X",
     "handle": "@canadabirdie",
     "profileUrl": "https://x.com/canadabirdie",
+    "scope": "Bags creator-fee distribution",
+    "sharePercent": 100,
+    "verifiedAt": "2026-08-23",
+    "verificationUrl": "https://bags.fm/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS",
     "status": "configured"
   },
   "livePostingEnabled": true,
@@ -40,6 +44,6 @@
     "statusMessage": "Connect your own OpenRouter account to generate images."
   },
   "independenceNotice": "Independent token. Not affiliated with @canadabirdie and not an official token of Stop the AI Race, Stop AI, PauseAI, RATi OSF, or any AI company.",
-  "riskNotice": "STOPAI is a speculative cultural token that could lose all value. Buying STOPAI is not a charitable donation and does not produce a tax receipt. Creator fees belong to the configured recipient and create no rights for token holders.",
+  "riskNotice": "STOPAI is a speculative cultural token that could lose all value. Buying STOPAI is not a charitable donation and does not produce a tax receipt. Bags shows @canadabirdie with a 100% share of the creator-fee distribution. Those fees create no rights for token holders.",
   "lastUpdated": "2026-08-23"
 }

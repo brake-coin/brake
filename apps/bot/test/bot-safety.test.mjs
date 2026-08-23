@@ -10,6 +10,8 @@ test("public project configuration enables the authorized X posting service", as
   assert.equal(project.contractAddress, "2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS");
   assert.equal(project.creatorFeeRecipient.handle, "@canadabirdie");
   assert.equal(project.creatorFeeRecipient.profileUrl, "https://x.com/canadabirdie");
+  assert.equal(project.creatorFeeRecipient.sharePercent, 100);
+  assert.equal(project.creatorFeeRecipient.scope, "Bags creator-fee distribution");
 });
 
 test("Telegram bot source has no slash command handlers or command menu", async () => {

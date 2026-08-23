@@ -55,6 +55,15 @@ requireValue(
 );
 requireValue(project.creatorFeeRecipient.status === "configured", "Creator-fee recipient status must remain configured.");
 requireValue(
+  project.creatorFeeRecipient.scope === "Bags creator-fee distribution",
+  "Creator-fee scope must remain precise."
+);
+requireValue(project.creatorFeeRecipient.sharePercent === 100, "Bags creator-fee share must remain 100%.");
+requireValue(
+  project.creatorFeeRecipient.verificationUrl === project.links.bags,
+  "Creator-fee verification must use the official Bags page."
+);
+requireValue(
   dockerfile.includes("COPY --from=build --chown=node:node /app/config ./config"),
   "The production image must include the project configuration."
 );

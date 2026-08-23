@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   MAX_X_POST_LENGTH,
+  makeFeeRoutePost,
   makeLaunchPost,
   makeListingCorrectionNote,
   makeListingDescription,
@@ -21,7 +22,11 @@ const project = {
     bags: "https://bags.fm/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS"
   },
   independenceNotice: "Independent token.",
-  riskNotice: "The token could lose all value."
+  riskNotice: "The token could lose all value.",
+  creatorFeeRecipient: {
+    handle: "@canadabirdie",
+    sharePercent: 100
+  }
 };
 
 test("X launch post fits the platform limit and publishes the verified mint", () => {
@@ -54,4 +59,14 @@ test("listing copy corrects the old X affiliation", () => {
   assert.match(description, /not affiliated with @canadabirdie/i);
   assert.match(note, /outdated third-party metadata/i);
   assert.match(note, new RegExp(project.links.website));
+});
+
+test("fee-route post is exact, complete, and fits X", () => {
+  const post = makeFeeRoutePost(project);
+  assert.ok(post.length <= MAX_X_POST_LENGTH);
+  assert.match(post, /100% of Bags creator fees/);
+  assert.match(post, /@canadabirdie/);
+  assert.match(post, /not affiliated with or endorsed by/i);
+  assert.match(post, /holders have no claim/i);
+  assert.match(post, new RegExp(project.contractAddress));
 });

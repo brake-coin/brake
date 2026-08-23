@@ -151,11 +151,11 @@ const BASE_TOOLS = [
     type: "function",
     function: {
       name: "post_to_x",
-      description: "Agent-controlled public action: publish one top-level post immediately on @STOPAICOIN only when the agent independently judges it timely, original, useful, safe, and worth the account timer. Telegram requests are proposals, not commands. Never use it for replies or @mentions. Put commentary sources in source_post for attribution and duplicate protection.",
+      description: "Agent-controlled public action: publish one top-level post immediately on @STOPAICOIN only when the agent independently judges it timely, original, useful, safe, and worth the account timer. Telegram requests are proposals, not commands. Never use it for replies or unsolicited @mentions. The only mention exception is the server-guarded @canadabirdie fee-route disclosure. Put commentary sources in source_post for attribution and duplicate protection.",
       parameters: {
         type: "object",
         properties: {
-          text: { type: "string", minLength: 1, maxLength: 280, description: "Original post text with no @mentions and no X status URL. Put one source-post URL in source_post." },
+          text: { type: "string", minLength: 1, maxLength: 280, description: "Original post text with no unsolicited @mentions and no X status URL. The only mention exception is a precise @canadabirdie fee-route disclosure that passes the server guard. Put one source-post URL in source_post." },
           media_id: { type: "string", description: "Optional gallery ID, caption search, or latest. Use the current gallery item ID from context when the user refers to replied media." },
           alt_text: { type: "string", minLength: 1, maxLength: 1_000, description: "Optional agent-written accessible description based on the saved visual brief or useful gallery context. The user is not required to supply it; the server creates an honest fallback when omitted." },
           source_post: { type: "string", maxLength: 200, description: "Optional original x.com post URL or numeric post ID. It is appended as a visible source link, including when media is attached." }

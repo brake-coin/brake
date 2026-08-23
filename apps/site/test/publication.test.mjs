@@ -21,7 +21,10 @@ test("homepage publishes the official live mint and verification links", async (
   assert.equal(project.links.telegram, "https://t.me/StopAiCoin");
   assert.equal(project.creatorFeeRecipient.handle, "@canadabirdie");
   assert.equal(project.creatorFeeRecipient.profileUrl, "https://x.com/canadabirdie");
+  assert.equal(project.creatorFeeRecipient.sharePercent, 100);
+  assert.equal(project.creatorFeeRecipient.verificationUrl, project.links.bags);
   assert.match(html, /https:\/\/x\.com\/canadabirdie/);
+  assert.match(html, /100% of the creator-fee share/);
   assert.match(html, /AI won’t stop itself/);
   assert.match(html, /Memes from the timeline/);
   assert.match(html, /Your memes/);

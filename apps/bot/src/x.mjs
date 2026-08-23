@@ -49,7 +49,13 @@ export function xMentionsInText(value) {
 export function validateTopLevelXPost({ text, replyToId = null } = {}) {
   if (replyToId) throw new XError("STOPAI does not publish replies.", 400);
   const mentions = xMentionsInText(text);
-  if (mentions.length) {
+  const exactFeeDisclosure = mentions.length === 1
+    && mentions[0].toLowerCase() === "canadabirdie"
+    && /100%\s+of\s+Bags\s+creator\s+fees/i.test(String(text || ""))
+    && /(?:not affiliated|no affiliation)/i.test(String(text || ""))
+    && /(?:not affiliated[^.!?]{0,60}endorsed|not endorsed|no endorsement|nor endorsed)/i.test(String(text || ""))
+    && /holders?\s+(?:have|has)\s+no\s+claim/i.test(String(text || ""));
+  if (mentions.length && !exactFeeDisclosure) {
     throw new XError("STOPAI does not publish unsolicited @mentions. Use a source link for attribution.", 400);
   }
 }

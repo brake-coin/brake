@@ -188,8 +188,8 @@ IDs may also save stable notes or update goals in plain language. Ordinary users
 the long-term campaign identity.
 
 The official posting account is [@STOPAICOIN](https://x.com/STOPAICOIN). It is separate
-from [@canadabirdie](https://x.com/canadabirdie), which is the configured Bags
-creator-fee recipient.
+from [@canadabirdie](https://x.com/canadabirdie), which Bags shows with a 100%
+share of the STOPAI creator-fee distribution.
 
 ## Default limits
 
@@ -210,8 +210,9 @@ a contract, wallet, fee use, partnership, price, return, or endorsement. Public 
 not contain private information, identifiable private people without consent, unsupported accusations,
 impersonation, hateful or sexual abuse, threats, deceptive media, copied writing, or spam. It gives only
 the official mint `2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS` and official Bags
-link. It identifies [@canadabirdie](https://x.com/canadabirdie) as the configured Bags
-creator-fee recipient. STOPAI is independent. The bot never tells people to buy or
+link. It identifies [@canadabirdie](https://x.com/canadabirdie) as the holder of a
+100% share of the STOPAI creator-fee distribution on Bags. This means 100% of Bags
+creator fees, not all trading or protocol fees. STOPAI is independent. The bot never tells people to buy or
 pump the token.
 
 Telegram stores chat content and uploaded media under its own terms. OpenRouter and

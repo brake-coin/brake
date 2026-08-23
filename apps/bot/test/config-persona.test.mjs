@@ -168,7 +168,7 @@ test("the agent receives live context and decides which tools to use", () => {
   assert.match(decisionContext, /low-cost organic campaign/i);
   assert.match(decisionContext, /"organicCampaignTheme":\{"id":"/);
   assert.match(decisionContext, /"liveResources":\{"image":\{"availableNow":false/);
-  assert.equal(ORGANIC_CAMPAIGN_THEMES.length, 7);
+  assert.equal(ORGANIC_CAMPAIGN_THEMES.length, 8);
   assert.equal(typeof organicCampaignTheme(new Date("2026-08-23T20:00:00.000Z")).brief, "string");
 });
 
@@ -236,7 +236,8 @@ test("Telegram checks X post URL provenance without scanning success wording", (
 test("persona publishes only the official mint and keeps the weird hand", () => {
   assert.match(STOPAI_SYSTEM_PROMPT, /2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS/);
   assert.match(STOPAI_SYSTEM_PROMPT, /official project X account is @STOPAICOIN/i);
-  assert.match(STOPAI_SYSTEM_PROMPT, /creator-fee recipient is the X account @canadabirdie/i);
+  assert.match(STOPAI_SYSTEM_PROMPT, /100% share of the STOPAI creator-fee distribution/i);
+  assert.match(STOPAI_SYSTEM_PROMPT, /never as '100% of all fees'/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /Never invent a contract address/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /peaceful, lawful/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /public education comes first/i);

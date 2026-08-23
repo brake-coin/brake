@@ -21,7 +21,7 @@ export function makeListingDescription(project) {
     project.description,
     "It includes a visitor-owned OpenRouter meme generator and an autonomous campaign bot.",
     "The official project accounts are @STOPAICOIN on X and @StopAiCoin on Telegram.",
-    "STOPAI is not affiliated with @canadabirdie; that account is only the creator-fee recipient configured by Bags.",
+    "STOPAI is not affiliated with @canadabirdie; Bags shows that account with a 100% share of the STOPAI creator-fee distribution.",
     "STOPAI is speculative, could lose all value, and is not a charitable donation."
   ].join(" ");
 }
@@ -30,9 +30,26 @@ export function makeListingCorrectionNote(project) {
   return [
     "This request corrects outdated third-party metadata.",
     "The official X account is @STOPAICOIN; STOPAI is not affiliated with @canadabirdie.",
-    "That account is only the Bags creator-fee recipient, as disclosed on the official website.",
+    "Bags shows that account with a 100% share of the STOPAI creator-fee distribution, as disclosed on the official website.",
     `The exact mint, official links, authority status, and risk notice are public at ${project.links.website}.`
   ].join(" ");
+}
+
+export function makeFeeRoutePost(project) {
+  const recipient = project.creatorFeeRecipient?.handle || "@canadabirdie";
+  const share = project.creatorFeeRecipient?.sharePercent;
+  if (share !== 100) throw new Error("The public fee-route post requires a verified 100% share.");
+  const message = [
+    "fee route, plain english:",
+    `100% of Bags creator fees from $${project.symbol} go to ${recipient}.`,
+    "STOPAI is independent—not affiliated with or endorsed by that account. holders have no claim on the fees.",
+    `CA: ${project.contractAddress}`
+  ].join("\n\n");
+
+  if (message.length > MAX_X_POST_LENGTH) {
+    throw new Error(`Fee-route post is ${message.length} characters; maximum is 280.`);
+  }
+  return message;
 }
 
 export function makeLaunchPost(project) {
