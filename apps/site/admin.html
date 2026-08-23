@@ -22,8 +22,8 @@
         <h1>Power the<br />STOPAI bot.</h1>
         <p>
           Link one budgeted OpenRouter key through OAuth PKCE. It powers Telegram chat
-          and limited server-made images and videos. Connect X separately for confirmed
-          operator posts. The public website stays BYOK.
+          and limited server-made images and videos. Connect X separately for immediate
+          operator posts and the bounded schedule. The public website stays BYOK.
         </p>
       </section>
 
@@ -120,8 +120,8 @@
             <span class="connection-dot" id="x-dot" aria-hidden="true"></span>
           </div>
           <p id="x-copy">
-            Connect @STOPAICOIN through OAuth PKCE. Telegram operators still approve
-            every public post with a separate confirmation.
+            Connect @STOPAICOIN through OAuth PKCE. Explicit operator requests publish
+            immediately, and the bounded autonomous schedule rotates post types.
           </p>
           <div class="connection-details" id="x-details" hidden>
             <dl>
@@ -153,6 +153,19 @@
               </button>
             </div>
           </form>
+          <div class="connection-details" id="x-automation" hidden>
+            <h4>Autonomous posting</h4>
+            <p id="x-automation-copy"></p>
+            <p class="generator-fine-print">
+              These test buttons publish real posts immediately. They count toward the
+              same hourly, daily, and media-spend limits as the schedule.
+            </p>
+            <div class="admin-actions">
+              <button class="admin-quiet-button" type="button" data-x-test="text">Post live text test</button>
+              <button class="admin-quiet-button" type="button" data-x-test="image">Post live image test</button>
+              <button class="admin-quiet-button" type="button" data-x-test="video">Post live video test</button>
+            </div>
+          </div>
           <p class="admin-message" id="x-message" role="status" aria-live="polite"></p>
         </div>
       </section>

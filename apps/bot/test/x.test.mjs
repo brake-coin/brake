@@ -12,7 +12,7 @@ function config(overrides = {}) {
   };
 }
 
-test("X client creates a confirmed text post with a user token", async () => {
+test("X client creates an authorized text post with a user token", async () => {
   let request;
   const client = new XClient({
     config: config(),

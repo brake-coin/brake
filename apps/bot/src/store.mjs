@@ -3,11 +3,10 @@ import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const EMPTY_STATE = Object.freeze({
-  version: 2,
+  version: 3,
   messages: {},
   media: [],
-  usage: [],
-  pendingActions: []
+  usage: []
 });
 
 function hourKey(date) {
@@ -20,11 +19,10 @@ function dayKey(date) {
 
 function cleanState(value) {
   return {
-    version: 2,
+    version: 3,
     messages: value?.messages && typeof value.messages === "object" ? value.messages : {},
     media: Array.isArray(value?.media) ? value.media : [],
-    usage: Array.isArray(value?.usage) ? value.usage : [],
-    pendingActions: Array.isArray(value?.pendingActions) ? value.pendingActions : []
+    usage: Array.isArray(value?.usage) ? value.usage : []
   };
 }
 
@@ -136,56 +134,6 @@ export class BotStore {
     return removed;
   }
 
-  async stagePendingAction({ type, chatId, userId, payload, expiresInMs = 10 * 60 * 1_000 }) {
-    const action = {
-      id: randomUUID(),
-      type,
-      chatId: String(chatId),
-      userId: String(userId),
-      payload,
-      createdAt: this.now().toISOString(),
-      expiresAt: new Date(this.now().getTime() + expiresInMs).toISOString()
-    };
-    await this.#mutate((state) => {
-      state.pendingActions = state.pendingActions.filter((item) => !(
-        item.type === action.type
-        && item.chatId === action.chatId
-        && item.userId === action.userId
-      ));
-      state.pendingActions.unshift(action);
-    });
-    return action;
-  }
-
-  pendingAction({ type, chatId, userId }) {
-    this.#prune();
-    return this.#state.pendingActions.find((item) => (
-      item.type === type
-      && item.chatId === String(chatId)
-      && item.userId === String(userId)
-    )) || null;
-  }
-
-  async takePendingAction({ type, chatId, userId }) {
-    let action = null;
-    await this.#mutate((state) => {
-      this.#prune(state);
-      const index = state.pendingActions.findIndex((item) => (
-        item.type === type
-        && item.chatId === String(chatId)
-        && item.userId === String(userId)
-      ));
-      if (index >= 0) [action] = state.pendingActions.splice(index, 1);
-    });
-    return action;
-  }
-
-  async completePendingAction(actionId) {
-    await this.#mutate((state) => {
-      state.pendingActions = state.pendingActions.filter((item) => item.id !== actionId);
-    });
-  }
-
   async claimUsage(type, userId, limits, { spendCapUsd = 0 } = {}) {
     let result;
     await this.#mutate((state) => {
@@ -243,9 +191,6 @@ export class BotStore {
     const cutoff = this.now().getTime() - (8 * 24 * 60 * 60 * 1_000);
     state.usage = state.usage.filter((item) => new Date(item.at).getTime() >= cutoff);
     state.media = state.media.slice(0, 200);
-    state.pendingActions = state.pendingActions
-      .filter((item) => new Date(item.expiresAt).getTime() > this.now().getTime())
-      .slice(0, 50);
     for (const chatId of Object.keys(state.messages)) {
       state.messages[chatId] = state.messages[chatId].slice(-20);
     }

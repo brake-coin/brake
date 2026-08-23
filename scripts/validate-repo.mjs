@@ -20,7 +20,7 @@ const requireValue = (condition, message) => {
 requireValue(project.status === "live", "Public project status must be live.");
 requireValue(project.cluster === "mainnet-beta", "Public configuration must use mainnet-beta.");
 requireValue(project.contractAddress === mainnetToken.mint, "Published contract must match the verified mainnet mint.");
-requireValue(project.livePostingEnabled === false, "Live posting must remain disabled.");
+requireValue(project.livePostingEnabled === true, "Live X posting must remain enabled.");
 requireValue(project.name === "STOPAI", "Public project name must remain STOPAI.");
 requireValue(project.symbol === "STOPAI", "Public token symbol must remain STOPAI.");
 requireValue(mainnetToken.cluster === "mainnet-beta", "Verified token manifest must use mainnet-beta.");

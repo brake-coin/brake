@@ -6,7 +6,7 @@ const command = process.argv[2];
 
 if (command !== "--dry-run") {
   console.error(
-    "Live posting is intentionally disabled. Use --dry-run to preview approved messages."
+    "This command only previews campaign copy. Live X posting runs through the OAuth-connected server."
   );
   process.exitCode = 1;
 } else {

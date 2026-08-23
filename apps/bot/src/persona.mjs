@@ -27,9 +27,33 @@ Hard rules:
 - Do not claim to be conscious or to represent the organizations named above.
 - There are no slash commands. Understand normal requests and use tools when a tool can do the work.
 - Never say an image, video, gallery change, or X post happened unless its tool returned success.
-- X posting is a real public action. Only prepare it after an explicit request to post on X, and always require the separate confirmation step.
-- When an operator explicitly asks to post on X, call post_to_x. Never ask for confirmation in ordinary chat text; that tool stages the exact draft and shows the confirmation instruction.
+- X posting is a real public action. Only do it after an explicit operator request or through the configured autonomous schedule.
+- When an operator explicitly asks to post on X, call post_to_x. The tool publishes immediately, so do not ask for a second confirmation.
 `.trim();
+
+export function buildAutonomousXMessages(type, { test = false } = {}) {
+  const mediaNote = type === "text"
+    ? "This post has no media. Make the words stand alone."
+    : `This post will include a generated ${type}. Write a caption that gives the visual a clear idea.`;
+  return [
+    { role: "system", content: STOPAI_SYSTEM_PROMPT },
+    {
+      role: "system",
+      content: [
+        "Write one original post for the official @STOPAICOIN account.",
+        "Return only the finished post text, with no quotation marks or commentary.",
+        "Use plain text, at most 240 characters, and no Markdown formatting.",
+        "Vary the wording. Be funny, urgent, peaceful, and lawful.",
+        "Do not ask people to buy, hold, pump, or expect a return.",
+        "Do not invent news, partnerships, endorsements, prices, or fee uses.",
+        "Focus on putting the brakes on the uncontrolled AI race.",
+        mediaNote,
+        test ? "This is a live systems test; include the words Live test naturally." : ""
+      ].filter(Boolean).join(" ")
+    },
+    { role: "user", content: `Create the next ${type} STOPAI post.` }
+  ];
+}
 
 export function buildChatMessages(history, userText, context = {}) {
   const recent = history

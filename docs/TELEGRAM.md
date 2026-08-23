@@ -59,16 +59,17 @@ bring BYOK-made media into Telegram without charging the server again.
 A caption can also be the request. For example, upload an image with `remix this as a
 STOPAI poster` or `animate this`. The bot saves the upload, then uses it as the media
 reference. An operator can reply to Telegram media with an X-post request; the bot
-automatically attaches that media to the confirmation draft.
+automatically attaches and publishes that media immediately.
 
 Several basic answers do not spend shared AI budget and still work when OpenRouter is
 disconnected. Ask `help`, `what is the CA?`, `what AI are you using?`, `what is my
 Telegram ID?`, or `am I an operator?`.
 
 Ask `What is my Telegram ID?` and put that numeric ID in `TELEGRAM_OPERATOR_IDS`.
-Only operators are given the gallery removal and X posting tools. A public X post is
-never immediate: the bot first shows a draft, then the same operator must reply
-`confirm post`. The draft expires after ten minutes. `cancel post` discards it.
+Telegram administrators in the configured group are also treated as operators. Only
+operators are given the gallery removal and manual X posting tools. An explicit
+request such as `post the latest image on X` publishes immediately without a second
+confirmation. The bot never exposes the posting tool to other Telegram users.
 
 ## Connect X
 
@@ -88,6 +89,12 @@ for a connection made through admin.
 
 Image upload uses the simple media endpoint; video upload uses the INIT, APPEND,
 FINALIZE, and STATUS flow.
+
+The production service also runs a bounded autonomous schedule. By default it attempts
+one post every eight hours, rotates text, image, and video, and stops after three posts
+per UTC day. It waits one hour after startup, skips work until both X and OpenRouter are
+connected, and shares the existing chat, media, and $5 daily AI-spend limits. The admin
+page shows the schedule and provides one live test button for each post type.
 
 The official posting account is [@STOPAICOIN](https://x.com/STOPAICOIN). It is separate
 from [@canadabirdie](https://x.com/canadabirdie), which is the configured Bags
