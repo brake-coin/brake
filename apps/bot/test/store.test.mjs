@@ -79,3 +79,28 @@ test("store manages chat-scoped galleries", async (t) => {
   assert.equal((await store.removeMedia({ chatId: "42", mediaId: first.id })).id, first.id);
   assert.equal(store.listMedia("42").length, 0);
 });
+
+test("store persists campaign goals, memory, research use, and cycle history", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-agent-store-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const filePath = path.join(directory, "bot.json");
+  const store = new BotStore(filePath, { now: () => new Date("2026-08-22T20:00:00.000Z") });
+  await store.ensureAgentGoals([{ id: "educate", text: "Educate peacefully", priority: 5 }]);
+  await store.rememberAgent({ kind: "lesson", text: "Use source links", topic: "trust" });
+  await store.recordResearch([{
+    key: "x:123",
+    kind: "x",
+    title: "A sourced post",
+    url: "https://x.com/example/status/123",
+    score: 7
+  }]);
+  await store.markResearchUsed("x:123", { postedUrl: "https://x.com/STOPAICOIN/status/456" });
+  await store.recordAgentCycle({ ok: true, action: "post", sourceKey: "x:123", url: "https://x.com/STOPAICOIN/status/456" });
+
+  const reloaded = await new BotStore(filePath).load();
+  const snapshot = reloaded.agentSnapshot();
+  assert.equal(snapshot.goals[0].id, "educate");
+  assert.equal(snapshot.memories[0].text, "Use source links");
+  assert.equal(snapshot.research[0].usedAt, "2026-08-22T20:00:00.000Z");
+  assert.equal(snapshot.cycles[0].action, "post");
+});

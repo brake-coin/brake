@@ -92,8 +92,10 @@ are stored as private files on the encrypted Fly volume and are never returned t
 browser.
 
 Owners also connect the official [@STOPAICOIN](https://x.com/STOPAICOIN) account
-through X OAuth PKCE in `/admin`. The bot refreshes access automatically and still
-limits agent-chosen community posts and a rotating autonomous schedule to the official account.
+through X OAuth PKCE in `/admin`. The bot refreshes access automatically. Its persistent
+campaign agent researches watched X accounts, recent X searches, and AI news; compares new
+items with durable goals and memories; may skip weak cycles; and keeps source links on
+bounded autonomous posts from the official account.
 
 See [the Telegram guide](docs/TELEGRAM.md) for BotFather setup, natural-language tools, privacy,
 budgets, and deployment.
@@ -111,7 +113,8 @@ into a new STOPAI meme and publish it with the original post URL visibly attache
 - X research has separate global and per-user hourly and daily limits.
 - The Telegram agent may publish clear user requests to X. A five-minute global cooldown,
   a fifteen-minute per-user cooldown, and hourly/daily caps prevent spam.
-- Autonomous X posting rotates text, image, and video with hourly, daily, and AI-spend caps.
+- The persistent campaign agent researches every two hours, remembers used sources and
+  past posts, waits at least four hours between posts, and stops after three per UTC day.
 - Secrets belong in `.env`, which is ignored by Git.
 - Public BYOK keys stay in the visitor's browser tab. A separate admin-linked key is
   stored on the private Fly volume only for Telegram chat and limited bot media.

@@ -47,7 +47,7 @@ test("autonomous X service posts text, image, and video within its caps", async 
   assert.equal(posted[1].media.type, "image");
   assert.equal(posted[2].media.type, "video");
   assert.doesNotMatch(posted[0].text, /\*\*/);
-  assert.equal((await service.runOnce({ type: "text" })).reason, "hourly_cap");
+  assert.equal((await service.runOnce({ type: "text", test: true })).reason, "hourly_cap");
 });
 
 test("autonomous X schedule waits after startup", async () => {
@@ -68,9 +68,78 @@ test("autonomous X schedule waits after startup", async () => {
   });
 
   assert.equal(service.start(), true);
-  assert.equal(scheduledDelay, 60 * 60_000);
+  assert.equal(scheduledDelay, 15 * 60_000);
   assert.equal(service.status().running, true);
   service.stop();
   assert.equal(cleared, true);
 });
 
+test("campaign agent researches, posts with attribution, and remembers the source", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-agent-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const config = createBotConfig({
+    X_AUTONOMOUS_POSTING_ENABLED: "true",
+    X_AUTONOMOUS_HOURLY_CAP: "3",
+    X_AUTONOMOUS_DAILY_CAP: "3",
+    X_AUTONOMOUS_TYPES: "text",
+    AGENT_WATCH_ACCOUNTS: "canadabirdie",
+    AGENT_X_QUERIES: "stop ai"
+  });
+  const store = new BotStore(path.join(directory, "bot.json"), {
+    now: () => new Date("2026-08-22T21:00:00.000Z")
+  });
+  const source = {
+    id: "2091410624970711451",
+    text: "The AI race needs a human brake.",
+    createdAt: "2026-08-22T20:00:00.000Z",
+    url: "https://x.com/canadabirdie/status/2091410624970711451",
+    author: { username: "canadabirdie" },
+    metrics: { like_count: 20, retweet_count: 4 }
+  };
+  const posted = [];
+  const service = new AutonomousXService({
+    config,
+    store,
+    openRouter: {
+      connected: async () => true,
+      chat: async () => ({
+        text: JSON.stringify({
+          action: "post",
+          reason: "Fresh and relevant",
+          source_key: `x:${source.id}`,
+          media_type: "text",
+          post_text: "@canadabirdie The race has an accelerator. Humanity needs a brake. 🛑",
+          media_prompt: "",
+          topic: "AI race"
+        }),
+        costUsd: 0.01
+      })
+    },
+    xClient: {
+      connected: async () => true,
+      userPosts: async () => ({ user: { username: "canadabirdie" }, posts: [source] }),
+      searchRecent: async () => [],
+      post: async (post) => {
+        posted.push(post);
+        return { url: "https://x.com/STOPAICOIN/status/300" };
+      }
+    },
+    newsResearch: { feedUrls: [], latest: async () => [] },
+    canonicalReferenceDataUrl: "data:image/png;base64,AA==",
+    now: () => new Date("2026-08-22T21:00:00.000Z")
+  });
+
+  const result = await service.runOnce();
+  assert.equal(result.ok, true);
+  assert.equal(result.sourceKey, `x:${source.id}`);
+  assert.match(posted[0].text, /Humanity needs a brake/);
+  assert.doesNotMatch(posted[0].text, /@canadabirdie/);
+  assert.match(posted[0].text, /https:\/\/x.com\/canadabirdie\/status/);
+  assert.equal(store.agentStatus().memoryCount, 1);
+  assert.equal(store.agentSnapshot().research[0].usedAt, "2026-08-22T21:00:00.000Z");
+
+  const repeated = await service.runOnce();
+  assert.equal(repeated.skipped, true);
+  assert.match(repeated.reason, /No fresh/);
+  assert.equal(posted.length, 1);
+});

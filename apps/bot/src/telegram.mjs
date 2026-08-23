@@ -9,9 +9,22 @@ import {
 } from "./persona.mjs";
 import { imageBufferToDataUrl, OpenRouterError } from "./openrouter.mjs";
 import { telegramHtmlFromMarkdown } from "./telegram-format.mjs";
-import { xPostReference, XError } from "./x.mjs";
+import { xPostResearchItem } from "./research.mjs";
+import { xPostReference, xWeightedLength, XError } from "./x.mjs";
 
 const BASE_TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "agent_status",
+      description: "Read the STOPAI agent's durable goals, recent memories, research, and autonomous cycle history.",
+      parameters: {
+        type: "object",
+        properties: {},
+        additionalProperties: false
+      }
+    }
+  },
   {
     type: "function",
     function: {
@@ -156,6 +169,41 @@ const OPERATOR_TOOLS = [
         type: "object",
         properties: { media_id: { type: "string", description: "A gallery ID, caption search, or latest." } },
         required: ["media_id"],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "agent_remember",
+      description: "Save a stable campaign preference, verified fact with a source URL, or useful lesson in durable memory. Operator only. Never save secrets or rumors.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", minLength: 1, maxLength: 1000 },
+          topic: { type: "string", maxLength: 120 },
+          source_url: { type: "string", maxLength: 1000 }
+        },
+        required: ["text"],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "agent_set_goal",
+      description: "Add, change, activate, or pause one durable campaign goal. Operator only.",
+      parameters: {
+        type: "object",
+        properties: {
+          goal_id: { type: "string", minLength: 1, maxLength: 60 },
+          text: { type: "string", minLength: 1, maxLength: 500 },
+          priority: { type: "integer", minimum: 1, maximum: 5 },
+          active: { type: "boolean" }
+        },
+        required: ["goal_id", "text"],
         additionalProperties: false
       }
     }
@@ -449,6 +497,7 @@ export class TelegramService {
     }
 
     const history = this.store.recentMessages(ctx.chat.id);
+    const agent = this.store.agentSnapshot();
     await this.store.recordMessage({ chatId: ctx.chat.id, role: "user", content: userText });
     await ctx.sendChatAction("typing").catch(() => {});
     const messages = buildChatMessages(history, userText, {
@@ -457,7 +506,8 @@ export class TelegramService {
       currentMediaId,
       chatModel: this.config.openRouterChatModel,
       imageModel: this.config.openRouterImageModel,
-      videoModel: this.config.openRouterVideoModel
+      videoModel: this.config.openRouterVideoModel,
+      agent
     });
     const tools = botTools({
       isOperator,
@@ -508,6 +558,9 @@ export class TelegramService {
     const name = toolCall?.function?.name;
     try {
       const args = parseArguments(toolCall);
+      if (name === "agent_status") {
+        return { ok: true, agent: this.store.agentSnapshot() };
+      }
       if (name === "gallery_list") {
         const type = ["image", "video"].includes(args.media_type) ? args.media_type : null;
         const items = this.store.listMedia(ctx.chat.id, { type, limit: args.limit });
@@ -526,6 +579,29 @@ export class TelegramService {
         await this.store.removeMedia({ chatId: ctx.chat.id, mediaId: media.id });
         return { ok: true, removed: shortMedia(media), telegram_message_deleted: false };
       }
+      if (name === "agent_remember") {
+        if (!isOperator) return { ok: false, error: "Only an operator can change durable agent memory." };
+        if (args.source_url && !/^https:\/\//i.test(args.source_url)) {
+          return { ok: false, error: "A memory source must be an HTTPS URL." };
+        }
+        const memory = await this.store.rememberAgent({
+          kind: "operator-note",
+          text: args.text,
+          topic: args.topic,
+          sourceUrl: args.source_url
+        });
+        return { ok: true, memory };
+      }
+      if (name === "agent_set_goal") {
+        if (!isOperator) return { ok: false, error: "Only an operator can change durable agent goals." };
+        const goal = await this.store.upsertAgentGoal({
+          id: args.goal_id,
+          text: args.text,
+          priority: args.priority,
+          active: args.active
+        });
+        return { ok: true, goal };
+      }
       if (name === "generate_image") {
         return this.#generateImage(ctx, args);
       }
@@ -533,17 +609,27 @@ export class TelegramService {
         return this.#generateVideo(ctx, args);
       }
       if (name === "x_search") {
-        return this.#researchX(ctx, async () => ({
-          posts: await this.xClient.searchRecent(args.query, args.limit)
-        }));
+        return this.#researchX(ctx, async () => {
+          const posts = await this.xClient.searchRecent(args.query, args.limit);
+          await this.store.recordResearch(posts.map((post) => xPostResearchItem(post)));
+          return { posts };
+        });
       }
       if (name === "x_read_post") {
-        return this.#researchX(ctx, async () => ({
-          post: await this.xClient.readPost(args.post)
-        }));
+        return this.#researchX(ctx, async () => {
+          const post = await this.xClient.readPost(args.post);
+          await this.store.recordResearch([xPostResearchItem(post)]);
+          return { post };
+        });
       }
       if (name === "x_user_posts") {
-        return this.#researchX(ctx, () => this.xClient.userPosts(args.username, args.limit));
+        return this.#researchX(ctx, async () => {
+          const result = await this.xClient.userPosts(args.username, args.limit);
+          await this.store.recordResearch(result.posts.map((post) => xPostResearchItem(post, {
+            priority: result.user.username?.toLowerCase() === "canadabirdie" ? 2 : 0
+          })));
+          return result;
+        });
       }
       if (name === "post_to_x") {
         return this.#postToX(ctx, args);
@@ -644,7 +730,7 @@ export class TelegramService {
     }
     const { text } = buildXPostText(args.text, args.source_post);
     if (!text) return { ok: false, error: "The X post needs text." };
-    if (text.length > this.config.xMaxPostCharacters) {
+    if (xWeightedLength(text) > this.config.xMaxPostCharacters) {
       return { ok: false, error: `The X post is over ${this.config.xMaxPostCharacters} characters.` };
     }
     let media = null;
@@ -673,6 +759,19 @@ export class TelegramService {
       });
       throw error;
     }
+    const source = args.source_post ? xPostReference(args.source_post) : null;
+    if (source) await this.store.markResearchUsed(`x:${source.id}`, {
+      postedUrl: result.url,
+      sourceUrl: source.url,
+      title: text
+    });
+    await this.store.rememberAgent({
+      kind: "x-post",
+      text: `Posted: ${text}`,
+      topic: media?.caption || "manual Telegram post",
+      sourceKey: source ? `x:${source.id}` : "",
+      sourceUrl: source?.url || ""
+    });
     return {
       ok: true,
       posted: true,

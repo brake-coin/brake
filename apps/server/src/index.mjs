@@ -6,6 +6,7 @@ import path from "node:path";
 import { AutonomousXService } from "../../bot/src/autonomous-x.mjs";
 import { createBotConfig } from "../../bot/src/config.mjs";
 import { OpenRouterClient, OpenRouterError } from "../../bot/src/openrouter.mjs";
+import { DEFAULT_AGENT_GOALS } from "../../bot/src/persona.mjs";
 import { BotStore } from "../../bot/src/store.mjs";
 import { TelegramService } from "../../bot/src/telegram.mjs";
 import { XClient, XError } from "../../bot/src/x.mjs";
@@ -76,6 +77,8 @@ const expectedXUsername = String(new URL(project.links.x).pathname.split("/").fi
   || "STOPAICOIN").toLowerCase();
 const xCallbackUrl = new URL("/admin/x/callback", publicAppUrl).toString();
 const botStore = new BotStore(path.join(dataDirectory, "stopai-bot.json"));
+await botStore.load();
+await botStore.ensureAgentGoals(DEFAULT_AGENT_GOALS);
 const canonicalBytes = await readFile(
   path.join(publicDirectory, "assets/brake-emblem-meme-reference.png")
 );
