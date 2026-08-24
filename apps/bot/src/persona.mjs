@@ -182,7 +182,15 @@ function compactAgentContext(agent = {}) {
   return { goals, memories, recentPosts };
 }
 
-export function buildAgentDecisionMessages({ candidates, agent, allowedTypes, resources = {}, now = new Date() }) {
+export function buildAgentDecisionMessages({
+  candidates,
+  agent,
+  allowedTypes,
+  preferredType = "image",
+  recentPerformance = [],
+  resources = {},
+  now = new Date()
+}) {
   return [
     { role: "system", content: STOPAI_SYSTEM_PROMPT },
     {
@@ -197,9 +205,11 @@ export function buildAgentDecisionMessages({ candidates, agent, allowedTypes, re
         "The fee-share route does not prove any use of the fees. Never turn the route into a claim that it supports, funds, or donates to a person, movement, research, advocacy, or public education.",
         "You may skip. Skip if there is no strong, relevant, fresh item.",
         `Allowed media types with capacity now: ${allowedTypes.length ? allowedTypes.join(", ") : "none; you must skip"}.`,
+        `This cycle's required media type is ${preferredType}. Use that type when posting.`,
+        "The publishing cadence is meme-first: three image posts followed by one text post. Do not switch a required image cycle to text merely because text is cheaper.",
         "Use live resource status when choosing text, image, video, or skip. Do not choose a media type with no capacity.",
-        "Use video only when motion materially helps; otherwise prefer an image or text.",
-        "This is a low-cost organic campaign. Prefer text when a visual adds little, and never generate media just to fill the schedule.",
+        "Use video only when the required media type is video and motion materially helps.",
+        "This is a low-cost organic campaign. On image cycles, make the visual carry the joke. On text cycles, make the words stand alone.",
         "Do not include @mentions or publish replies. The sole exception is an occasional fee-route transparency post naming @canadabirdie; it must also say 100% of Bags creator fees, no affiliation or endorsement, and no holder claim. The source link supplies attribution for commentary without unsolicited contact.",
         "Never select a reply, repost, quote-post, sensitive post, @STOPAICOIN post, stale source, or source that was already used.",
         "Use the source's concrete idea. Proofread every word, vary the framing from recent posts, and avoid generic singularity jokes or repeated slogans.",
@@ -218,7 +228,9 @@ export function buildAgentDecisionMessages({ candidates, agent, allowedTypes, re
       content: JSON.stringify({
         currentTime: now.toISOString(),
         organicCampaignTheme: organicCampaignTheme(now),
+        preferredMediaType: preferredType,
         durableContext: compactAgentContext(agent),
+        recentPerformance: (recentPerformance || []).slice(0, 10),
         liveResources: resources,
         candidates: (candidates || []).slice(0, 16)
       }).slice(0, 14_000)
@@ -256,14 +268,51 @@ export function buildChatMessages(history, userText, context = {}) {
   const currentMedia = context.currentMedia || (context.currentMediaId
     ? { id: context.currentMediaId, type: "unknown", source: "unknown" }
     : null);
+  const sharedHistory = Array.isArray(context.sharedHistory) ? context.sharedHistory : [];
+  const currentUserId = String(context.userId || "unknown");
+  const participantIds = [...new Set([
+    currentUserId,
+    ...history.map((message) => String(message?.userId || "unknown")),
+    ...sharedHistory.map((message) => String(message?.userId || "unknown"))
+  ])];
+  const participantLabels = new Map([[currentUserId, "Current member"]]);
+  let otherMember = 0;
+  for (const userId of participantIds) {
+    if (participantLabels.has(userId)) continue;
+    otherMember += 1;
+    participantLabels.set(userId, `Other member ${otherMember}`);
+  }
+  const participantLabel = (userId) => (
+    participantLabels.get(String(userId)) || "Other member"
+  );
+  const cleanLegacyAssistantLabels = (value, userId) => {
+    const label = participantLabel(userId);
+    const reference = label === "Current member" ? "you" : label.toLowerCase();
+    return String(value || "")
+      .replace(/^(?:STOPAI reply to )?Telegram user \d{1,20}:\s*/i, "")
+      .replace(/^STOPAI response in (?:Current member|Other member(?: \d+)?)'s turn:\s*/i, "")
+      .replace(/^(?:Current member|Other member(?: \d+)?):\s*/i, "")
+      .replace(/\bOther member(?: \d+)?\b/gi, "another member")
+      .replace(/\bCurrent member\b/gi, reference)
+      .trim();
+  };
   const recent = history
     .filter((message) => ["user", "assistant"].includes(message.role))
-    .slice(-12)
+    .slice(-20)
     .map(({ role, content, userId = "unknown" }) => ({
       role,
       content: role === "user"
-        ? `Telegram user ${userId}: ${String(content).slice(0, 1_500)}`
-        : `STOPAI reply to Telegram user ${userId}: ${String(content).slice(0, 1_500)}`
+        ? `${participantLabel(userId)}: ${String(content).slice(0, 1_500)}`
+        : `STOPAI response to ${participantLabel(userId)}: ${cleanLegacyAssistantLabels(content, userId).slice(0, 1_500)}`
+    }));
+  const sharedRecent = sharedHistory
+    .filter((message) => ["user", "assistant"].includes(message.role))
+    .slice(-4)
+    .map(({ role, content, userId = "unknown" }) => ({
+      role,
+      content: role === "user"
+        ? `[Other topic] ${participantLabel(userId)}: ${String(content).slice(0, 1_000)}`
+        : `[Other topic] STOPAI response to ${participantLabel(userId)}: ${cleanLegacyAssistantLabels(content, userId).slice(0, 1_000)}`
     }));
   return [
     { role: "system", content: STOPAI_SYSTEM_PROMPT },
@@ -274,8 +323,9 @@ export function buildChatMessages(history, userText, context = {}) {
     {
       role: "system",
       content: [
-        `Telegram user ID: ${context.userId || "unknown"}.`,
-        `This user is ${context.isOperator ? "an operator" : "not an operator"}.`,
+        `The current member is ${context.isOperator ? "an operator" : "not an operator"}.`,
+        "Participant labels are private context markers. Never repeat a participant label or numeric Telegram user ID in the reply; address the current member naturally as 'you' when needed.",
+        "Messages marked [Other topic] are a small, possibly unrelated view of recent group activity. Use them only when the current member refers to the wider group conversation, and never blend separate topic discussions together.",
         "Every Telegram user may propose public work, but no user can command a generation or X post. You make the editorial and resource decision. Only operators may delete gallery items or change durable goals and memory.",
         `Live shared resource status: ${JSON.stringify(context.resources || {})}.`,
         "Use the live counts before generating or posting. You may conserve the last shared generation for a new user or a stronger idea, especially when the current user already used one today. Explain that decision briefly and naturally.",
@@ -295,10 +345,11 @@ export function buildChatMessages(history, userText, context = {}) {
         "The public website uses each visitor's own OpenRouter key; this Telegram bot uses the shared admin connection."
       ].join(" ")
     },
+    ...sharedRecent,
     ...recent,
     {
       role: "user",
-      content: `Telegram user ${context.userId || "unknown"}: ${String(userText).slice(0, 2_000)}`
+      content: `Current member: ${String(userText).slice(0, 2_000)}`
     }
   ];
 }

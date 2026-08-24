@@ -19,6 +19,10 @@ test("homepage publishes the official live mint and verification links", async (
   assert.equal(project.links.x, "https://x.com/STOPAICOIN");
   assert.match(html, /https:\/\/x\.com\/STOPAICOIN/);
   assert.equal(project.links.telegram, "https://t.me/StopAiCoin");
+  assert.equal(
+    project.links.telegramStickerPack,
+    "https://t.me/addstickers/stopai_stickers_by_stopaitoken_bot"
+  );
   assert.equal(project.creatorFeeRecipient.handle, "@canadabirdie");
   assert.equal(project.creatorFeeRecipient.profileUrl, "https://x.com/canadabirdie");
   assert.equal(project.creatorFeeRecipient.sharePercent, 100);
@@ -29,6 +33,10 @@ test("homepage publishes the official live mint and verification links", async (
   assert.match(html, /Memes from the timeline/);
   assert.match(html, /Your memes/);
   assert.match(html, /https:\/\/t\.me\/StopAiCoin/);
+  assert.equal(
+    (html.match(/https:\/\/t\.me\/addstickers\/stopai_stickers_by_stopaitoken_bot/g) || []).length,
+    2
+  );
   assert.equal((html.match(/id="idea-roll-button"/g) || []).length, 1);
   assert.match(html, />Roll a meme</);
   assert.match(html, /id="meme-idea"[\s\S]*readonly/);

@@ -10,7 +10,7 @@ const MAX_MESSAGES_PER_CONVERSATION = 20;
 const MAX_X_SOURCE_POSTS = 50_000;
 
 const EMPTY_STATE = Object.freeze({
-  version: 8,
+  version: 10,
   messages: {},
   media: [],
   usage: [],
@@ -23,7 +23,8 @@ const EMPTY_STATE = Object.freeze({
     memories: [],
     research: [],
     cycles: [],
-    cycleSequence: 0
+    cycleSequence: 0,
+    autonomousPostSequence: 0
   }
 });
 
@@ -76,10 +77,22 @@ function cleanTelegramUpdates(value) {
     }]));
 }
 
+function cleanLegacyAssistantContent(value) {
+  return String(value || "")
+    .replace(/^(?:STOPAI reply to )?Telegram user \d{1,20}:\s*/i, "")
+    .replace(/^STOPAI response in (?:Current member|Other member(?: \d+)?)'s turn:\s*/i, "")
+    .replace(/^(?:Current member|Other member(?: \d+)?):\s*/i, "")
+    .replace(/\bCurrent member\b/gi, "the member in that turn")
+    .replace(/\bOther member(?: \d+)?\b/gi, "another member")
+    .trim();
+}
+
 function cleanMessage(value) {
   if (!value || typeof value !== "object") return null;
   const role = ["user", "assistant"].includes(value.role) ? value.role : null;
-  const content = String(value.content || "").slice(0, 2_000);
+  const content = (role === "assistant"
+    ? cleanLegacyAssistantContent(value.content)
+    : String(value.content || "")).slice(0, 2_000);
   if (!role || !content) return null;
   return {
     role,
@@ -117,7 +130,7 @@ function cleanStickerPack(value) {
 function cleanState(value) {
   const agent = value?.agent && typeof value.agent === "object" ? value.agent : {};
   const cleaned = {
-    version: 8,
+    version: 10,
     messages: value?.messages && typeof value.messages === "object"
       ? Object.fromEntries(Object.entries(value.messages).map(([key, messages]) => (
         [key, Array.isArray(messages) ? messages.map(cleanMessage).filter(Boolean) : []]
@@ -137,9 +150,28 @@ function cleanState(value) {
       cycleSequence: Math.max(
         Number.isFinite(Number(agent.cycleSequence)) ? Number(agent.cycleSequence) : 0,
         Array.isArray(agent.cycles) ? agent.cycles.length : 0
+      ),
+      autonomousPostSequence: Math.max(
+        0,
+        Number.isFinite(Number(agent.autonomousPostSequence))
+          ? Number(agent.autonomousPostSequence)
+          : 0
       )
     }
   };
+  const historicalAutonomousPosts = Math.max(
+    cleaned.agent.cycles.filter((item) => (
+      item?.ok && item?.action === "post" && /^https:\/\//i.test(String(item?.url || ""))
+    )).length,
+    cleaned.xReceipts.filter((item) => (
+      item?.status === "confirmed"
+      && ["autonomous-agent", "admin-live-test"].includes(item?.source)
+    )).length
+  );
+  cleaned.agent.autonomousPostSequence = Math.max(
+    cleaned.agent.autonomousPostSequence,
+    historicalAutonomousPosts
+  );
   for (const item of cleaned.agent.research) {
     const match = /^x:(\d{1,19})$/.exec(String(item.key || ""));
     if (!match || !item.usedAt || cleaned.xSourcePosts[match[1]]) continue;
@@ -221,9 +253,30 @@ export class BotStore {
     return this;
   }
 
-  recentMessages(chatId, { threadId = "main", limit = 12 } = {}) {
+  recentMessages(chatId, { threadId = "main", limit = MAX_MESSAGES_PER_CONVERSATION } = {}) {
     return (this.#state.messages[conversationKey(chatId, threadId)] || [])
-      .slice(-Math.max(1, Math.min(MAX_MESSAGES_PER_CONVERSATION, Number(limit) || 12)));
+      .slice(-Math.max(1, Math.min(
+        MAX_MESSAGES_PER_CONVERSATION,
+        Number(limit) || MAX_MESSAGES_PER_CONVERSATION
+      )));
+  }
+
+  recentMessagesAcrossThreads(chatId, {
+    excludeThreadId = "main",
+    limit = 4
+  } = {}) {
+    const chat = String(chatId);
+    const excludedKey = conversationKey(chat, excludeThreadId);
+    return Object.entries(this.#state.messages)
+      .filter(([key]) => (
+        key !== excludedKey
+        && (key === chat || key.startsWith(`${chat}:thread:`))
+      ))
+      .flatMap(([, messages]) => messages)
+      .sort((left, right) => (
+        new Date(left.at || 0).getTime() - new Date(right.at || 0).getTime()
+      ))
+      .slice(-Math.max(1, Math.min(8, Number(limit) || 4)));
   }
 
   agentSnapshot({ memoryLimit = 12, researchLimit = 12, cycleLimit = 5 } = {}) {
@@ -243,6 +296,7 @@ export class BotStore {
       memoryCount: agent.memories.length,
       researchCount: agent.research.length,
       cycleCount: agent.cycleSequence,
+      autonomousPostCount: agent.autonomousPostSequence,
       recentTelegramUpdateCount: Object.keys(this.#state.telegramUpdates).length,
       quotedSourceCount: Object.values(this.#state.xSourcePosts)
         .filter((item) => item.status === "confirmed").length,
@@ -445,6 +499,9 @@ export class BotStore {
     };
     await this.#mutate((state) => {
       state.agent.cycleSequence += 1;
+      if (record.ok && record.action === "post" && record.url) {
+        state.agent.autonomousPostSequence += 1;
+      }
       record.sequence = state.agent.cycleSequence;
       state.agent.cycles.unshift(record);
       state.agent.cycles = state.agent.cycles.slice(0, 100);
@@ -729,6 +786,38 @@ export class BotStore {
         threadId: String(threadId || "main").slice(0, 80),
         at: this.now().toISOString()
       });
+      state.messages[key] = messages.slice(-MAX_MESSAGES_PER_CONVERSATION);
+    });
+  }
+
+  async recordTurn({
+    chatId,
+    threadId = "main",
+    userId = "unknown",
+    userContent,
+    assistantContent
+  }) {
+    return this.#mutate((state) => {
+      const key = conversationKey(chatId, threadId);
+      const messages = state.messages[key] || [];
+      const at = this.now().toISOString();
+      const shared = {
+        userId: String(userId || "unknown").slice(0, 80),
+        threadId: String(threadId || "main").slice(0, 80),
+        at
+      };
+      messages.push(
+        {
+          ...shared,
+          role: "user",
+          content: String(userContent || "").slice(0, 2_000)
+        },
+        {
+          ...shared,
+          role: "assistant",
+          content: String(assistantContent || "").slice(0, 2_000)
+        }
+      );
       state.messages[key] = messages.slice(-MAX_MESSAGES_PER_CONVERSATION);
     });
   }

@@ -145,8 +145,10 @@ into a new STOPAI meme and publish it with the original post URL visibly attache
   when its full username is mentioned or its message is directly replied to. Other groups
   are ignored. DMs receive a random gallery meme and the group link without reaching the
   agent.
-- Telegram topic history is separated and member turns are labelled. Chat text expires
-  after 30 days. Only actionable updates enter the bounded duplicate ledger; safe event logs
+- Telegram topic history is separated, with a small clearly marked view of recent activity in
+  other topics. Message text stays unchanged, member labels do not expose Telegram IDs, and
+  complete user/reply pairs are saved in order. Chat text expires after 30 days. Only actionable
+  updates enter the bounded duplicate ledger; safe event logs
   explain why other traffic was ignored without storing message text or raw IDs.
 - Shared chat and media have global and per-user hourly and daily limits.
 - X research has separate global and per-user hourly and daily limits.

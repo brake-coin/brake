@@ -111,12 +111,15 @@ user counts for image, video, X research, and X posting, plus cooldown and spend
 generation shares the image counts and daily media-spend cap. This lets the
 agent save the last image for a new participant instead of mechanically serving a repeat
 request. Atomic server limits still make the final decision under concurrency. Ask `help`,
-`what is the CA?`, `what AI are you using?`, or `what is my Telegram ID?` naturally.
+`what is the CA?`, or `what AI are you using?` naturally.
 
-Recent chat context is separated by Telegram forum topic. Every saved user turn includes
-the sender's Telegram user ID, so the agent does not confuse one group member with another.
-The bot keeps at most 20 recent turns in each of at most 100 conversation buckets. Chat
-content expires after 30 days.
+Recent chat context is separated by Telegram forum topic. The agent receives the full 20-message
+topic window plus four clearly marked recent messages from other topics, which helps with wider
+group references without blending complete topic discussions together. Participant labels are
+added outside the saved message text, and raw Telegram user IDs are not added to model prompts or
+replies. User/reply pairs are saved together and requests in the same topic run in order, so a
+failed or overlapping request cannot leave a half-written turn. The bot keeps at most 20 recent
+messages in each of at most 100 conversation buckets. Chat content expires after 30 days.
 
 Only updates that can cause an action are written to the durable duplicate-protection
 ledger. It keeps at most 2,000 claims for eight days, which covers Telegram retry windows

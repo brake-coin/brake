@@ -4,9 +4,24 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { AutonomousXService } from "../src/autonomous-x.mjs";
+import {
+  AutonomousXService,
+  preferredAutonomousPostType
+} from "../src/autonomous-x.mjs";
 import { createBotConfig } from "../src/config.mjs";
 import { BotStore } from "../src/store.mjs";
+
+test("meme-first cadence uses three images followed by one text post", () => {
+  const allowed = ["text", "image"];
+  assert.equal(preferredAutonomousPostType(allowed, 0), "image");
+  assert.equal(preferredAutonomousPostType(allowed, 1), "image");
+  assert.equal(preferredAutonomousPostType(allowed, 2), "image");
+  assert.equal(preferredAutonomousPostType(allowed, 3), "text");
+  assert.equal(preferredAutonomousPostType(allowed, 4), "image");
+  assert.equal(preferredAutonomousPostType(["text"], 0), "text");
+  assert.equal(preferredAutonomousPostType(["image"], 3), "image");
+  assert.equal(preferredAutonomousPostType([], 0), null);
+});
 
 test("autonomous X live tests post each media type and honor the public cooldown", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-x-auto-"));
@@ -220,4 +235,159 @@ test("campaign agent rejects reply, self, sensitive, and stale research sources"
   assert.equal(result.skipped, true);
   assert.match(result.reason, /No fresh/);
   assert.equal(decisions, 0);
+});
+
+test("campaign agent forces the meme cadence and sees recent post performance", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-agent-meme-first-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const config = createBotConfig({
+    X_AUTONOMOUS_POSTING_ENABLED: "true",
+    X_AUTONOMOUS_TYPES: "text,image",
+    AGENT_MIN_POST_INTERVAL_MINUTES: "60"
+  });
+  const store = new BotStore(path.join(directory, "bot.json"), {
+    now: () => new Date("2026-08-23T21:00:00.000Z")
+  });
+  const source = {
+    key: "news:fresh",
+    kind: "news",
+    title: "A fresh frontier AI report",
+    url: "https://news.example/report",
+    publisher: "Example News",
+    publishedAt: "2026-08-23T20:00:00.000Z",
+    summary: "A new AI system was announced.",
+    score: 8
+  };
+  const posted = [];
+  let decisionMessages = [];
+  const service = new AutonomousXService({
+    config,
+    store,
+    openRouter: {
+      connected: async () => true,
+      chat: async (messages) => {
+        decisionMessages = messages;
+        return {
+          text: JSON.stringify({
+            action: "post",
+            reason: "Fresh and relevant",
+            source_key: source.key,
+            media_type: "text",
+            post_text: "another accelerator shipped. the weird hand remains on brake duty. ✋🏻😡",
+            media_prompt: "The weird hand pulling a brake beside an AI racetrack",
+            topic: "frontier AI"
+          }),
+          costUsd: 0.01
+        };
+      },
+      generateImage: async () => ({
+        buffer: Buffer.from("image"),
+        mimeType: "image/png",
+        costUsd: 0.07
+      })
+    },
+    xClient: {
+      connected: async () => true,
+      userPosts: async (username) => username.toLowerCase() === "stopaicoin"
+        ? {
+          user: { username: "STOPAICOIN" },
+          posts: [{
+            id: "700",
+            text: "A previous meme",
+            createdAt: "2026-08-23T18:00:00.000Z",
+            url: "https://x.com/STOPAICOIN/status/700",
+            author: { username: "STOPAICOIN" },
+            media: [{ type: "photo" }],
+            metrics: { like_count: 9, retweet_count: 2 }
+          }]
+        }
+        : { user: { username }, posts: [] },
+      searchRecent: async () => [],
+      post: async (post) => {
+        posted.push(post);
+        return {
+          id: "701",
+          url: "https://x.com/STOPAICOIN/status/701",
+          verified: true,
+          verifiedAt: "2026-08-23T21:00:00.000Z"
+        };
+      }
+    },
+    newsResearch: { feedUrls: [], latest: async () => [source] },
+    canonicalReferenceDataUrl: "data:image/png;base64,AA==",
+    now: () => new Date("2026-08-23T21:00:00.000Z")
+  });
+
+  const result = await service.runOnce();
+  assert.equal(result.ok, true);
+  assert.equal(result.type, "image");
+  assert.equal(posted[0].media.type, "image");
+  const decisionContext = decisionMessages.at(-1).content;
+  assert.match(decisionContext, /"preferredMediaType":"image"/);
+  assert.match(decisionContext, /"like_count":9/);
+  assert.equal(store.agentStatus().autonomousPostCount, 1);
+});
+
+test("campaign agent falls back to a sourced meme when the chat model is silent", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-agent-fallback-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const config = createBotConfig({
+    X_AUTONOMOUS_POSTING_ENABLED: "true",
+    X_AUTONOMOUS_TYPES: "text,image",
+    AGENT_MIN_POST_INTERVAL_MINUTES: "60"
+  });
+  const store = new BotStore(path.join(directory, "bot.json"), {
+    now: () => new Date("2026-08-23T21:00:00.000Z")
+  });
+  const source = {
+    key: "news:fallback",
+    kind: "news",
+    title: "Another current AI race story",
+    url: "https://news.example/fallback",
+    publisher: "Example News",
+    publishedAt: "2026-08-23T20:00:00.000Z",
+    summary: "Current AI news.",
+    score: 7
+  };
+  const posted = [];
+  const service = new AutonomousXService({
+    config,
+    store,
+    openRouter: {
+      connected: async () => true,
+      chat: async () => {
+        throw new Error("The shared chat models returned no reply. Try again.");
+      },
+      generateImage: async () => ({
+        buffer: Buffer.from("image"),
+        mimeType: "image/png",
+        costUsd: 0.07
+      })
+    },
+    xClient: {
+      connected: async () => true,
+      userPosts: async (username) => ({ user: { username }, posts: [] }),
+      searchRecent: async () => [],
+      post: async (post) => {
+        posted.push(post);
+        return {
+          id: "801",
+          url: "https://x.com/STOPAICOIN/status/801",
+          verified: true,
+          verifiedAt: "2026-08-23T21:00:00.000Z"
+        };
+      }
+    },
+    newsResearch: { feedUrls: [], latest: async () => [source] },
+    canonicalReferenceDataUrl: "data:image/png;base64,AA==",
+    logger: { info() {}, warn() {}, error() {} },
+    now: () => new Date("2026-08-23T21:00:00.000Z")
+  });
+
+  const result = await service.runOnce();
+  assert.equal(result.ok, true);
+  assert.equal(result.type, "image");
+  assert.equal(posted[0].media.type, "image");
+  assert.match(posted[0].text, /https:\/\/news\.example\/fallback/);
+  assert.equal(store.agentStatus().autonomousPostCount, 1);
 });

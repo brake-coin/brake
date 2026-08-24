@@ -32,4 +32,8 @@ test("Telegram bot source has no slash command handlers or command menu", async 
   assert.match(source, /telegramUpdateDecision/);
   assert.match(source, /claimTelegramUpdate/);
   assert.match(source, /telegram_update_complete/);
+  assert.match(
+    source,
+    /const sent = await ctx\.replyWithPhoto\(result\.buffer \? \{ source: result\.buffer \} : result\.url\);/
+  );
 });
