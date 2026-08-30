@@ -601,6 +601,33 @@ export function ensureStickerPackLink(finalText, packUrl = "") {
   return `${text}\n\nOpen the sticker pack: ${url}`.trim();
 }
 
+export function telegramXPostMessage({ text = "", url = "", username = "STOPAICOIN" } = {}) {
+  let parsed;
+  try {
+    parsed = new URL(String(url || "").trim());
+  } catch {
+    throw new Error("A valid X post URL is required for the Telegram share.");
+  }
+  const match = /^\/([A-Za-z0-9_]{1,15})\/status\/(\d{1,19})\/?$/.exec(parsed.pathname);
+  const expectedUsername = String(username || "STOPAICOIN").trim().replace(/^@/, "");
+  if (
+    parsed.protocol !== "https:"
+    || !["x.com", "www.x.com"].includes(parsed.hostname.toLowerCase())
+    || !match
+    || match[1].toLowerCase() !== expectedUsername.toLowerCase()
+  ) {
+    throw new Error(`Only a verified @${expectedUsername} X post can be shared to Telegram.`);
+  }
+  const canonicalUsername = match[1];
+  const canonicalUrl = `https://x.com/${canonicalUsername}/status/${match[2]}`;
+  const postText = String(text || "").replace(/\r\n?/g, "\n").trim().slice(0, 1_000);
+  return [
+    `New on X from @${canonicalUsername} ✋🏻😡`,
+    postText,
+    canonicalUrl
+  ].filter(Boolean).join("\n\n");
+}
+
 function withTimeout(promise, milliseconds, message) {
   let timer;
   return Promise.race([
@@ -718,6 +745,30 @@ export class TelegramService {
         stickerCount: stickerPack.stickerCount,
         url: `https://t.me/addstickers/${stickerPack.name}`
       } : null
+    };
+  }
+
+  async shareXPost({ text = "", url = "" } = {}) {
+    if (!this.running || !this.bot?.telegram || !this.allowedChatId) {
+      throw new Error("The Telegram group bot is not running.");
+    }
+    const message = telegramXPostMessage({
+      text,
+      url,
+      username: this.config.xExpectedUsername
+    });
+    const canonicalUrl = message.split("\n\n").at(-1);
+    const sent = await withTimeout(
+      this.bot.telegram.sendMessage(this.allowedChatId, message, {
+        link_preview_options: { is_disabled: false, url: canonicalUrl }
+      }),
+      15_000,
+      "Sharing the X post to Telegram timed out."
+    );
+    this.logger.info(`[telegram] shared X post ${url} in the configured group`);
+    return {
+      messageId: sent?.message_id,
+      chatId: sent?.chat?.id || this.allowedChatId
     };
   }
 

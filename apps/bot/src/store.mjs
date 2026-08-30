@@ -549,6 +549,7 @@ export class BotStore {
     text = "",
     sourcePostId = "",
     sourcePostUrl = "",
+    telegramShareStatus = null,
     error = ""
   }) {
     const record = {
@@ -564,6 +565,14 @@ export class BotStore {
       sourcePostUrl: /^https:\/\/x\.com\//i.test(String(sourcePostUrl || ""))
         ? String(sourcePostUrl).slice(0, 1_000)
         : null,
+      telegramShareStatus: status === "confirmed" && telegramShareStatus === "pending"
+        ? "pending"
+        : null,
+      telegramShareAttempts: 0,
+      telegramSharedAt: null,
+      telegramMessageId: null,
+      telegramChatId: null,
+      telegramShareError: "",
       error: String(error || "").slice(0, 500),
       at: this.now().toISOString()
     };
@@ -572,6 +581,42 @@ export class BotStore {
       state.xReceipts = state.xReceipts.slice(0, 200);
     });
     return record;
+  }
+
+  pendingTelegramXReceipts(limit = 5) {
+    return this.#state.xReceipts
+      .filter((item) => (
+        item.status === "confirmed"
+        && item.source === "autonomous-agent"
+        && item.telegramShareStatus === "pending"
+        && item.url
+      ))
+      .slice(0, Math.max(1, Math.min(20, Number(limit) || 5)))
+      .map((item) => ({ ...item }));
+  }
+
+  async recordXTelegramShareAttempt(receiptId, {
+    messageId = null,
+    chatId = "",
+    error = ""
+  } = {}) {
+    let updated = null;
+    await this.#mutate((state) => {
+      const receipt = state.xReceipts.find((item) => item.receiptId === String(receiptId));
+      if (!receipt || receipt.telegramShareStatus !== "pending") return;
+      receipt.telegramShareAttempts = Math.max(0, Number(receipt.telegramShareAttempts) || 0) + 1;
+      receipt.telegramShareLastAttemptAt = this.now().toISOString();
+      receipt.telegramShareError = String(error || "").slice(0, 500);
+      if (messageId !== null && messageId !== undefined && String(messageId)) {
+        receipt.telegramShareStatus = "confirmed";
+        receipt.telegramSharedAt = this.now().toISOString();
+        receipt.telegramMessageId = String(messageId).slice(0, 80);
+        receipt.telegramChatId = String(chatId || "").slice(0, 80) || null;
+        receipt.telegramShareError = "";
+      }
+      updated = { ...receipt };
+    });
+    return updated;
   }
 
   async claimXSourcePost({ sourcePostId, sourcePostUrl = "", userId = "", chatId = "" }) {

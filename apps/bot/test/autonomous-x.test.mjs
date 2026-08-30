@@ -101,6 +101,58 @@ test("autonomous X schedule waits after startup", async () => {
   assert.equal(cleared, true);
 });
 
+test("pending autonomous X posts retry Telegram delivery without republishing to X", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-x-telegram-share-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const store = new BotStore(path.join(directory, "bot.json"), {
+    now: () => new Date("2026-08-22T12:00:00.000Z")
+  });
+  await store.load();
+  const receipt = await store.recordXReceipt({
+    status: "confirmed",
+    id: "123456",
+    url: "https://x.com/STOPAICOIN/status/123456",
+    source: "autonomous-agent",
+    text: "A daily STOPAI post.",
+    telegramShareStatus: "pending"
+  });
+  let telegramReady = false;
+  const shared = [];
+  let xConnectionChecks = 0;
+  const service = new AutonomousXService({
+    config: createBotConfig({ X_AUTONOMOUS_POSTING_ENABLED: "true" }),
+    store,
+    openRouter: { connected: async () => false },
+    xClient: {
+      connected: async () => {
+        xConnectionChecks += 1;
+        return false;
+      }
+    },
+    canonicalReferenceDataUrl: "data:image/png;base64,AA==",
+    shareXPost: async (post) => {
+      shared.push(post);
+      if (!telegramReady) throw new Error("Telegram is starting");
+      return { messageId: 88, chatId: "-100123" };
+    },
+    logger: { info() {}, warn() {}, error() {} }
+  });
+
+  assert.equal((await service.runOnce()).reason, "x_not_connected");
+  assert.equal(shared.length, 1);
+  assert.equal(store.pendingTelegramXReceipts()[0].telegramShareAttempts, 1);
+  telegramReady = true;
+  assert.equal((await service.runOnce()).reason, "x_not_connected");
+  assert.equal(shared.length, 2);
+  assert.equal(xConnectionChecks, 2);
+  assert.equal(store.pendingTelegramXReceipts().length, 0);
+  const saved = store.recentXReceipts().find((item) => item.receiptId === receipt.receiptId);
+  assert.equal(saved.telegramShareStatus, "confirmed");
+  assert.equal(saved.telegramMessageId, "88");
+  assert.equal(saved.telegramChatId, "-100123");
+  assert.equal(saved.telegramShareAttempts, 2);
+});
+
 test("campaign agent researches, posts with attribution, and remembers the source", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-agent-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
@@ -124,6 +176,7 @@ test("campaign agent researches, posts with attribution, and remembers the sourc
     metrics: { like_count: 20, retweet_count: 4 }
   };
   const posted = [];
+  const shared = [];
   const service = new AutonomousXService({
     config,
     store,
@@ -159,12 +212,20 @@ test("campaign agent researches, posts with attribution, and remembers the sourc
     },
     newsResearch: { feedUrls: [], latest: async () => [] },
     canonicalReferenceDataUrl: "data:image/png;base64,AA==",
+    shareXPost: async (post) => {
+      shared.push(post);
+      return { messageId: 91, chatId: "-100123" };
+    },
     now: () => new Date("2026-08-22T21:00:00.000Z")
   });
 
   const result = await service.runOnce();
   assert.equal(result.ok, true);
+  assert.equal(result.telegramShared, true);
   assert.equal(result.sourceKey, `x:${source.id}`);
+  assert.equal(shared.length, 1);
+  assert.equal(shared[0].url, "https://x.com/STOPAICOIN/status/300");
+  assert.match(shared[0].text, /Humanity needs a brake/);
   assert.match(posted[0].text, /Humanity needs a brake/);
   assert.doesNotMatch(posted[0].text, /@canadabirdie/);
   assert.match(posted[0].text, /https:\/\/x.com\/canadabirdie\/status/);

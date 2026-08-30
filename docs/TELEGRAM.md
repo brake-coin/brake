@@ -226,6 +226,12 @@ $50 daily AI-spend limits. Research and posting history survive deploys on the e
 Fly volume. The admin page shows goal, memory, research, and last-cycle counts alongside
 the live test buttons.
 
+After X verifies an autonomous post, the bot sends that post's text and canonical X link
+to the configured Telegram group. The link preview carries the X post into the group feed.
+If Telegram is restarting or briefly unavailable, the durable X receipt keeps the share
+pending and retries it on a later campaign cycle. A Telegram delivery failure never causes
+the already-published X post to be published again. Admin live-test posts are not shared.
+
 Telegram users can ask `what are your goals and memories?` to inspect the campaign context.
 Every user may request an agent-approved X post. Group administrators and configured operator
 IDs may also save stable notes or update goals in plain language. Ordinary users cannot alter

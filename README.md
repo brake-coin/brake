@@ -170,6 +170,9 @@ into a new STOPAI meme and publish it with the original post URL visibly attache
   researches every two hours when eligible, remembers used sources and
   past posts, uses sources no older than seven days, waits at least four hours after any
   normal X post before posting autonomously, and stops after 30 per UTC day.
+- Each verified autonomous X post is also shared into the configured Telegram group with
+  its text and canonical X link. Failed Telegram deliveries stay pending and retry on a
+  later agent cycle without publishing the X post again.
 - Secrets belong in `.env`, which is ignored by Git.
 - Public BYOK keys stay in the visitor's browser tab. A separate admin-linked key is
   stored on the private Fly volume only for Telegram chat and limited bot media.

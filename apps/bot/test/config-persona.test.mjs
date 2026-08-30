@@ -24,11 +24,57 @@ import {
   mediaAltText,
   pickRandomMedia,
   sanitizeTelegramReply,
+  TelegramService,
   telegramAddressedBy,
+  telegramXPostMessage,
   telegramThreadId,
   telegramUpdateDecision,
   xPostIdsInText
 } from "../src/telegram.mjs";
+
+test("verified STOPAI X posts can be shared into the configured Telegram group", async () => {
+  const config = createBotConfig({ X_EXPECTED_USERNAME: "STOPAICOIN" });
+  const deliveries = [];
+  const telegram = new TelegramService({
+    config,
+    store: {},
+    openRouter: {},
+    xClient: {},
+    canonicalReferenceDataUrl: "data:image/png;base64,AA==",
+    logger: { info() {} }
+  });
+  telegram.running = true;
+  telegram.allowedChatId = "-100123";
+  telegram.bot = {
+    telegram: {
+      sendMessage: async (...args) => {
+        deliveries.push(args);
+        return { message_id: 77, chat: { id: -100123 } };
+      }
+    }
+  };
+
+  const result = await telegram.shareXPost({
+    text: "the accelerator has enough interns. send in the weird hand.",
+    url: "https://x.com/STOPAICOIN/status/123456"
+  });
+
+  assert.deepEqual(result, { messageId: 77, chatId: -100123 });
+  assert.equal(deliveries.length, 1);
+  assert.equal(deliveries[0][0], "-100123");
+  assert.match(deliveries[0][1], /New on X from @STOPAICOIN/);
+  assert.match(deliveries[0][1], /the accelerator has enough interns/);
+  assert.match(deliveries[0][1], /https:\/\/x\.com\/STOPAICOIN\/status\/123456/);
+  assert.deepEqual(deliveries[0][2].link_preview_options, {
+    is_disabled: false,
+    url: "https://x.com/STOPAICOIN/status/123456"
+  });
+  assert.throws(() => telegramXPostMessage({
+    text: "wrong account",
+    url: "https://x.com/someone_else/status/123456",
+    username: "STOPAICOIN"
+  }), /Only a verified @STOPAICOIN/);
+});
 
 test("bot defaults use expanded shared usage limits", () => {
   const config = createBotConfig({});

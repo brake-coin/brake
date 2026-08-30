@@ -176,6 +176,7 @@ export class AutonomousXService {
     fetchImpl = fetch,
     logger = console,
     now = () => new Date(),
+    shareXPost = null,
     setTimeoutImpl = setTimeout,
     clearTimeoutImpl = clearTimeout
   }) {
@@ -187,6 +188,7 @@ export class AutonomousXService {
     this.fetchImpl = fetchImpl;
     this.logger = logger;
     this.now = now;
+    this.shareXPost = typeof shareXPost === "function" ? shareXPost : null;
     this.newsResearch = newsResearch || new NewsResearchClient({
       feedUrls: config.agentNewsFeeds.length ? config.agentNewsFeeds : DEFAULT_NEWS_FEEDS,
       fetchImpl,
@@ -256,6 +258,7 @@ export class AutonomousXService {
     try {
       await this.store.load();
       await this.store.ensureAgentGoals(DEFAULT_AGENT_GOALS);
+      await this.#sharePendingXPosts();
       if (!await this.xClient.connected()) {
         return this.#finish({ ok: false, skipped: true, action: "skip", reason: "x_not_connected" });
       }
@@ -409,7 +412,7 @@ export class AutonomousXService {
         });
       }
       postingClaim = null;
-      await this.store.recordXReceipt({
+      const receipt = await this.store.recordXReceipt({
         status: "confirmed",
         id: posted.id,
         url: posted.url,
@@ -417,8 +420,10 @@ export class AutonomousXService {
         userId: AUTONOMOUS_USER,
         text,
         sourcePostId: source.kind === "x" ? source.key.slice(2) : "",
-        sourcePostUrl: source.kind === "x" ? verifiedSource.url : ""
+        sourcePostUrl: source.kind === "x" ? verifiedSource.url : "",
+        telegramShareStatus: this.shareXPost ? "pending" : null
       });
+      const telegramShared = await this.#shareReceiptToTelegram(receipt);
       await this.store.markResearchUsed(source.key, { postedUrl: posted.url });
       await this.store.rememberAgent({
         kind: "autonomous-x-post",
@@ -435,6 +440,7 @@ export class AutonomousXService {
         sourceKey: source.key,
         sourceUrl: verifiedSource.url,
         url: posted.url,
+        telegramShared,
         postedAt: this.now().toISOString()
       });
     } catch (error) {
@@ -739,6 +745,39 @@ export class AutonomousXService {
       this.logger.error("[agent] could not save cycle history", error);
     });
     return result;
+  }
+
+  async #sharePendingXPosts() {
+    if (!this.shareXPost || typeof this.store.pendingTelegramXReceipts !== "function") return;
+    for (const receipt of this.store.pendingTelegramXReceipts(5)) {
+      await this.#shareReceiptToTelegram(receipt);
+    }
+  }
+
+  async #shareReceiptToTelegram(receipt) {
+    if (!this.shareXPost || !receipt?.receiptId || !receipt?.url) return false;
+    try {
+      const sent = await this.shareXPost({
+        id: receipt.id,
+        url: receipt.url,
+        text: receipt.text,
+        postedAt: receipt.at
+      });
+      if (sent?.messageId === null || sent?.messageId === undefined) {
+        throw new Error("Telegram did not return a message receipt.");
+      }
+      await this.store.recordXTelegramShareAttempt(receipt.receiptId, {
+        messageId: sent.messageId,
+        chatId: sent.chatId
+      });
+      return true;
+    } catch (error) {
+      await this.store.recordXTelegramShareAttempt(receipt.receiptId, {
+        error: error?.message || "Telegram sharing failed."
+      }).catch(() => {});
+      this.logger.warn?.(`[agent] Telegram share will retry: ${error?.message || "unknown error"}`);
+      return false;
+    }
   }
 
   #schedule(delayMs) {
