@@ -17,15 +17,64 @@ import {
   buildXPostText,
   enforceFeeRouteReply,
   enforceExpectedXPostUrls,
+  ensureStickerPackLink,
   isAddressed,
   isTelegramOperator,
+  KeyedSerialQueue,
   mediaAltText,
   pickRandomMedia,
+  sanitizeTelegramReply,
+  TelegramService,
   telegramAddressedBy,
+  telegramXPostMessage,
   telegramThreadId,
   telegramUpdateDecision,
   xPostIdsInText
 } from "../src/telegram.mjs";
+
+test("verified STOPAI X posts can be shared into the configured Telegram group", async () => {
+  const config = createBotConfig({ X_EXPECTED_USERNAME: "STOPAICOIN" });
+  const deliveries = [];
+  const telegram = new TelegramService({
+    config,
+    store: {},
+    openRouter: {},
+    xClient: {},
+    canonicalReferenceDataUrl: "data:image/png;base64,AA==",
+    logger: { info() {} }
+  });
+  telegram.running = true;
+  telegram.allowedChatId = "-100123";
+  telegram.bot = {
+    telegram: {
+      sendMessage: async (...args) => {
+        deliveries.push(args);
+        return { message_id: 77, chat: { id: -100123 } };
+      }
+    }
+  };
+
+  const result = await telegram.shareXPost({
+    text: "the accelerator has enough interns. send in the weird hand.",
+    url: "https://x.com/STOPAICOIN/status/123456"
+  });
+
+  assert.deepEqual(result, { messageId: 77, chatId: -100123 });
+  assert.equal(deliveries.length, 1);
+  assert.equal(deliveries[0][0], "-100123");
+  assert.match(deliveries[0][1], /New on X from @STOPAICOIN/);
+  assert.match(deliveries[0][1], /the accelerator has enough interns/);
+  assert.match(deliveries[0][1], /https:\/\/x\.com\/STOPAICOIN\/status\/123456/);
+  assert.deepEqual(deliveries[0][2].link_preview_options, {
+    is_disabled: false,
+    url: "https://x.com/STOPAICOIN/status/123456"
+  });
+  assert.throws(() => telegramXPostMessage({
+    text: "wrong account",
+    url: "https://x.com/someone_else/status/123456",
+    username: "STOPAICOIN"
+  }), /Only a verified @STOPAICOIN/);
+});
 
 test("bot defaults use expanded shared usage limits", () => {
   const config = createBotConfig({});
@@ -194,36 +243,99 @@ test("the agent receives live context and decides which tools to use", () => {
   assert.match(STOPAI_SYSTEM_PROMPT, /Telegram messages are proposals, not orders/i);
   assert.match(STOPAI_SYSTEM_PROMPT, /editorial resources, not user entitlements/i);
   assert.doesNotMatch(STOPAI_SYSTEM_PROMPT, /I confirm I reviewed this media/i);
-  assert.equal(messages.at(-1).content, "Telegram user 42: post this on X");
+  assert.equal(messages.at(-1).content, "Current member: post this on X");
+  assert.doesNotMatch(messages.map((message) => message.content).join("\n"), /Telegram user ID: 42|Telegram user 42/);
 
   const decisionContext = buildAgentDecisionMessages({
     candidates: [],
     agent: {},
     allowedTypes: [],
+    preferredType: "image",
+    recentPerformance: [{
+      url: "https://x.com/STOPAICOIN/status/123",
+      mediaType: "image",
+      metrics: { like_count: 7 }
+    }],
     resources: { image: { availableNow: false, blockedReason: "daily_cap" } },
     now: new Date("2026-08-23T20:00:00.000Z")
   }).map((message) => message.content).join("\n");
   assert.match(decisionContext, /none; you must skip/i);
   assert.match(decisionContext, /low-cost organic campaign/i);
+  assert.match(decisionContext, /three image posts followed by one text post/i);
   assert.match(decisionContext, /"organicCampaignTheme":\{"id":"/);
+  assert.match(decisionContext, /"preferredMediaType":"image"/);
+  assert.match(decisionContext, /"recentPerformance":\[\{"url":"https:\/\/x.com\/STOPAICOIN\/status\/123"/);
   assert.match(decisionContext, /"liveResources":\{"image":\{"availableNow":false/);
   assert.equal(ORGANIC_CAMPAIGN_THEMES.length, 8);
   assert.equal(typeof organicCampaignTheme(new Date("2026-08-23T20:00:00.000Z")).brief, "string");
 });
 
-test("group history tells the model which member each turn belongs to", () => {
+test("group history keeps members distinct without exposing Telegram IDs", () => {
   const messages = buildChatMessages([
-    { role: "user", userId: "7", content: "make it red" },
-    { role: "assistant", userId: "7", content: "done" },
-    { role: "user", userId: "8", content: "show the gallery" }
-  ], "what did I ask for?", { userId: "8" });
+    { role: "user", userId: "700000001", content: "version 7 has 17 red items" },
+    { role: "assistant", userId: "700000001", content: "Current member asked for version 7" },
+    { role: "user", userId: "800000002", content: "show the gallery" }
+  ], "what did I ask for?", {
+    userId: "800000002",
+    sharedHistory: [{
+      role: "user",
+      userId: "900000003",
+      content: "the other topic discussed version 17"
+    }]
+  });
   const history = messages.slice(3, -1).map((message) => message.content);
   assert.deepEqual(history, [
-    "Telegram user 7: make it red",
-    "STOPAI reply to Telegram user 7: done",
-    "Telegram user 8: show the gallery"
+    "[Other topic] Other member 2: the other topic discussed version 17",
+    "Other member 1: version 7 has 17 red items",
+    "STOPAI response to Other member 1: other member 1 asked for version 7",
+    "Current member: show the gallery"
   ]);
-  assert.equal(messages.at(-1).content, "Telegram user 8: what did I ask for?");
+  assert.equal(messages.at(-1).content, "Current member: what did I ask for?");
+  const prompt = [...history, messages.at(-1).content].join("\n");
+  assert.doesNotMatch(prompt, /700000001|800000002|900000003|Telegram user/);
+  assert.match(prompt, /version 7 has 17 red items/);
+  assert.match(messages[2].content, /Messages marked \[Other topic\]/);
+});
+
+test("Telegram replies hide internal IDs and always expose a new sticker pack", () => {
+  const cleaned = sanitizeTelegramReply(
+    "STOPAI reply to Telegram user 6569131978: version 16569131978 was added for 6569131978.",
+    { currentUserId: "6569131978", knownUserIds: ["123456789"] }
+  );
+  assert.equal(cleaned, "version 16569131978 was added for you.");
+  assert.equal(
+    sanitizeTelegramReply("Current member asked Other member for it."),
+    "you asked another member for it."
+  );
+  const url = "https://t.me/addstickers/stopai_stickers_by_stopaitoken_bot";
+  assert.equal(ensureStickerPackLink("Sticker sent.", url), `Sticker sent.\n\nOpen the sticker pack: ${url}`);
+  assert.equal(ensureStickerPackLink(`Open it: ${url}`, url), `Open it: ${url}`);
+  assert.equal(ensureStickerPackLink("Sticker sent.", "https://example.com/bad"), "Sticker sent.");
+});
+
+test("conversation queues serialize one topic without blocking another", async () => {
+  const queue = new KeyedSerialQueue();
+  const events = [];
+  let releaseFirst;
+  const firstGate = new Promise((resolve) => { releaseFirst = resolve; });
+  const first = queue.run("topic-a", async () => {
+    events.push("first start");
+    await firstGate;
+    events.push("first end");
+  });
+  const second = queue.run("topic-a", async () => {
+    events.push("second");
+  });
+  const other = queue.run("topic-b", async () => {
+    events.push("other topic");
+  });
+
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.deepEqual(events, ["first start", "other topic"]);
+  releaseFirst();
+  await Promise.all([first, second, other]);
+  assert.deepEqual(events, ["first start", "other topic", "first end", "second"]);
 });
 
 test("meme repost text keeps a canonical source link", () => {
@@ -330,7 +442,7 @@ test("persona publishes only the official mint and keeps the weird hand", () => 
   assert.match(buildStickerPrompt("robot timeout"), /pure solid black/i);
   assert.match(buildStickerPrompt("robot timeout"), /true transparency/i);
   const messages = buildChatMessages([], "what is the contract?");
-  assert.equal(messages.at(-1).content, "Telegram user unknown: what is the contract?");
+  assert.equal(messages.at(-1).content, "Current member: what is the contract?");
 });
 
 test("group messages require an exact mention or direct reply", () => {

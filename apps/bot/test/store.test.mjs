@@ -45,19 +45,33 @@ test("store suppresses duplicate Telegram actions across concurrency and restart
   assert.equal((await reloaded.claimTelegramUpdate(undefined)).reason, "untracked_update");
 });
 
-test("version 8 preserves production update claims and local sticker state", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-v8-migration-"));
+test("version 10 preserves production state and cleans leaked participant labels", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-v10-migration-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const filePath = path.join(directory, "bot.json");
   await writeFile(filePath, JSON.stringify({
     version: 7,
-    messages: {},
+    messages: {
+      42: [{
+        role: "assistant",
+        content: "Current member asked another Current member question.",
+        userId: "700000001",
+        threadId: "main",
+        at: "2026-08-23T19:57:00.000Z"
+      }]
+    },
     media: [],
     usage: [],
     telegramUpdates: {
       555: { updateId: "555", at: "2026-08-23T19:59:00.000Z" }
     },
-    xReceipts: [],
+    xReceipts: [{
+      status: "confirmed",
+      id: "123",
+      url: "https://x.com/STOPAICOIN/status/123",
+      source: "autonomous-agent",
+      at: "2026-08-23T19:58:00.000Z"
+    }],
     xSourcePosts: {},
     stickerPack: {
       name: "stopai_stickers_by_stopaitoken_bot",
@@ -73,13 +87,18 @@ test("version 8 preserves production update claims and local sticker state", asy
   }).load();
   assert.equal(store.agentStatus().recentTelegramUpdateCount, 1);
   assert.equal(store.stickerPack().ownerId, 12345);
+  assert.equal(
+    store.recentMessages("42")[0].content,
+    "the member in that turn asked another the member in that turn question."
+  );
   assert.equal((await store.claimTelegramUpdate(555)).reason, "duplicate_update");
   await store.saveStickerPack({
     ...store.stickerPack(),
     stickerCount: 3
   });
   const saved = JSON.parse(await readFile(filePath, "utf8"));
-  assert.equal(saved.version, 8);
+  assert.equal(saved.version, 10);
+  assert.equal(store.agentStatus().autonomousPostCount, 1);
   assert.equal(saved.telegramUpdates[555].updateId, "555");
   assert.equal(saved.stickerPack.stickerCount, 3);
 });
@@ -97,12 +116,44 @@ test("chat history is user-attributed, thread-scoped, and expires", async (t) =>
   });
   assert.deepEqual(store.recentMessages("42").map((item) => item.userId), ["alice"]);
   assert.deepEqual(store.recentMessages("42", { threadId: "77" }).map((item) => item.userId), ["bob"]);
+  assert.deepEqual(
+    store.recentMessagesAcrossThreads("42", { excludeThreadId: "77" })
+      .map((item) => item.content),
+    ["main topic"]
+  );
   now = new Date("2026-09-01T10:00:01.000Z");
   await store.recordMessage({
     chatId: "42", threadId: "main", userId: "carol", role: "user", content: "fresh topic"
   });
   assert.deepEqual(store.recentMessages("42").map((item) => item.userId), ["carol"]);
   assert.deepEqual(store.recentMessages("42", { threadId: "77" }), []);
+});
+
+test("complete chat turns are saved atomically and the full 20-message window is returned", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-complete-turns-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const store = new BotStore(path.join(directory, "bot.json"), {
+    now: () => new Date("2026-08-22T10:00:00.000Z")
+  });
+
+  for (let turn = 1; turn <= 11; turn += 1) {
+    await store.recordTurn({
+      chatId: "42",
+      threadId: "77",
+      userId: "alice",
+      userContent: `question ${turn}`,
+      assistantContent: `answer ${turn}`
+    });
+  }
+
+  const history = store.recentMessages("42", { threadId: "77" });
+  assert.equal(history.length, 20);
+  assert.deepEqual(history.slice(0, 2).map((item) => item.content), ["question 2", "answer 2"]);
+  assert.deepEqual(history.slice(-2).map((item) => item.content), ["question 11", "answer 11"]);
+  assert.deepEqual(history.map((item) => item.role), Array.from(
+    { length: 20 },
+    (_, index) => index % 2 === 0 ? "user" : "assistant"
+  ));
 });
 
 test("the agent sees scarce shared capacity and whether the current user is new", async (t) => {
@@ -318,6 +369,7 @@ test("store persists campaign goals, memory, research use, and cycle history", a
   assert.equal(snapshot.memories[0].text, "Use source links");
   assert.equal(snapshot.research[0].usedAt, "2026-08-22T20:00:00.000Z");
   assert.equal(snapshot.cycles[0].action, "post");
+  assert.equal(reloaded.agentStatus().autonomousPostCount, 1);
   assert.equal(reloaded.recentXReceipts()[0].status, "confirmed");
   assert.equal(reloaded.recentXReceipts()[0].id, "456");
   assert.equal(reloaded.agentStatus().quotedSourceCount, 1);

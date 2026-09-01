@@ -9,7 +9,7 @@ import {
   processForTelegramSticker,
   selectStickerEmoji
 } from "../src/stickers.mjs";
-import { chooseSticker, isMissingStickerSetError } from "../src/telegram.mjs";
+import { chooseSticker, findAddedSticker, isMissingStickerSetError } from "../src/telegram.mjs";
 
 test("sticker processor removes the edge background and meets Telegram limits", async () => {
   const subject = Buffer.from(`
@@ -59,6 +59,17 @@ test("sticker selection supports latest, random, emoji, and moods", () => {
   assert.equal(chooseSticker(stickers, "😡").file_id, "angry");
   assert.equal(chooseSticker(stickers, "laughing").file_id, "laugh");
   assert.equal(chooseSticker([], "latest"), null);
+});
+
+test("new sticker selection uses the finished sticker from the refreshed pack", () => {
+  const previous = [{ file_id: "old-file", file_unique_id: "old-unique" }];
+  const refreshed = [
+    { file_id: "old-file-v2", file_unique_id: "old-unique" },
+    { file_id: "finished-sticker-file", file_unique_id: "new-unique" }
+  ];
+  assert.equal(findAddedSticker(previous, refreshed).file_id, "finished-sticker-file");
+  assert.equal(findAddedSticker([], [refreshed[1]]).file_id, "finished-sticker-file");
+  assert.equal(findAddedSticker(previous, []), null);
 });
 
 test("missing Telegram sticker packs are recognized without hiding other errors", () => {

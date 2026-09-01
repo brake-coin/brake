@@ -17,6 +17,19 @@ import { validateXQuoteSource, xPostReference, xWeightedLength } from "./x.mjs";
 
 const POST_TYPES = new Set(["text", "image", "video"]);
 const AUTONOMOUS_USER = "x-autonomous";
+const MEME_FIRST_CADENCE = ["image", "image", "image", "text"];
+const FALLBACK_CAPTIONS = [
+  "another AI accelerator headline. the weird hand checked the blueprint. still no brake. ✋🏻😡",
+  "more agents. more compute. more speed. risk management remains one ugly hand on overtime. 🛑",
+  "the AI race shipped another accelerator. the brake department would like a word. ✋🏻😡",
+  "silicon valley found the gas pedal again. good thing the weird hand never clocks out. 🛑"
+];
+const FALLBACK_VISUALS = [
+  "The weird STOPAI hand inspecting an enormous AI accelerator blueprint and circling the missing emergency brake",
+  "The weird STOPAI hand working the night shift at a tiny brake booth beside a huge robot racetrack",
+  "A wall of shiny AI accelerator buttons with the weird STOPAI hand pulling the only red emergency brake",
+  "The weird STOPAI hand holding a stop sign while absurd AI robots sprint past a clearly marked brake station"
+];
 
 function autonomousLimits(config) {
   return {
@@ -98,6 +111,53 @@ function publicCandidate(item) {
   };
 }
 
+function stableIndex(value, length) {
+  let hash = 0;
+  for (const character of String(value || "")) hash = ((hash * 31) + character.codePointAt(0)) >>> 0;
+  return length ? hash % length : 0;
+}
+
+export function preferredAutonomousPostType(allowedTypes, successfulPostCount = 0) {
+  const available = [...new Set((allowedTypes || []).filter((type) => POST_TYPES.has(type)))];
+  if (!available.length) return null;
+  if (available.includes("image") && available.includes("text")) {
+    const sequence = Math.max(0, Number.parseInt(successfulPostCount, 10) || 0);
+    return MEME_FIRST_CADENCE[sequence % MEME_FIRST_CADENCE.length];
+  }
+  if (available.includes("image")) return "image";
+  if (available.includes("text")) return "text";
+  return available[0];
+}
+
+export function fallbackAgentDecision(candidates, { preferredType = "image" } = {}) {
+  const source = (candidates || [])[0];
+  if (!source?.key) {
+    return {
+      action: "skip",
+      reason: "The campaign model returned no decision and no fallback source was available.",
+      sourceKey: "",
+      type: preferredType,
+      text: "",
+      mediaPrompt: "",
+      topic: ""
+    };
+  }
+  const index = stableIndex(source.key, FALLBACK_CAPTIONS.length);
+  return {
+    action: "post",
+    reason: "Used the local meme fallback after the campaign model returned no usable decision.",
+    sourceKey: source.key,
+    type: preferredType,
+    text: FALLBACK_CAPTIONS[index],
+    mediaPrompt: FALLBACK_VISUALS[index],
+    topic: String(source.title || "AI race").slice(0, 120)
+  };
+}
+
+function canUseDecisionFallback(error) {
+  return /(?:no reply|went quiet|invalid decision)/i.test(String(error?.message || ""));
+}
+
 function isFreshCandidate(item, now, maximumAgeHours) {
   const publishedAt = new Date(item?.publishedAt || 0).getTime();
   if (!Number.isFinite(publishedAt) || publishedAt <= 0) return false;
@@ -116,6 +176,7 @@ export class AutonomousXService {
     fetchImpl = fetch,
     logger = console,
     now = () => new Date(),
+    shareXPost = null,
     setTimeoutImpl = setTimeout,
     clearTimeoutImpl = clearTimeout
   }) {
@@ -127,6 +188,7 @@ export class AutonomousXService {
     this.fetchImpl = fetchImpl;
     this.logger = logger;
     this.now = now;
+    this.shareXPost = typeof shareXPost === "function" ? shareXPost : null;
     this.newsResearch = newsResearch || new NewsResearchClient({
       feedUrls: config.agentNewsFeeds.length ? config.agentNewsFeeds : DEFAULT_NEWS_FEEDS,
       fetchImpl,
@@ -196,6 +258,7 @@ export class AutonomousXService {
     try {
       await this.store.load();
       await this.store.ensureAgentGoals(DEFAULT_AGENT_GOALS);
+      await this.#sharePendingXPosts();
       if (!await this.xClient.connected()) {
         return this.#finish({ ok: false, skipped: true, action: "skip", reason: "x_not_connected" });
       }
@@ -248,7 +311,17 @@ export class AutonomousXService {
           reason: "No fresh, unused research candidate was available."
         });
       }
-      const decision = await this.#decide(candidates, { resources, allowedTypes });
+      const preferredType = preferredAutonomousPostType(
+        allowedTypes,
+        this.store.agentStatus().autonomousPostCount
+      );
+      const recentPerformance = await this.#recentPerformance();
+      const decision = await this.#decide(candidates, {
+        resources,
+        allowedTypes,
+        preferredType,
+        recentPerformance
+      });
       if (decision.action !== "post") {
         return this.#finish({
           ok: true,
@@ -266,9 +339,11 @@ export class AutonomousXService {
           reason: "The proposed post did not select a valid research source."
         });
       }
-      const selectedType = allowedTypes.includes(decision.type)
-        ? decision.type
-        : allowedTypes[0];
+      const selectedType = allowedTypes.includes(preferredType)
+        ? preferredType
+        : allowedTypes.includes(decision.type)
+          ? decision.type
+          : allowedTypes[0];
       let verifiedSource = source;
       if (source.kind === "x") {
         const post = validateXQuoteSource(await this.xClient.readPost(source.url), {
@@ -337,7 +412,7 @@ export class AutonomousXService {
         });
       }
       postingClaim = null;
-      await this.store.recordXReceipt({
+      const receipt = await this.store.recordXReceipt({
         status: "confirmed",
         id: posted.id,
         url: posted.url,
@@ -345,8 +420,10 @@ export class AutonomousXService {
         userId: AUTONOMOUS_USER,
         text,
         sourcePostId: source.kind === "x" ? source.key.slice(2) : "",
-        sourcePostUrl: source.kind === "x" ? verifiedSource.url : ""
+        sourcePostUrl: source.kind === "x" ? verifiedSource.url : "",
+        telegramShareStatus: this.shareXPost ? "pending" : null
       });
+      const telegramShared = await this.#shareReceiptToTelegram(receipt);
       await this.store.markResearchUsed(source.key, { postedUrl: posted.url });
       await this.store.rememberAgent({
         kind: "autonomous-x-post",
@@ -363,6 +440,7 @@ export class AutonomousXService {
         sourceKey: source.key,
         sourceUrl: verifiedSource.url,
         url: posted.url,
+        telegramShared,
         postedAt: this.now().toISOString()
       });
     } catch (error) {
@@ -511,7 +589,26 @@ export class AutonomousXService {
     }
   }
 
-  async #decide(candidates, { resources, allowedTypes }) {
+  async #recentPerformance() {
+    const result = await this.#xResearchCall(() => (
+      this.xClient.userPosts(this.config.xExpectedUsername, 10)
+    ));
+    return (result?.posts || [])
+      .filter((post) => isFreshCandidate(
+        { publishedAt: post.createdAt },
+        this.now(),
+        this.config.agentMaxSourceAgeHours
+      ))
+      .map((post) => ({
+        url: post.url,
+        text: String(post.text || "").slice(0, 500),
+        createdAt: post.createdAt || null,
+        mediaType: post.media?.[0]?.type || "text",
+        metrics: post.metrics || null
+      }));
+  }
+
+  async #decide(candidates, { resources, allowedTypes, preferredType, recentPerformance }) {
     const claim = await this.store.claimUsage(
       "chat",
       AUTONOMOUS_USER,
@@ -524,6 +621,8 @@ export class AutonomousXService {
         candidates,
         agent: this.store.agentSnapshot(),
         allowedTypes,
+        preferredType,
+        recentPerformance,
         resources,
         now: this.now()
       }));
@@ -532,6 +631,10 @@ export class AutonomousXService {
       return jsonDecision(result.text);
     } catch (error) {
       await this.store.recordCost(claim.eventId, costUsd || Number(error?.costUsd) || 0);
+      if (canUseDecisionFallback(error)) {
+        this.logger.warn(`[agent] campaign decision fallback: ${error.message}`);
+        return fallbackAgentDecision(candidates, { preferredType });
+      }
       throw error;
     }
   }
@@ -642,6 +745,39 @@ export class AutonomousXService {
       this.logger.error("[agent] could not save cycle history", error);
     });
     return result;
+  }
+
+  async #sharePendingXPosts() {
+    if (!this.shareXPost || typeof this.store.pendingTelegramXReceipts !== "function") return;
+    for (const receipt of this.store.pendingTelegramXReceipts(5)) {
+      await this.#shareReceiptToTelegram(receipt);
+    }
+  }
+
+  async #shareReceiptToTelegram(receipt) {
+    if (!this.shareXPost || !receipt?.receiptId || !receipt?.url) return false;
+    try {
+      const sent = await this.shareXPost({
+        id: receipt.id,
+        url: receipt.url,
+        text: receipt.text,
+        postedAt: receipt.at
+      });
+      if (sent?.messageId === null || sent?.messageId === undefined) {
+        throw new Error("Telegram did not return a message receipt.");
+      }
+      await this.store.recordXTelegramShareAttempt(receipt.receiptId, {
+        messageId: sent.messageId,
+        chatId: sent.chatId
+      });
+      return true;
+    } catch (error) {
+      await this.store.recordXTelegramShareAttempt(receipt.receiptId, {
+        error: error?.message || "Telegram sharing failed."
+      }).catch(() => {});
+      this.logger.warn?.(`[agent] Telegram share will retry: ${error?.message || "unknown error"}`);
+      return false;
+    }
   }
 
   #schedule(delayMs) {

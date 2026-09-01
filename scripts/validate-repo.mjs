@@ -39,6 +39,10 @@ requireValue(project.links.solanaExplorer === mainnetToken.solanaExplorerUrl, "P
 requireValue(project.links.x === "https://x.com/STOPAICOIN", "Official X account must remain @STOPAICOIN.");
 requireValue(project.links.website === "https://stopai-coin.fly.dev", "Official website must remain the Fly deployment.");
 requireValue(
+  project.links.telegramStickerPack === "https://t.me/addstickers/stopai_stickers_by_stopaitoken_bot",
+  "Official Telegram sticker pack link must remain correct."
+);
+requireValue(
   project.links.geckoTerminal.includes("Ayq6y3J6FCZg1Lrd8TKDY3HkLRSBWd8pbop2UYDiRXk4"),
   "GeckoTerminal link must remain pinned to the verified STOPAI pool."
 );

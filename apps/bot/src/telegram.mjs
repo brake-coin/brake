@@ -496,6 +496,16 @@ export function chooseSticker(stickers, selection = "latest", random = Math.rand
     || stickers.at(-1);
 }
 
+export function findAddedSticker(previousStickers = [], currentStickers = []) {
+  if (!Array.isArray(currentStickers) || !currentStickers.length) return null;
+  const previousIds = new Set((previousStickers || [])
+    .map((sticker) => String(sticker?.file_unique_id || sticker?.file_id || ""))
+    .filter(Boolean));
+  return currentStickers.find((sticker) => (
+    !previousIds.has(String(sticker?.file_unique_id || sticker?.file_id || ""))
+  )) || currentStickers.at(-1);
+}
+
 export function xPostIdsInText(text) {
   const ids = new Set();
   const pattern = /(?:https?:\/\/)?(?:(?:www|mobile)\.)?(?:x\.com|twitter\.com)\/(?:i\/web\/status\/|[A-Za-z0-9_]{1,15}\/status\/)(\d{1,19})(?=$|[/?#)\]}\s.,!?;:'"])/gi;
@@ -561,6 +571,63 @@ export function enforceExpectedXPostUrls({ finalText, knownXPostIds = [], verifi
   return "I rejected an X post link that did not come from the conversation or a tool result.";
 }
 
+export function sanitizeTelegramReply(finalText, { currentUserId = "", knownUserIds = [] } = {}) {
+  let text = String(finalText || "").trim();
+  const current = String(currentUserId || "");
+  const ids = [...new Set([current, ...knownUserIds.map(String)])]
+    .filter((id) => /^\d{1,20}$/.test(id));
+  for (const id of ids) {
+    const pattern = new RegExp(`(^|[^0-9])${id}(?=$|[^0-9])`, "g");
+    text = text.replace(pattern, (_, prefix) => (
+      `${prefix}${id === current ? "you" : "a member"}`
+    ));
+  }
+  return text
+    .replace(/^(?:STOPAI (?:reply|response) (?:to|in) )?(?:Current member|Other member(?: \d+)?)(?:'s turn)?:\s*/i, "")
+    .replace(/^(?:STOPAI reply to )?Telegram user (?:you|a member|\d{1,20}):\s*/i, "")
+    .replace(/\bCurrent member\b/gi, "you")
+    .replace(/\bOther member(?: \d+)?\b/gi, "another member")
+    .replace(/\bTelegram user you\b/gi, "you")
+    .replace(/\bTelegram user a member\b/gi, "a member")
+    .trim();
+}
+
+export function ensureStickerPackLink(finalText, packUrl = "") {
+  const text = String(finalText || "").trim();
+  const url = String(packUrl || "").trim();
+  if (!/^https:\/\/t\.me\/addstickers\/[A-Za-z0-9_]+$/.test(url) || text.includes(url)) {
+    return text;
+  }
+  return `${text}\n\nOpen the sticker pack: ${url}`.trim();
+}
+
+export function telegramXPostMessage({ text = "", url = "", username = "STOPAICOIN" } = {}) {
+  let parsed;
+  try {
+    parsed = new URL(String(url || "").trim());
+  } catch {
+    throw new Error("A valid X post URL is required for the Telegram share.");
+  }
+  const match = /^\/([A-Za-z0-9_]{1,15})\/status\/(\d{1,19})\/?$/.exec(parsed.pathname);
+  const expectedUsername = String(username || "STOPAICOIN").trim().replace(/^@/, "");
+  if (
+    parsed.protocol !== "https:"
+    || !["x.com", "www.x.com"].includes(parsed.hostname.toLowerCase())
+    || !match
+    || match[1].toLowerCase() !== expectedUsername.toLowerCase()
+  ) {
+    throw new Error(`Only a verified @${expectedUsername} X post can be shared to Telegram.`);
+  }
+  const canonicalUsername = match[1];
+  const canonicalUrl = `https://x.com/${canonicalUsername}/status/${match[2]}`;
+  const postText = String(text || "").replace(/\r\n?/g, "\n").trim().slice(0, 1_000);
+  return [
+    `New on X from @${canonicalUsername} ✋🏻😡`,
+    postText,
+    canonicalUrl
+  ].filter(Boolean).join("\n\n");
+}
+
 function withTimeout(promise, milliseconds, message) {
   let timer;
   return Promise.race([
@@ -620,6 +687,22 @@ function shortMedia(media) {
   };
 }
 
+export class KeyedSerialQueue {
+  #pending = new Map();
+
+  async run(key, task) {
+    const queueKey = String(key);
+    const previous = this.#pending.get(queueKey) || Promise.resolve();
+    const current = previous.catch(() => {}).then(task);
+    this.#pending.set(queueKey, current);
+    try {
+      return await current;
+    } finally {
+      if (this.#pending.get(queueKey) === current) this.#pending.delete(queueKey);
+    }
+  }
+}
+
 export class TelegramService {
   constructor({
     config,
@@ -645,6 +728,7 @@ export class TelegramService {
     this.lastError = null;
     this.running = false;
     this.stickerQueue = Promise.resolve();
+    this.conversationQueue = new KeyedSerialQueue();
   }
 
   status() {
@@ -661,6 +745,30 @@ export class TelegramService {
         stickerCount: stickerPack.stickerCount,
         url: `https://t.me/addstickers/${stickerPack.name}`
       } : null
+    };
+  }
+
+  async shareXPost({ text = "", url = "" } = {}) {
+    if (!this.running || !this.bot?.telegram || !this.allowedChatId) {
+      throw new Error("The Telegram group bot is not running.");
+    }
+    const message = telegramXPostMessage({
+      text,
+      url,
+      username: this.config.xExpectedUsername
+    });
+    const canonicalUrl = message.split("\n\n").at(-1);
+    const sent = await withTimeout(
+      this.bot.telegram.sendMessage(this.allowedChatId, message, {
+        link_preview_options: { is_disabled: false, url: canonicalUrl }
+      }),
+      15_000,
+      "Sharing the X post to Telegram timed out."
+    );
+    this.logger.info(`[telegram] shared X post ${url} in the configured group`);
+    return {
+      messageId: sent?.message_id,
+      chatId: sent?.chat?.id || this.allowedChatId
     };
   }
 
@@ -900,6 +1008,16 @@ export class TelegramService {
   }
 
   async #runAssistant(ctx, userText, { isOperator, currentMedia = null }) {
+    const threadId = telegramThreadId(ctx.message);
+    const queueKey = JSON.stringify([String(ctx.chat?.id || "unknown"), threadId]);
+    return this.conversationQueue.run(queueKey, () => this.#runAssistantTurn(
+      ctx,
+      userText,
+      { isOperator, currentMedia, threadId }
+    ));
+  }
+
+  async #runAssistantTurn(ctx, userText, { isOperator, currentMedia, threadId }) {
     if (!await this.openRouter.connected()) {
       await ctx.reply([
         "The shared OpenRouter account is not connected yet, so chat and generation are paused.",
@@ -920,26 +1038,23 @@ export class TelegramService {
       return;
     }
 
-    const threadId = telegramThreadId(ctx.message);
     const history = this.store.recentMessages(ctx.chat.id, { threadId });
+    const sharedHistory = this.store.recentMessagesAcrossThreads(ctx.chat.id, {
+      excludeThreadId: threadId,
+      limit: 4
+    });
     const agent = this.store.agentSnapshot();
     const resources = buildAgentResourceStatus({
       store: this.store,
       config: this.config,
       userId: ctx.from?.id
     });
-    await this.store.recordMessage({
-      chatId: ctx.chat.id,
-      threadId,
-      userId: ctx.from?.id,
-      role: "user",
-      content: userText
-    });
     await ctx.sendChatAction("typing").catch(() => {});
     const messages = buildChatMessages(history, userText, {
       userId: ctx.from?.id,
       isOperator,
       currentMedia,
+      sharedHistory,
       chatModel: this.config.openRouterChatModel,
       imageModel: this.config.openRouterImageModel,
       videoModel: this.config.openRouterVideoModel,
@@ -956,11 +1071,12 @@ export class TelegramService {
     let lastChatModel = "";
     const knownXPostIds = new Set();
     const knownXPostUrls = new Set();
-    for (const message of history) {
+    for (const message of [...history, ...sharedHistory]) {
       if (message?.role === "user") addKnownXPostIds(knownXPostIds, message.content);
     }
     addKnownXPostIds(knownXPostIds, userText);
     let confirmedXPost = null;
+    let confirmedStickerPack = null;
     try {
       for (let round = 0; round < 4; round += 1) {
         const result = await this.openRouter.chatStep(messages, tools);
@@ -989,6 +1105,10 @@ export class TelegramService {
               confirmedXPost = toolResult;
             }
           }
+          if (["generate_sticker", "send_sticker", "sticker_pack"].includes(toolCall.function?.name)
+            && toolResult.ok && toolResult.pack?.url) {
+            confirmedStickerPack = toolResult.pack;
+          }
         }
       }
       finalText = enforceExpectedXPostUrls({
@@ -998,14 +1118,19 @@ export class TelegramService {
       });
       finalText = enforceFeeRouteReply(finalText);
       finalText = addResearchSources(finalText, knownXPostUrls);
+      finalText = sanitizeTelegramReply(finalText, {
+        currentUserId: ctx.from?.id,
+        knownUserIds: [...history, ...sharedHistory].map((message) => message?.userId)
+      });
+      finalText = ensureStickerPackLink(finalText, confirmedStickerPack?.url);
       if (!finalText) finalText = "I finished the tool work.";
       await this.store.recordCost(claim.eventId, totalCostUsd);
-      await this.store.recordMessage({
+      await this.store.recordTurn({
         chatId: ctx.chat.id,
         threadId,
         userId: ctx.from?.id,
-        role: "assistant",
-        content: finalText
+        userContent: userText,
+        assistantContent: finalText
       });
       await replyWithFormatting(ctx, finalText, this.logger);
       this.#markOutcome(ctx, "agent_replied");
@@ -1165,9 +1290,7 @@ export class TelegramService {
       })
     ));
     await this.store.recordCost(claim.eventId, result.costUsd);
-    const sent = await ctx.replyWithPhoto(result.buffer ? { source: result.buffer } : result.url, {
-      caption: `STOPAI ✋🏻😡\n${prompt.slice(0, 700)}`
-    });
+    const sent = await ctx.replyWithPhoto(result.buffer ? { source: result.buffer } : result.url);
     const fileId = sent.photo?.at(-1)?.file_id;
     if (!fileId) return { ok: true, sent: true, saved: false };
     const media = await this.store.recordMedia({
@@ -1357,7 +1480,12 @@ export class TelegramService {
       }
       throw error;
     }
-    const count = stickerSet ? stickerSet.stickers.length + 1 : 1;
+    const refreshedStickerSet = await ctx.telegram.getStickerSet(name);
+    const addedSticker = findAddedSticker(stickerSet?.stickers, refreshedStickerSet?.stickers);
+    if (!addedSticker?.file_id) {
+      throw new StickerError("Telegram created the sticker, but the finished sticker could not be loaded from the pack.");
+    }
+    const count = refreshedStickerSet.stickers.length;
     await this.store.saveStickerPack({
       name,
       title,
@@ -1369,7 +1497,7 @@ export class TelegramService {
       name,
       title,
       count,
-      fileId: uploaded.file_id,
+      fileId: addedSticker.file_id,
       url: `https://t.me/addstickers/${name}`
     };
   }

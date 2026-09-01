@@ -21,7 +21,8 @@
     "geckoTerminal": "https://www.geckoterminal.com/solana/pools/Ayq6y3J6FCZg1Lrd8TKDY3HkLRSBWd8pbop2UYDiRXk4",
     "jupiter": "https://verified.jup.ag/dashboard/2aTbo3yssANLrNoam4FFjNzkiuGQsCVqmHXrzYchBAGS",
     "x": "https://x.com/STOPAICOIN",
-    "telegram": "https://t.me/StopAiCoin"
+    "telegram": "https://t.me/StopAiCoin",
+    "telegramStickerPack": "https://t.me/addstickers/stopai_stickers_by_stopaitoken_bot"
   },
   "creatorFeeRecipient": {
     "venue": "Bags",

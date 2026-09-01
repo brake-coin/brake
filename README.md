@@ -145,8 +145,10 @@ into a new STOPAI meme and publish it with the original post URL visibly attache
   when its full username is mentioned or its message is directly replied to. Other groups
   are ignored. DMs receive a random gallery meme and the group link without reaching the
   agent.
-- Telegram topic history is separated and member turns are labelled. Chat text expires
-  after 30 days. Only actionable updates enter the bounded duplicate ledger; safe event logs
+- Telegram topic history is separated, with a small clearly marked view of recent activity in
+  other topics. Message text stays unchanged, member labels do not expose Telegram IDs, and
+  complete user/reply pairs are saved in order. Chat text expires after 30 days. Only actionable
+  updates enter the bounded duplicate ledger; safe event logs
   explain why other traffic was ignored without storing message text or raw IDs.
 - Shared chat and media have global and per-user hourly and daily limits.
 - X research has separate global and per-user hourly and daily limits.
@@ -168,6 +170,9 @@ into a new STOPAI meme and publish it with the original post URL visibly attache
   researches every two hours when eligible, remembers used sources and
   past posts, uses sources no older than seven days, waits at least four hours after any
   normal X post before posting autonomously, and stops after 30 per UTC day.
+- Each verified autonomous X post is also shared into the configured Telegram group with
+  its text and canonical X link. Failed Telegram deliveries stay pending and retry on a
+  later agent cycle without publishing the X post again.
 - Secrets belong in `.env`, which is ignored by Git.
 - Public BYOK keys stay in the visitor's browser tab. A separate admin-linked key is
   stored on the private Fly volume only for Telegram chat and limited bot media.

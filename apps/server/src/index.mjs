@@ -133,19 +133,20 @@ const xClient = new XClient({
   credentialProvider: xCredentialProvider
 });
 const xGallery = new XGallery({ xClient, username: expectedXUsername });
-const xAutomation = new AutonomousXService({
-  config: botConfig,
-  store: botStore,
-  openRouter,
-  xClient,
-  canonicalReferenceDataUrl
-});
 const telegram = new TelegramService({
   config: botConfig,
   store: botStore,
   openRouter,
   xClient,
   canonicalReferenceDataUrl
+});
+const xAutomation = new AutonomousXService({
+  config: botConfig,
+  store: botStore,
+  openRouter,
+  xClient,
+  canonicalReferenceDataUrl,
+  shareXPost: (post) => telegram.shareXPost(post)
 });
 
 const mimeTypes = {
