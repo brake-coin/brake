@@ -826,12 +826,19 @@ export class TelegramService {
       this.lastError = safeErrorMessage(error);
       this.logger.error("[telegram] handler failed", error);
     });
-    this.botInfo = await withTimeout(
-      this.bot.telegram.getMe(),
-      15_000,
-      "Telegram token check timed out."
-    );
-    await this.#resolveChatTargets();
+    try {
+      this.botInfo = await withTimeout(
+        this.bot.telegram.getMe(),
+        15_000,
+        "Telegram token check timed out."
+      );
+      await this.#resolveChatTargets();
+    } catch (error) {
+      this.lastError = error?.response?.error_code === 401
+        ? "Telegram rejected the saved bot token. Replace it with a new token from BotFather."
+        : "Telegram could not start. Check the bot settings and server logs.";
+      throw error;
+    }
     this.#registerHandlers();
     await this.bot.telegram.deleteMyCommands()
       .catch((error) => this.logger.warn("[telegram] command menu removal failed", error.message));
