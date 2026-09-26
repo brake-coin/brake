@@ -82,6 +82,8 @@ function renderConnection(status) {
   disconnectTelegram.hidden = telegram.source !== "admin";
   telegramCopy.textContent = telegram.running
     ? "Verified and listening. Replace the token here if BotFather rotates it."
+    : telegram.error
+      ? telegram.error
     : telegram.source === "environment"
       ? "Configured through a Fly secret. Admin replacement is available."
       : telegram.configured

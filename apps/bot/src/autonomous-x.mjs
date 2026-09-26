@@ -561,11 +561,12 @@ export class AutonomousXService {
     }
     items.push(...await this.newsResearch.latest({ limit: 20 }));
     await this.store.recordResearch(items);
-    return this.store.agentSnapshot({ researchLimit: 50 }).research
+    return this.store.agentSnapshot({ researchLimit: 500 }).research
       .filter((item) => !item.usedAt && !item.isReply && !item.isRepost && !item.isQuote
         && !item.possiblySensitive
         && item.author?.toLowerCase() !== this.config.xExpectedUsername.toLowerCase()
         && isFreshCandidate(item, this.now(), this.config.agentMaxSourceAgeHours))
+      .sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))
       .slice(0, this.config.agentCandidateLimit)
       .map(publicCandidate);
   }

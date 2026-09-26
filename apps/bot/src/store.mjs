@@ -284,7 +284,7 @@ export class BotStore {
     return {
       goals: agent.goals.filter((goal) => goal.active !== false),
       memories: agent.memories.slice(0, Math.max(1, Math.min(50, memoryLimit))),
-      research: agent.research.slice(0, Math.max(1, Math.min(50, researchLimit))),
+      research: agent.research.slice(0, Math.max(1, Math.min(500, researchLimit))),
       cycles: agent.cycles.slice(0, Math.max(1, Math.min(20, cycleLimit)))
     };
   }
@@ -450,7 +450,8 @@ export class BotStore {
         }
       }
       state.agent.research.sort((a, b) => (
-        Number(Boolean(a.usedAt)) - Number(Boolean(b.usedAt))
+        (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0)
+        || Number(Boolean(a.usedAt)) - Number(Boolean(b.usedAt))
         || (Number(b.score) || 0) - (Number(a.score) || 0)
         || new Date(b.lastSeenAt).getTime() - new Date(a.lastSeenAt).getTime()
       ));

@@ -45,6 +45,46 @@ test("store suppresses duplicate Telegram actions across concurrency and restart
   assert.equal((await reloaded.claimTelegramUpdate(undefined)).reason, "untracked_update");
 });
 
+test("fresh research stays available when the store is full of old high-score sources", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-research-retention-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const store = new BotStore(path.join(directory, "bot.json"), {
+    now: () => new Date("2026-09-25T02:00:00.000Z")
+  });
+  await store.recordResearch(Array.from({ length: 500 }, (_, index) => ({
+    key: `x:${index + 1}`,
+    kind: "x",
+    title: `Old AI source ${index + 1}`,
+    url: `https://x.com/source/status/${index + 1}`,
+    publishedAt: "2026-09-06T03:00:00.000Z",
+    score: 8
+  })));
+  await store.recordResearch([{
+    key: "news:fresh",
+    kind: "news",
+    title: "Fresh AI safety news",
+    url: "https://news.example/fresh",
+    publishedAt: "2026-09-25T01:00:00.000Z",
+    score: 5
+  }]);
+
+  assert.equal(store.agentStatus().researchCount, 500);
+  assert.equal(store.agentStatus().lastResearchAt, "2026-09-25T02:00:00.000Z");
+  assert.equal(store.agentSnapshot().research[0].key, "news:fresh");
+  await store.markResearchUsed("news:fresh", { postedUrl: "https://x.com/STOPAICOIN/status/600" });
+  await store.recordResearch([{
+    key: "news:fresh",
+    kind: "news",
+    title: "Fresh AI safety news",
+    url: "https://news.example/fresh",
+    publishedAt: "2026-09-25T01:00:00.000Z",
+    score: 5
+  }]);
+  assert.equal(store.agentSnapshot({ researchLimit: 500 }).research.find((item) => (
+    item.key === "news:fresh"
+  ))?.usedAt, "2026-09-25T02:00:00.000Z");
+});
+
 test("version 10 preserves production state and cleans leaked participant labels", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-v10-migration-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
