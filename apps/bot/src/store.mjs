@@ -626,7 +626,11 @@ export class BotStore {
         ["sending", "sent", "uncertain"].includes(record.status)
         && now - Date.parse(record.sendStartedAt || 0) < 24 * 60 * 60 * 1_000
       ));
-      if (recent.length >= 10 || recent.some((record) => record.authorId === item.authorId)) {
+      const lastHour = recent.filter((record) => (
+        now - Date.parse(record.sendStartedAt || 0) < 60 * 60 * 1_000
+      ));
+      if (recent.length >= 10 || lastHour.length >= 3
+        || recent.some((record) => record.authorId === item.authorId)) {
         result = { allowed: false, reason: "reply_limit" };
         return;
       }

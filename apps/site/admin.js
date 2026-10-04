@@ -47,6 +47,7 @@ const xReplies = document.querySelector("#x-replies");
 const xRepliesRefresh = document.querySelector("#x-replies-refresh");
 const xRepliesMessage = document.querySelector("#x-replies-message");
 const xRepliesList = document.querySelector("#x-replies-list");
+const xRepliesMode = document.querySelector("#x-replies-mode");
 
 function replyButton(label, action) {
   const button = document.createElement("button");
@@ -239,6 +240,9 @@ function renderConnection(status) {
   const automation = x.automation || {};
   xAutomation.hidden = !xConnected;
   xReplies.hidden = !xConnected;
+  xRepliesMode.textContent = x.replies?.automaticEnabled
+    ? `Approved AI replies run every ${x.replies.pollMinutes} minutes. The latest cycle ${x.replies.lastRunAt || "is pending"}.`
+    : "Owner review is active. AI sending starts after X written approval is recorded in server settings.";
   const memory = automation.memory || {};
   const lastCycle = memory.lastCycle;
   xAutomationCopy.textContent = automation.enabled
