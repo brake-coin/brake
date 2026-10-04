@@ -43,6 +43,121 @@ const disconnectX = document.querySelector("#disconnect-x");
 const xAutomation = document.querySelector("#x-automation");
 const xAutomationCopy = document.querySelector("#x-automation-copy");
 const xTestButtons = [...document.querySelectorAll("[data-x-test]")];
+const xReplies = document.querySelector("#x-replies");
+const xRepliesRefresh = document.querySelector("#x-replies-refresh");
+const xRepliesMessage = document.querySelector("#x-replies-message");
+const xRepliesList = document.querySelector("#x-replies-list");
+
+function replyButton(label, action) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "admin-quiet-button";
+  button.textContent = label;
+  button.addEventListener("click", action);
+  return button;
+}
+
+function renderReplies(replies) {
+  xRepliesList.replaceChildren();
+  if (!replies.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "Check mentions to fill the reply inbox.";
+    xRepliesList.append(empty);
+    return;
+  }
+  for (const item of replies) {
+    const card = document.createElement("article");
+    card.className = "x-reply-card";
+    const source = document.createElement("a");
+    source.href = item.url;
+    source.target = "_blank";
+    source.rel = "noreferrer";
+    source.textContent = `@${item.authorUsername} on X ↗`;
+    const post = document.createElement("p");
+    post.textContent = item.text;
+    const status = document.createElement("p");
+    status.className = "generator-fine-print";
+    status.textContent = item.reviewDecision === "report_spam"
+      ? "AI flagged possible spam. Review the post on X and use X’s Report action if needed."
+      : `Status: ${item.status}${item.reviewDecision ? ` · AI: ${item.reviewDecision}` : ""}`;
+    card.append(source, post, status);
+    if (item.reviewDecision === "report_spam") {
+      const report = document.createElement("a");
+      report.href = item.url;
+      report.target = "_blank";
+      report.rel = "noreferrer";
+      report.textContent = "Open on X to report spam ↗";
+      card.append(report);
+    }
+    if (item.replyUrl) {
+      const sent = document.createElement("a");
+      sent.href = item.replyUrl;
+      sent.target = "_blank";
+      sent.rel = "noreferrer";
+      sent.textContent = "View sent reply ↗";
+      card.append(sent);
+    }
+    if (item.status === "pending") {
+      const draft = document.createElement("textarea");
+      draft.rows = 3;
+      draft.maxLength = 260;
+      draft.placeholder = "Write a short reply. The opt-out line is added when sent.";
+      draft.value = item.draft || "";
+      draft.setAttribute("aria-label", `Reply to @${item.authorUsername}`);
+      const actions = document.createElement("div");
+      actions.className = "admin-actions";
+      actions.append(replyButton("AI review", () => actOnReply("triage", item.id)));
+      if (item.reviewDecision !== "report_spam") {
+        actions.append(replyButton("Send reviewed reply", async () => {
+          if (!window.confirm(`Send this reply to @${item.authorUsername} on X?`)) return;
+          await actOnReply("send", item.id, { text: draft.value });
+        }));
+      }
+      actions.append(
+        replyButton("Skip", () => actOnReply("skip", item.id)),
+        replyButton("Opt out author", () => actOnReply("opt-out", item.id))
+      );
+      if (item.reviewDecision !== "report_spam") card.append(draft);
+      card.append(actions);
+    }
+    xRepliesList.append(card);
+  }
+}
+
+async function loadReplyInbox() {
+  const result = await api("./api/admin/x/replies");
+  renderReplies(result.replies || []);
+}
+
+async function actOnReply(action, id, details = {}) {
+  xRepliesMessage.textContent = `${action.replace("-", " ")}…`;
+  try {
+    const result = await api(`./api/admin/x/replies/${action}`, {
+      method: "POST",
+      body: JSON.stringify({ id, ...details })
+    });
+    xRepliesMessage.textContent = action === "send"
+      ? `Reply sent: ${result.reply.url}`
+      : action === "triage" ? `AI review: ${result.record.reviewDecision}.` : "Inbox updated.";
+  } catch (error) {
+    xRepliesMessage.textContent = error.message;
+  }
+  await loadReplyInbox();
+}
+
+xRepliesRefresh.addEventListener("click", async () => {
+  xRepliesRefresh.disabled = true;
+  xRepliesMessage.textContent = "Checking direct mentions and followers…";
+  try {
+    const result = await api("./api/admin/x/replies/refresh", { method: "POST" });
+    xRepliesMessage.textContent = `Checked ${result.checked} mentions; ${result.matched} matched; ${result.spamFiltered} filtered for spam.`;
+    renderReplies(result.replies || []);
+  } catch (error) {
+    xRepliesMessage.textContent = error.message;
+  } finally {
+    xRepliesRefresh.disabled = false;
+  }
+});
 
 function showOnly(name) {
   for (const [key, panel] of Object.entries(panels)) panel.hidden = key !== name;
@@ -123,6 +238,7 @@ function renderConnection(status) {
   }
   const automation = x.automation || {};
   xAutomation.hidden = !xConnected;
+  xReplies.hidden = !xConnected;
   const memory = automation.memory || {};
   const lastCycle = memory.lastCycle;
   xAutomationCopy.textContent = automation.enabled
@@ -141,6 +257,7 @@ function renderConnection(status) {
 async function refreshStatus() {
   try {
     renderConnection(await api("./api/admin/status"));
+    if (!xReplies.hidden) await loadReplyInbox();
   } catch (error) {
     if (error.status === 401) showOnly("login");
     else if (error.status === 503) showOnly("unconfigured");

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
     <title>STOPAI Admin — bot connections</title>
-    <link rel="stylesheet" href="./styles.css?v=20260823-3" />
+    <link rel="stylesheet" href="./styles.css?v=20261004-2" />
   </head>
   <body class="admin-page">
     <header class="site-header">
@@ -172,6 +172,15 @@
               <button class="admin-quiet-button" type="button" data-x-test="video">Post live video test</button>
             </div>
           </div>
+          <div class="connection-details" id="x-replies" hidden>
+            <h4>Reviewed X replies</h4>
+            <p>Replies go to direct mentions or replies from followers. Review each reply before it goes live. X requires written approval for AI-powered automatic replies.</p>
+            <div class="admin-actions">
+              <button class="admin-quiet-button" id="x-replies-refresh" type="button">Check mentions</button>
+            </div>
+            <p class="admin-message" id="x-replies-message" role="status" aria-live="polite"></p>
+            <div id="x-replies-list"></div>
+          </div>
           <p class="admin-message" id="x-message" role="status" aria-live="polite"></p>
         </div>
       </section>
@@ -196,6 +205,6 @@
       <span>STOPAI owner console</span>
       <a href="./">Return to the meme machine</a>
     </footer>
-    <script type="module" src="./admin.js?v=20260823-3"></script>
+    <script type="module" src="./admin.js?v=20261004-2"></script>
   </body>
 </html>

@@ -48,6 +48,47 @@ test("X client creates and verifies an authorized text post with a user token", 
   assert.equal(result.verified, true);
 });
 
+test("X client replies to a selected post and verifies the reply target", async () => {
+  let createBody;
+  const client = new XClient({
+    config: config({ xExpectedUsername: "STOPAICOIN" }),
+    credentialProvider: async () => ({ accessToken: "private-user-token" }),
+    fetchImpl: async (_url, options) => {
+      if (options?.method === "POST") {
+        createBody = JSON.parse(options.body);
+        return new Response(JSON.stringify({ data: { id: "101" } }), { status: 201 });
+      }
+      return new Response(JSON.stringify({
+        data: { id: "101", text: "Thanks", author_id: "10", referenced_tweets: [{ type: "replied_to", id: "100" }] },
+        includes: { users: [{ id: "10", username: "STOPAICOIN" }] }
+      }), { status: 200 });
+    }
+  });
+  const result = await client.reply({ text: "Thanks", replyToId: "100" });
+  assert.deepEqual(createBody.reply, { in_reply_to_tweet_id: "100" });
+  assert.equal(createBody.made_with_ai, true);
+  assert.equal(result.url, "https://x.com/STOPAICOIN/status/101");
+  await assert.rejects(() => client.reply({ text: "@another Thanks", replyToId: "100" }), /added @mentions/);
+});
+
+test("X client checks follower pages with the connected account token", async () => {
+  const requests = [];
+  const client = new XClient({
+    config: config(),
+    credentialProvider: async () => ({ accessToken: "private-user-token" }),
+    fetchImpl: async (url) => {
+      requests.push(url);
+      return new Response(JSON.stringify(requests.length === 1
+        ? { data: [{ id: "20" }], meta: { next_token: "1234567890123456" } }
+        : { data: [{ id: "30" }] }), { status: 200 });
+    }
+  });
+  const ids = await client.followerIds("10");
+  assert.equal(ids.has("20"), true);
+  assert.equal(ids.has("30"), true);
+  assert.equal(new URL(requests[1]).searchParams.get("pagination_token"), "1234567890123456");
+});
+
 test("X client rejects a returned ID that cannot be read back", async () => {
   const client = new XClient({
     config: config(),

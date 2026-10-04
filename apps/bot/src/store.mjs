@@ -17,6 +17,8 @@ const EMPTY_STATE = Object.freeze({
   telegramUpdates: {},
   xReceipts: [],
   xSourcePosts: {},
+  xReplyInbox: {},
+  xReplyOptOuts: {},
   stickerPack: null,
   agent: {
     goals: [],
@@ -141,6 +143,15 @@ function cleanState(value) {
     telegramUpdates: cleanTelegramUpdates(value?.telegramUpdates),
     xReceipts: Array.isArray(value?.xReceipts) ? value.xReceipts.map((item) => ({ ...item })) : [],
     xSourcePosts: cleanXSourcePosts(value?.xSourcePosts),
+    xReplyInbox: value?.xReplyInbox && typeof value.xReplyInbox === "object" && !Array.isArray(value.xReplyInbox)
+      ? Object.fromEntries(Object.entries(value.xReplyInbox)
+        .filter(([id, item]) => /^\d{1,19}$/.test(id) && item && typeof item === "object")
+        .map(([id, item]) => [id, { ...item, id }]))
+      : {},
+    xReplyOptOuts: value?.xReplyOptOuts && typeof value.xReplyOptOuts === "object" && !Array.isArray(value.xReplyOptOuts)
+      ? Object.fromEntries(Object.entries(value.xReplyOptOuts)
+        .filter(([id]) => /^\d{1,19}$/.test(id)))
+      : {},
     stickerPack: cleanStickerPack(value?.stickerPack),
     agent: {
       goals: Array.isArray(agent.goals) ? agent.goals.map((item) => ({ ...item })) : [],
@@ -538,6 +549,136 @@ export class BotStore {
 
   recentXReceipts(limit = 10) {
     return this.#state.xReceipts.slice(0, Math.max(1, Math.min(50, Number(limit) || 10)));
+  }
+
+  listXReplies(limit = 50) {
+    return Object.values(this.#state.xReplyInbox)
+      .sort((left, right) => String(right.createdAt || "").localeCompare(String(left.createdAt || "")))
+      .slice(0, Math.max(1, Math.min(100, Number(limit) || 50)))
+      .map((item) => ({ ...item }));
+  }
+
+  xReplyOptedOut(authorId) {
+    return Boolean(this.#state.xReplyOptOuts[String(authorId)]);
+  }
+
+  async optOutXReplyAuthor(authorId) {
+    const id = String(authorId || "");
+    if (!/^\d{1,19}$/.test(id)) return;
+    await this.#mutate((state) => {
+      state.xReplyOptOuts[id] = this.now().toISOString();
+      for (const item of Object.values(state.xReplyInbox)) {
+        if (item.authorId === id && item.status === "pending") item.status = "opted_out";
+      }
+    });
+  }
+
+  async recordXReplyCandidate(post) {
+    const id = String(post?.id || "");
+    const authorId = String(post?.author?.id || "");
+    if (!/^\d{1,19}$/.test(id) || !/^\d{1,19}$/.test(authorId)) return null;
+    let record;
+    await this.#mutate((state) => {
+      const existing = state.xReplyInbox[id];
+      if (existing) {
+        record = { ...existing };
+        return;
+      }
+      record = {
+        id,
+        url: String(post.url || `https://x.com/i/web/status/${id}`).slice(0, 1_000),
+        text: String(post.text || "").slice(0, 1_000),
+        authorId,
+        authorUsername: String(post.author.username || "").slice(0, 15),
+        createdAt: post.createdAt || null,
+        status: state.xReplyOptOuts[authorId] ? "opted_out" : "pending",
+        replyId: null,
+        replyUrl: null,
+        updatedAt: this.now().toISOString()
+      };
+      state.xReplyInbox[id] = record;
+      const oldest = Object.values(state.xReplyInbox)
+        .sort((left, right) => String(right.createdAt || "").localeCompare(String(left.createdAt || "")))
+        .slice(500);
+      for (const item of oldest) {
+        if (item.status !== "sending" && item.status !== "uncertain") delete state.xReplyInbox[item.id];
+      }
+    });
+    return record;
+  }
+
+  async claimXReply(id) {
+    let result = { allowed: false, reason: "missing_candidate" };
+    await this.#mutate((state) => {
+      const item = state.xReplyInbox[String(id)];
+      if (!item) return;
+      if (item.status !== "pending") {
+        result = { allowed: false, reason: item.status };
+        return;
+      }
+      if (state.xReplyOptOuts[item.authorId]) {
+        item.status = "opted_out";
+        result = { allowed: false, reason: "opted_out" };
+        return;
+      }
+      const now = this.now().getTime();
+      const recent = Object.values(state.xReplyInbox).filter((record) => (
+        ["sending", "sent", "uncertain"].includes(record.status)
+        && now - Date.parse(record.sendStartedAt || 0) < 24 * 60 * 60 * 1_000
+      ));
+      if (recent.length >= 10 || recent.some((record) => record.authorId === item.authorId)) {
+        result = { allowed: false, reason: "reply_limit" };
+        return;
+      }
+      item.status = "sending";
+      item.claimId = randomUUID();
+      item.sendStartedAt = this.now().toISOString();
+      item.updatedAt = item.sendStartedAt;
+      result = { allowed: true, claimId: item.claimId, record: { ...item } };
+    });
+    return result;
+  }
+
+  async finishXReply(claimId, { replyId = "", replyUrl = "", error = "" } = {}) {
+    let updated = null;
+    await this.#mutate((state) => {
+      const item = Object.values(state.xReplyInbox)
+        .find((record) => record.claimId === String(claimId) && record.status === "sending");
+      if (!item) return;
+      item.status = replyId && replyUrl ? "sent" : "uncertain";
+      item.replyId = /^\d{1,19}$/.test(String(replyId)) ? String(replyId) : null;
+      item.replyUrl = /^https:\/\/x\.com\//.test(String(replyUrl)) ? String(replyUrl) : null;
+      item.error = String(error || "").slice(0, 300);
+      item.updatedAt = this.now().toISOString();
+      updated = { ...item };
+    });
+    return updated;
+  }
+
+  async skipXReply(id) {
+    let updated = null;
+    await this.#mutate((state) => {
+      const item = state.xReplyInbox[String(id)];
+      if (!item || item.status !== "pending") return;
+      item.status = "skipped";
+      item.updatedAt = this.now().toISOString();
+      updated = { ...item };
+    });
+    return updated;
+  }
+
+  async reviewXReply(id, { decision, draft = "" }) {
+    if (!["reply", "skip", "report_spam"].includes(decision)) return null;
+    let updated = null;
+    await this.#mutate((state) => {
+      const item = state.xReplyInbox[String(id)];
+      if (!item || item.status !== "pending") return;
+      item.reviewDecision = decision;
+      item.draft = decision === "reply" ? String(draft || "").trim().slice(0, 500) : "";
+      item.updatedAt = this.now().toISOString();
+      updated = { ...item };
+    });
+    return updated;
   }
 
   async recordXReceipt({
