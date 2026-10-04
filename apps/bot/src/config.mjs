@@ -149,6 +149,12 @@ export function createBotConfig(env = process.env) {
     xResearchDailyCap: integer(env.X_RESEARCH_DAILY_CAP, 1_000, { minimum: 1, maximum: 5_000 }),
     xResearchUserHourlyCap: integer(env.X_RESEARCH_USER_HOURLY_CAP, 50, { minimum: 1, maximum: 300 }),
     xResearchUserDailyCap: integer(env.X_RESEARCH_USER_DAILY_CAP, 200, { minimum: 1, maximum: 1_000 }),
+    xAiRepliesEnabled: boolean(env.X_AI_REPLIES_ENABLED, false),
+    xAiReplyApprovalReference: String(env.X_AI_REPLY_APPROVAL_REFERENCE || "").trim(),
+    xAiReplyPollMinutes: integer(env.X_AI_REPLY_POLL_MINUTES, 30, {
+      minimum: 15,
+      maximum: 24 * 60
+    }),
     xAutonomousPostingEnabled: boolean(env.X_AUTONOMOUS_POSTING_ENABLED, false),
     xAutonomousIntervalMinutes: integer(env.X_AUTONOMOUS_INTERVAL_MINUTES, 120, {
       minimum: 60,

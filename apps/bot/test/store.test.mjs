@@ -8,6 +8,33 @@ import { createBotConfig } from "../src/config.mjs";
 import { buildAgentResourceStatus } from "../src/resources.mjs";
 import { BotStore } from "../src/store.mjs";
 
+test("X reply claims survive restarts and honor opt-outs", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-x-replies-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const filePath = path.join(directory, "bot.json");
+  const now = () => new Date("2026-10-04T12:00:00.000Z");
+  const store = new BotStore(filePath, { now });
+  await store.recordXReplyCandidate({
+    id: "100", text: "@STOPAICOIN hello", url: "https://x.com/member/status/100",
+    createdAt: "2026-10-04T11:00:00.000Z", author: { id: "20", username: "member" }
+  });
+  const claims = await Promise.all([store.claimXReply("100"), store.claimXReply("100")]);
+  assert.equal(claims.filter((claim) => claim.allowed).length, 1);
+  const reloaded = await new BotStore(filePath, { now }).load();
+  assert.equal((await reloaded.claimXReply("100")).allowed, false);
+  await reloaded.finishXReply(claims.find((claim) => claim.allowed).claimId, {
+    replyId: "101", replyUrl: "https://x.com/STOPAICOIN/status/101"
+  });
+  assert.equal(reloaded.listXReplies()[0].status, "sent");
+  await reloaded.optOutXReplyAuthor("20");
+  assert.equal(reloaded.xReplyOptedOut("20"), true);
+  await reloaded.recordXReplyCandidate({
+    id: "102", text: "@STOPAICOIN hello again", createdAt: "2026-10-04T11:30:00.000Z",
+    author: { id: "20", username: "member" }
+  });
+  assert.equal(reloaded.listXReplies().find((item) => item.id === "102").status, "opted_out");
+});
+
 test("store applies global and per-user limits atomically", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "stopai-bot-store-"));
   t.after(() => rm(directory, { recursive: true, force: true }));

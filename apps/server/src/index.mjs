@@ -4,12 +4,17 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 import { AutonomousXService } from "../../bot/src/autonomous-x.mjs";
-import { createBotConfig } from "../../bot/src/config.mjs";
+import { createBotConfig, usageLimits } from "../../bot/src/config.mjs";
 import { OpenRouterClient, OpenRouterError } from "../../bot/src/openrouter.mjs";
 import { DEFAULT_AGENT_GOALS } from "../../bot/src/persona.mjs";
 import { BotStore } from "../../bot/src/store.mjs";
 import { TelegramService } from "../../bot/src/telegram.mjs";
-import { XClient, XError } from "../../bot/src/x.mjs";
+import { XClient, XError, validateXReply } from "../../bot/src/x.mjs";
+import {
+  assessLiveReplyCandidate,
+  reviewXReplyWithAI,
+  runApprovedXReplyCycle
+} from "../../bot/src/x-replies.mjs";
 import {
   ADMIN_COOKIE,
   adminCookie,
@@ -185,6 +190,48 @@ class FixedWindowRateLimiter {
 const loginLimiter = new FixedWindowRateLimiter({ limit: 5, windowMs: 15 * 60 * 1_000 });
 const telegramConnectLimiter = new FixedWindowRateLimiter({ limit: 10, windowMs: 60 * 60 * 1_000 });
 const xTestPostLimiter = new FixedWindowRateLimiter({ limit: 3, windowMs: 60 * 60 * 1_000 });
+const xReplyRefreshLimiter = new FixedWindowRateLimiter({ limit: 6, windowMs: 60 * 60 * 1_000 });
+const xReplyReviewLimiter = new FixedWindowRateLimiter({ limit: 20, windowMs: 60 * 60 * 1_000 });
+
+async function connectedXUser() {
+  const stored = await xCredentialStore.read();
+  if (stored?.user?.id) return stored.user;
+  const credential = await xCredentialProvider();
+  if (!credential?.accessToken) throw new XError("Connect @STOPAICOIN first.", 503);
+  const user = await getXUser({ accessToken: credential.accessToken, signal: AbortSignal.timeout(15_000) });
+  if (user.username.toLowerCase() !== expectedXUsername) {
+    throw new XError("The connected X account is unexpected.", 409);
+  }
+  return user;
+}
+
+const autoReplyStatus = { lastRunAt: null, lastResult: null, lastError: null };
+
+async function runAutoReplyCycle() {
+  if (!botConfig.xAiRepliesEnabled || !botConfig.xAiReplyApprovalReference) return;
+  if (runAutoReplyCycle.running) return;
+  runAutoReplyCycle.running = true;
+  try {
+    const user = await connectedXUser();
+    autoReplyStatus.lastResult = await runApprovedXReplyCycle({
+      enabled: true,
+      approvalReference: botConfig.xAiReplyApprovalReference,
+      xClient,
+      store: botStore,
+      openRouter,
+      user,
+      config: botConfig
+    });
+    autoReplyStatus.lastError = null;
+  } catch (error) {
+    autoReplyStatus.lastError = error instanceof XError || error instanceof OpenRouterError
+      ? error.message : "The reply cycle failed.";
+    console.error("X reply cycle failed", error);
+  } finally {
+    autoReplyStatus.lastRunAt = new Date().toISOString();
+    runAutoReplyCycle.running = false;
+  }
+}
 
 async function telegramAdminStatus() {
   return {
@@ -204,7 +251,14 @@ async function xAdminStatus() {
       callbackUrl: xCallbackUrl,
       expectedUsername: expectedXUsername
     }),
-    automation: xAutomation.status()
+    automation: xAutomation.status(),
+    replies: {
+      automaticEnabled: botConfig.xAiRepliesEnabled
+        && botConfig.xAiReplyApprovalReference.length >= 8,
+      approvalReferenceRecorded: botConfig.xAiReplyApprovalReference.length >= 8,
+      pollMinutes: botConfig.xAiReplyPollMinutes,
+      ...autoReplyStatus
+    }
   };
 }
 
@@ -473,6 +527,142 @@ async function handleAdminApi(request, response, url) {
     return true;
   }
 
+  if (request.method === "GET" && url.pathname === "/api/admin/x/replies") {
+    if (!requireAdmin(request, response)) return true;
+    sendJson(response, 200, { replies: botStore.listXReplies() });
+    return true;
+  }
+
+  if (request.method === "POST" && url.pathname.startsWith("/api/admin/x/replies/")) {
+    if (!requestOriginAllowed(request)) {
+      sendJson(response, 403, { error: "Origin not allowed." });
+      return true;
+    }
+    if (!requireAdmin(request, response)) return true;
+    const action = url.pathname.slice("/api/admin/x/replies/".length);
+    if (!["refresh", "triage", "send", "skip", "opt-out"].includes(action)) return false;
+    try {
+      const body = action === "refresh" ? {} : await readJsonBody(request);
+      const id = String(body.id || "");
+      if (action !== "refresh" && !/^\d{1,19}$/.test(id)) {
+        throw new UserInputError("Choose a reply from the inbox.");
+      }
+      if (action === "refresh") {
+        if (!xReplyRefreshLimiter.take(clientKey(request))) {
+          sendJson(response, 429, { error: "The reply inbox can refresh six times per hour." });
+          return true;
+        }
+        const user = await connectedXUser();
+        const [mentions, followers] = await Promise.all([
+          xClient.mentions(user.id),
+          xClient.followerIds(user.id)
+        ]);
+        let added = 0;
+        let spam = 0;
+        for (const post of mentions) {
+          const assessment = await assessLiveReplyCandidate(post, { xClient, user });
+          if (assessment.optOut) {
+            await botStore.optOutXReplyAuthor(post.author.id);
+          } else if (assessment.eligible && followers.has(post.author.id)) {
+            await botStore.recordXReplyCandidate(post);
+            added += 1;
+          } else if (assessment.reason === "spam_signals" || assessment.reason === "new_low_reach_account") {
+            spam += 1;
+          }
+        }
+        sendJson(response, 200, { ok: true, checked: mentions.length, matched: added, spamFiltered: spam, replies: botStore.listXReplies() });
+        return true;
+      }
+      const record = botStore.listXReplies(100).find((item) => item.id === id);
+      if (!record) {
+        sendJson(response, 404, { error: "That reply is outside the current inbox." });
+        return true;
+      }
+      if (action === "opt-out") {
+        await botStore.optOutXReplyAuthor(record.authorId);
+        sendJson(response, 200, { ok: true, replies: botStore.listXReplies() });
+        return true;
+      }
+      if (action === "skip") {
+        const skipped = await botStore.skipXReply(id);
+        sendJson(response, skipped ? 200 : 409, skipped
+          ? { ok: true, record: skipped }
+          : { error: "This reply has already been handled." });
+        return true;
+      }
+      if (record.status !== "pending" || botStore.xReplyOptedOut(record.authorId)) {
+        sendJson(response, 409, { error: "This reply is already handled or the author opted out." });
+        return true;
+      }
+      if (action === "send" && record.reviewDecision === "report_spam") {
+        sendJson(response, 409, { error: "AI flagged this post as possible spam. Review or skip it first." });
+        return true;
+      }
+      if (action === "triage") {
+        if (!xReplyReviewLimiter.take(clientKey(request))) {
+          sendJson(response, 429, { error: "The hourly AI review limit has been reached." });
+          return true;
+        }
+        if (!await openRouter.connected()) throw new OpenRouterError("Connect OpenRouter for AI review.");
+        const usage = await botStore.claimUsage("chat", "x-reply-review", usageLimits(botConfig, "chat"));
+        if (!usage.allowed) {
+          sendJson(response, 429, { error: "The shared AI chat limit has been reached." });
+          return true;
+        }
+        let result;
+        try {
+          result = await reviewXReplyWithAI(openRouter, record);
+          await botStore.recordCost(usage.eventId, result.costUsd);
+        } catch (error) {
+          await botStore.recordCost(usage.eventId, error.costUsd || 0);
+          throw error;
+        }
+        const reviewed = await botStore.reviewXReply(id, {
+          decision: result.decision,
+          draft: result.draft
+        });
+        sendJson(response, 200, { ok: true, record: reviewed });
+        return true;
+      }
+      const text = String(body.text || "").trim();
+      if (!text) throw new UserInputError("Write a reply before sending.");
+      const replyText = /\b(?:reply stop to opt out|stop to opt out)\b/i.test(text)
+        ? text : `${text}\nReply STOP to opt out.`;
+      validateXReply({ text: replyText, replyToId: id, maxCharacters: botConfig.xMaxPostCharacters });
+      const user = await connectedXUser();
+      const livePost = await xClient.readPost(id);
+      const assessment = await assessLiveReplyCandidate(livePost, { xClient, user });
+      if (!assessment.eligible || livePost.author.id !== record.authorId) {
+        sendJson(response, 409, { error: "The original post is no longer eligible for a reply." });
+        return true;
+      }
+      const followers = await xClient.followerIds(user.id);
+      if (!followers.has(record.authorId)) {
+        sendJson(response, 409, { error: "The author is not in the verified follower list." });
+        return true;
+      }
+      const claim = await botStore.claimXReply(id);
+      if (!claim.allowed) {
+        sendJson(response, 409, { error: `Reply held: ${claim.reason}.` });
+        return true;
+      }
+      try {
+        const sent = await xClient.reply({ text: replyText, replyToId: id });
+        await botStore.finishXReply(claim.claimId, { replyId: sent.id, replyUrl: sent.url });
+        sendJson(response, 200, { ok: true, reply: sent });
+      } catch (error) {
+        await botStore.finishXReply(claim.claimId, { error: error.message });
+        throw error;
+      }
+    } catch (error) {
+      const known = error instanceof XError || error instanceof OpenRouterError || error instanceof UserInputError;
+      sendJson(response, known ? error.status || 400 : 502, {
+        error: known ? error.message : "The reply action could not finish. Check the inbox before retrying."
+      });
+    }
+    return true;
+  }
+
   if (request.method === "POST" && url.pathname === "/api/admin/x/post-test") {
     if (!requestOriginAllowed(request)) {
       sendJson(response, 403, { error: "Origin not allowed." });
@@ -677,6 +867,13 @@ telegram.start().catch((error) => {
   if (botConfig.requireTelegram) process.exitCode = 1;
 });
 xAutomation.start();
+if (botConfig.xAiRepliesEnabled && botConfig.xAiReplyApprovalReference.length >= 8) {
+  const pollMs = botConfig.xAiReplyPollMinutes * 60_000;
+  const initialTimer = setTimeout(runAutoReplyCycle, Math.min(pollMs, 5 * 60_000));
+  initialTimer.unref();
+  const pollTimer = setInterval(runAutoReplyCycle, pollMs);
+  pollTimer.unref();
+}
 
 let shuttingDown = false;
 async function shutdown(signal) {

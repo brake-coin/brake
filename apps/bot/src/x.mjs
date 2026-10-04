@@ -86,6 +86,22 @@ export function validateTopLevelXPost({ text, replyToId = null } = {}) {
   }
 }
 
+export function validateXReply({ text, replyToId, maxCharacters = 280 } = {}) {
+  const cleanText = String(text || "").trim();
+  const targetId = String(replyToId || "");
+  if (!/^\d{1,19}$/.test(targetId)) throw new XError("Choose a valid X post to reply to.", 400);
+  if (!cleanText || xWeightedLength(cleanText) > maxCharacters) {
+    throw new XError("The reply needs text within the X post limit.", 400);
+  }
+  if (hasUnsupportedFeeUseClaim(cleanText)) {
+    throw new XError("The reply makes an unsupported claim about creator fees.", 400);
+  }
+  if (xMentionsInText(cleanText).length) {
+    throw new XError("Write the reply without added @mentions.", 400);
+  }
+  return cleanText;
+}
+
 export function validateXQuoteSource(post, { expectedUsername = "" } = {}) {
   if (!post?.id || !post?.url || !post?.author?.username) {
     throw new XError("X could not verify the source post and its author.", 400);
@@ -132,7 +148,9 @@ function publicPosts(payload, fallbackUsername = null) {
       author: {
         id: post.author_id ? String(post.author_id) : null,
         username: username || null,
-        name: author.name || null
+        name: author.name || null,
+        createdAt: author.created_at || null,
+        metrics: author.public_metrics || null
       },
       metrics: post.public_metrics || null,
       possiblySensitive: Boolean(post.possibly_sensitive),
@@ -185,7 +203,7 @@ export class XError extends Error {
   }
 }
 
-export function validateXPostReceipt(post, { id, expectedUsername = "" } = {}) {
+export function validateXPostReceipt(post, { id, expectedUsername = "", replyToId = null } = {}) {
   const postId = String(id || "");
   const authorUsername = String(post?.author?.username || "").replace(/^@/, "");
   const requiredUsername = String(expectedUsername || "").replace(/^@/, "");
@@ -198,7 +216,9 @@ export function validateXPostReceipt(post, { id, expectedUsername = "" } = {}) {
     || !reference
     || reference.id !== postId
     || post.url !== expectedUrl
-    || post.isReply
+    || (replyToId
+      ? !post.references?.some((reference) => reference.type === "replied_to" && reference.id === replyToId)
+      : post.isReply)
     || (requiredUsername && authorUsername.toLowerCase() !== requiredUsername.toLowerCase())) {
     const error = new XError("X returned a post receipt for an unexpected URL or account.", 502);
     error.postId = postId;
@@ -260,6 +280,63 @@ export class XClient {
     };
   }
 
+  async reply({ text, replyToId }) {
+    const targetId = String(replyToId || "");
+    const cleanText = validateXReply({ text, replyToId: targetId, maxCharacters: this.config.xMaxPostCharacters });
+    if (!await this.connected()) throw new XError("X posting is not connected or enabled.", 503);
+    const payload = await this.#json("/2/tweets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: cleanText,
+        made_with_ai: true,
+        reply: { in_reply_to_tweet_id: targetId }
+      })
+    });
+    const id = String(payload?.data?.id || "");
+    if (!id) throw new XError("X accepted the reply but returned no post ID.");
+    const verifiedPost = await this.#verifyCreatedPost(id, { replyToId: targetId });
+    return {
+      id,
+      url: verifiedPost.url,
+      text: verifiedPost.text || cleanText,
+      verified: true,
+      verifiedAt: new Date().toISOString(),
+      author: verifiedPost.author
+    };
+  }
+
+  async mentions(userId, { limit = 100 } = {}) {
+    const id = String(userId || "");
+    if (!/^\d{1,19}$/.test(id)) throw new XError("Connect the X account to read mentions.", 400);
+    const query = new URLSearchParams({
+      max_results: String(Math.max(5, Math.min(100, Number(limit) || 100))),
+      "tweet.fields": "author_id,created_at,referenced_tweets,possibly_sensitive",
+      expansions: "author_id",
+      "user.fields": "username,name,created_at,public_metrics"
+    });
+    const payload = await this.#json(`/2/users/${id}/mentions?${query}`);
+    return publicPosts(payload);
+  }
+
+  async followerIds(userId, { maxPages = 5 } = {}) {
+    const id = String(userId || "");
+    if (!/^\d{1,19}$/.test(id)) throw new XError("Connect the X account to check followers.", 400);
+    const ids = new Set();
+    let token = null;
+    for (let page = 0; page < maxPages; page += 1) {
+      const query = new URLSearchParams({ max_results: "1000" });
+      if (token) query.set("pagination_token", token);
+      const payload = await this.#json(`/2/users/${id}/followers?${query}`);
+      for (const user of payload?.data || []) {
+        if (user?.id) ids.add(String(user.id));
+      }
+      token = payload?.meta?.next_token || null;
+      if (!token) break;
+    }
+    return ids;
+  }
+
   async readPost(value) {
     const reference = xPostReference(value);
     if (!reference) throw new XError("Use a valid X post URL or numeric post ID.", 400);
@@ -319,7 +396,7 @@ export class XClient {
     };
   }
 
-  async #verifyCreatedPost(id) {
+  async #verifyCreatedPost(id, { replyToId = null } = {}) {
     const attempts = Math.max(1, Math.min(5, Number(this.config.xPostVerifyAttempts) || 3));
     const configuredDelay = Number(this.config.xPostVerifyDelayMs);
     const delayMs = Number.isFinite(configuredDelay)
@@ -332,7 +409,8 @@ export class XClient {
         if (post?.id === String(id)) {
           return validateXPostReceipt(post, {
             id,
-            expectedUsername: this.config.xExpectedUsername
+            expectedUsername: this.config.xExpectedUsername,
+            replyToId
           });
         }
       } catch (error) {

@@ -1200,6 +1200,22 @@ footer {
   margin-top: 4px;
 }
 
+.x-reply-card {
+  border: 1px solid var(--line);
+  padding: 16px;
+  margin-top: 14px;
+  overflow-wrap: anywhere;
+}
+
+.x-reply-card textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 12px 0;
+  padding: 10px;
+  font: inherit;
+}
+
 .admin-notes {
   grid-column: 2;
   padding-top: 20px;
